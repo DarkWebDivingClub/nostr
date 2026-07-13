@@ -23,10 +23,6 @@ The project is split up into several crates:
 - [**nostr-sdk**](./sdk): A full-featured SDK for building high-performance and reliable nostr applications
 - [**nwc**](./crates/nwc): Nostr Wallet Connect (NWC) client (NIP-47)
 
-> Note: this repository contains the Rust codebase.
-> There are several other projects (i.e., bindings, CLI, etc.)
-> which are maintained in other repositories <https://rust-nostr.org/projects>.
-
 ### Embedded
 
 **nostr** crate can be used in [`no_std`](https://docs.rust-embedded.org/book/intro/no-std.html) environments.
@@ -34,7 +30,7 @@ Check the example in the [`embedded/`](./crates/nostr/examples/embedded) directo
 
 ## Book
 
-Learn more about `rust-nostr` at <https://rust-nostr.org>.
+Learn more about `rust-nostr` at <https://nostrdevkit.org>.
 
 ## Supported NIPs
 
@@ -136,7 +132,7 @@ Some features are behind crate flags or only available when using a specific cra
 
 ## Donations
 
-`rust-nostr` is free and open-source. This means we do not earn any revenue by selling it. Instead, we rely on your financial support. If you actively use any of the `rust-nostr` libs/software/services, then please [donate](https://rust-nostr.org/donate).
+`rust-nostr` is free and open-source. This means we do not earn any revenue by selling it. Instead, we rely on your financial support. If you actively use any of the `rust-nostr` libs/software/services, then please [donate](https://nostrdevkit.org/donate).
 
 ## License
 

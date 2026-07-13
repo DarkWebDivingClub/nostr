@@ -31,16 +31,16 @@
 
 ### Changed
 
-- Respect the filter limit (https://github.com/rust-nostr/nostr/pull/1200)
-- Bump MSRV to 1.85.0 (https://github.com/rust-nostr/nostr/pull/1267)
+- Respect the filter limit (https://github.com/nostrdevkit/nostr/pull/1200)
+- Bump MSRV to 1.85.0 (https://github.com/nostrdevkit/nostr/pull/1267)
 
 ### Added
 
-- Add search (NIP-50) capability (https://github.com/rust-nostr/nostr/pull/1196)
+- Add search (NIP-50) capability (https://github.com/nostrdevkit/nostr/pull/1196)
 
 ### Removed
 
-- Remove `hex` dependency (https://github.com/rust-nostr/nostr/pull/1319)
+- Remove `hex` dependency (https://github.com/nostrdevkit/nostr/pull/1319)
 
 ## v0.44.0 - 2025/11/06
 

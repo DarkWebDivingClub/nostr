@@ -416,7 +416,7 @@ impl MatchEventOptions {
 ///
 /// <https://github.com/nostr-protocol/nips/blob/master/01.md>
 //
-// NOTE: the various fields are `Option` for the reason described at https://github.com/rust-nostr/nostr/issues/302
+// NOTE: the various fields are `Option` for the reason described at https://github.com/nostrdevkit/nostr/issues/302
 //
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Filter {

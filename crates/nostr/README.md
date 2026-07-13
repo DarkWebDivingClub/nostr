@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/nostr.svg)](https://crates.io/crates/nostr)
 [![crates.io - Downloads](https://img.shields.io/crates/d/nostr)](https://crates.io/crates/nostr)
 [![Documentation](https://docs.rs/nostr/badge.svg)](https://docs.rs/nostr)
-[![CI](https://github.com/rust-nostr/nostr/actions/workflows/ci.yml/badge.svg)](https://github.com/rust-nostr/nostr/actions/workflows/ci.yml)
+[![CI](https://github.com/nostrdevkit/nostr/actions/workflows/ci.yml/badge.svg)](https://github.com/nostrdevkit/nostr/actions/workflows/ci.yml)
 [![MIT](https://img.shields.io/crates/l/nostr.svg)](../../LICENSE)
 
 ## Description
@@ -61,7 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-More examples can be found in the [examples/](https://github.com/rust-nostr/nostr/tree/master/crates/nostr/examples) directory.
+More examples can be found in the [examples/](https://github.com/nostrdevkit/nostr/tree/master/crates/nostr/examples) directory.
 
 ## Crate Feature Flags
 
@@ -135,7 +135,7 @@ The other platforms should work out of the box.
 
 This crate support [`no_std`](https://docs.rust-embedded.org/book/intro/no-std.html) environments.
 
-Check the example in the [embedded/](https://github.com/rust-nostr/nostr/tree/master/crates/nostr/examples/embedded) directory.
+Check the example in the [embedded/](https://github.com/nostrdevkit/nostr/tree/master/crates/nostr/examples/embedded) directory.
 
 ## Changelog
 
@@ -147,7 +147,7 @@ All notable changes to this library are documented in the [CHANGELOG.md](CHANGEL
 
 ## Donations
 
-`rust-nostr` is free and open-source. This means we do not earn any revenue by selling it. Instead, we rely on your financial support. If you actively use any of the `rust-nostr` libs/software/services, then please [donate](https://rust-nostr.org/donate).
+`rust-nostr` is free and open-source. This means we do not earn any revenue by selling it. Instead, we rely on your financial support. If you actively use any of the `rust-nostr` libs/software/services, then please [donate](https://nostrdevkit.org/donate).
 
 ## License
 

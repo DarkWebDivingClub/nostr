@@ -31,15 +31,15 @@
 
 ### Breaking changes
 
-- Change `NostrGossip::get_best_relays` signature (https://github.com/rust-nostr/nostr/pull/1128)
+- Change `NostrGossip::get_best_relays` signature (https://github.com/nostrdevkit/nostr/pull/1128)
 
 ## Changed
 
-- Bump MSRV to 1.85.0 (https://github.com/rust-nostr/nostr/pull/1267)
+- Bump MSRV to 1.85.0 (https://github.com/nostrdevkit/nostr/pull/1267)
 
 ### Added
 
-- Add `GossipAllowedRelays` struct to allow relays filtering during selection (https://github.com/rust-nostr/nostr/pull/1128)
+- Add `GossipAllowedRelays` struct to allow relays filtering during selection (https://github.com/nostrdevkit/nostr/pull/1128)
 
 ## v0.44.0 - 2025/11/06
 

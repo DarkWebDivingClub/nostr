@@ -30,12 +30,12 @@
 
 ### Breaking changes
 
-- Replace `NostrSigner` implementation with `AsyncNostrSigner` (https://github.com/rust-nostr/nostr/pull/1329)
-- Move browser/extension-related errors to a dedicated enum (https://github.com/rust-nostr/nostr/pull/1327)
+- Replace `NostrSigner` implementation with `AsyncNostrSigner` (https://github.com/nostrdevkit/nostr/pull/1329)
+- Move browser/extension-related errors to a dedicated enum (https://github.com/nostrdevkit/nostr/pull/1327)
 
 ### Changed
 
-- Bump MSRV to 1.85.0 (https://github.com/rust-nostr/nostr/pull/1267)
+- Bump MSRV to 1.85.0 (https://github.com/nostrdevkit/nostr/pull/1267)
 
 ## v0.44.1 - 2025/11/09
 

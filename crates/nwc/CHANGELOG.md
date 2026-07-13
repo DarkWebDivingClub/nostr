@@ -31,21 +31,21 @@
 
 ### Breaking changes
 
-- Replace `NostrWalletConnectOptions` with `NostrWalletConnectBuilder` (https://github.com/rust-nostr/nostr/pull/1140)
-- Remove `NostrWalletConnect::with_opts` (https://github.com/rust-nostr/nostr/pull/1140)
-- Remove `tor` feature (https://github.com/rust-nostr/nostr/pull/1253)
+- Replace `NostrWalletConnectOptions` with `NostrWalletConnectBuilder` (https://github.com/nostrdevkit/nostr/pull/1140)
+- Remove `NostrWalletConnect::with_opts` (https://github.com/nostrdevkit/nostr/pull/1140)
+- Remove `tor` feature (https://github.com/nostrdevkit/nostr/pull/1253)
 - Replace `handle_notifications` with a `Stream`-based notifications API
 
 ### Changed
 
 - Rename `NWC` to `NostrWalletConnect`
-- Bump MSRV to 1.85.0 (https://github.com/rust-nostr/nostr/pull/1267)
+- Bump MSRV to 1.85.0 (https://github.com/nostrdevkit/nostr/pull/1267)
 - Change default timeout to 10 secs
 - Redesign `get_balance`, `get_info`, `list_transactions`, `lookup_invoice`, `make_invoice`, `pay_invoice` and `pay_keysend` APIs
 
 ### Added
 
-- Add `NostrWalletConnect::builder` constructor (https://github.com/rust-nostr/nostr/pull/1140)
+- Add `NostrWalletConnect::builder` constructor (https://github.com/nostrdevkit/nostr/pull/1140)
 - Add `NostrWalletConnect::notifications` method
 - Add `NostrWalletConnect::client` method
 
@@ -57,25 +57,25 @@
 
 ### Changed
 
-- Subscribe to the response using the request event ID (https://github.com/rust-nostr/nostr/pull/1073)
+- Subscribe to the response using the request event ID (https://github.com/nostrdevkit/nostr/pull/1073)
 
 ### Added
 
-- Add `NWC::reconnect_relay` (https://github.com/rust-nostr/nostr/pull/1020)
+- Add `NWC::reconnect_relay` (https://github.com/nostrdevkit/nostr/pull/1020)
 - Add `NWC::uri`
 
 ## v0.43.1 - 2025/10/03
 
 ### Fixed
 
-- Fix the compatibility issues with some NWC services, like Primal (https://github.com/rust-nostr/nostr/pull/1073 and https://github.com/rust-nostr/nostr/pull/1088)
+- Fix the compatibility issues with some NWC services, like Primal (https://github.com/nostrdevkit/nostr/pull/1073 and https://github.com/nostrdevkit/nostr/pull/1088)
 
 ## v0.43.0 - 2025/07/28
 
 ### Added
 
-- Add notification support for real-time payment updates (https://github.com/rust-nostr/nostr/pull/953)
-- Add Monitor to NostrWalletConnectOptions (https://github.com/rust-nostr/nostr/pull/989)
+- Add notification support for real-time payment updates (https://github.com/nostrdevkit/nostr/pull/953)
+- Add Monitor to NostrWalletConnectOptions (https://github.com/nostrdevkit/nostr/pull/989)
 - Add `NostrWalletConnectOptions::relay` method
 
 ### Deprecated

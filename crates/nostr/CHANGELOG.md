@@ -31,22 +31,22 @@
 
 ### Breaking changes
 
-- Remove `NostrSigner` trait (https://github.com/rust-nostr/nostr/pull/1366)
-- Make `EventBuilder::sign` and `UnsignedEvent::sign` synchronous and add `sign_async` variants for asynchronous signers (https://github.com/rust-nostr/nostr/pull/1329)
+- Remove `NostrSigner` trait (https://github.com/nostrdevkit/nostr/pull/1366)
+- Make `EventBuilder::sign` and `UnsignedEvent::sign` synchronous and add `sign_async` variants for asynchronous signers (https://github.com/nostrdevkit/nostr/pull/1329)
 - Change the output and behavior of nip17::extract_relay_list and nip17::extract_owned_relay_list functions
-- Add `rand` feature (https://github.com/rust-nostr/nostr/pull/1167)
-- Add `os-rng` feature (https://github.com/rust-nostr/nostr/pull/1171)
-- Replace `TryIntoUrl` trait with `RelayUrlArg` enum (https://github.com/rust-nostr/nostr/pull/1217)
-- Remove `Copy` trait from `MachineReadablePrefix` enum (https://github.com/rust-nostr/nostr/pull/1258)
-- Remove `EventBuilder::pow` in favor of `UnsignedEvent::mine` and `UnsignedEvent::mine_async` (https://github.com/rust-nostr/nostr/pull/1334)
-- Replace `kinds: Option<Vec<String>>` in `FeeSchedule` with `kinds: Option<Vec<u16>>` in `RelayInformationDocument` (https://github.com/rust-nostr/nostr/pull/1336)
+- Add `rand` feature (https://github.com/nostrdevkit/nostr/pull/1167)
+- Add `os-rng` feature (https://github.com/nostrdevkit/nostr/pull/1171)
+- Replace `TryIntoUrl` trait with `RelayUrlArg` enum (https://github.com/nostrdevkit/nostr/pull/1217)
+- Remove `Copy` trait from `MachineReadablePrefix` enum (https://github.com/nostrdevkit/nostr/pull/1258)
+- Remove `EventBuilder::pow` in favor of `UnsignedEvent::mine` and `UnsignedEvent::mine_async` (https://github.com/nostrdevkit/nostr/pull/1334)
+- Replace `kinds: Option<Vec<String>>` in `FeeSchedule` with `kinds: Option<Vec<u16>>` in `RelayInformationDocument` (https://github.com/nostrdevkit/nostr/pull/1336)
 - Drop support for NIP-03, NIP-15, NIP-31, NIP-90 and NIP-96
-- Remove TagStandard enum in favor of per-NIP tag enums (https://github.com/rust-nostr/nostr/pull/1347)
-- Remove TagKind (https://github.com/rust-nostr/nostr/pull/1347)
-- Drop support for private and anon zaps (https://github.com/rust-nostr/nostr/pull/1355)
-- Remove `EventBuilder::sign_with_keys` and `EventBuilder::sign_with_ctx` (https://github.com/rust-nostr/nostr/pull/1355)
-- Remove `UnsignedEvent::sign_with_keys`, `UnsignedEvent::sign_with_ctx` and `UnsignedEvent::sign_with_aux_rand` (https://github.com/rust-nostr/nostr/pull/1355)
-- Remove `JsonUtil` trait (https://github.com/rust-nostr/nostr/pull/1365)
+- Remove TagStandard enum in favor of per-NIP tag enums (https://github.com/nostrdevkit/nostr/pull/1347)
+- Remove TagKind (https://github.com/nostrdevkit/nostr/pull/1347)
+- Drop support for private and anon zaps (https://github.com/nostrdevkit/nostr/pull/1355)
+- Remove `EventBuilder::sign_with_keys` and `EventBuilder::sign_with_ctx` (https://github.com/nostrdevkit/nostr/pull/1355)
+- Remove `UnsignedEvent::sign_with_keys`, `UnsignedEvent::sign_with_ctx` and `UnsignedEvent::sign_with_aux_rand` (https://github.com/nostrdevkit/nostr/pull/1355)
+- Remove `JsonUtil` trait (https://github.com/nostrdevkit/nostr/pull/1365)
 
 ### Changed
 
@@ -55,16 +55,16 @@
 - Rename `NostrConnectURI` to `NostrConnectUri`
 - Rename `NostrWalletConnectURI` to `NostrWalletConnectUri`
 - Prevent overflow in `Kind` addition
-- Refinements for `wasm32` targets (https://github.com/rust-nostr/nostr/pull/1164 and https://github.com/rust-nostr/nostr/pull/1167)
-- Make `Kind::from_u16` and `Kind::as_u16` const (https://github.com/rust-nostr/nostr/pull/1136)
-- Bump MSRV to 1.85.0 (https://github.com/rust-nostr/nostr/pull/1267)
-- `RelayUrl::is_local_addr` now works on `no_std` builds (https://github.com/rust-nostr/nostr/pull/1267)
-- Replace `hex` dependency with `faster-hex` (https://github.com/rust-nostr/nostr/pull/1319)
+- Refinements for `wasm32` targets (https://github.com/nostrdevkit/nostr/pull/1164 and https://github.com/nostrdevkit/nostr/pull/1167)
+- Make `Kind::from_u16` and `Kind::as_u16` const (https://github.com/nostrdevkit/nostr/pull/1136)
+- Bump MSRV to 1.85.0 (https://github.com/nostrdevkit/nostr/pull/1267)
+- `RelayUrl::is_local_addr` now works on `no_std` builds (https://github.com/nostrdevkit/nostr/pull/1267)
+- Replace `hex` dependency with `faster-hex` (https://github.com/nostrdevkit/nostr/pull/1319)
 - Migrate error types from `std::error::Error` to `core::error::Error`
 
 ### Added
 
-- Add `GetPublicKey`, `SignEvent`, `AsyncGetPublicKey`, `AsyncSignEvent`, `Nip04`, `AsyncNip04`, `Nip44` and `AsyncNip44` traits (https://github.com/rust-nostr/nostr/pull/1329)
+- Add `GetPublicKey`, `SignEvent`, `AsyncGetPublicKey`, `AsyncSignEvent`, `Nip04`, `AsyncNip04`, `Nip44` and `AsyncNip44` traits (https://github.com/nostrdevkit/nostr/pull/1329)
 - Impl `TryFrom<i64>` for `Timestamp`
 - Impl `IntoNostrSigner` for `Arc<T>`
 - Impl `Index<usize>` and `IndexMut<usize>` for `Tags`
@@ -72,60 +72,60 @@
 - Add `RelayUrl::is_localhost`
 - Add NIP-29 kinds
 - Add `EventBuilder::git_pull_request`, `EventBuilder::git_pull_request_update` and `EventBuilder::git_user_grasp_list` (https://gitworkshop.dev/yukikishimoto.com/nostr/prs/note1jwe7k8fuynzze6w8pfxp2zkfehk9cteuuxuamvjkavefxq9a7m7qffreyq)
-- Add `RelayUrlScheme` enum and `RelayUrl::scheme` method (https://github.com/rust-nostr/nostr/pull/1127)
-- Add `Method::Unknown` variant (https://github.com/rust-nostr/nostr/pull/1162)
-- Add `Kind::Highlight` variant (https://github.com/rust-nostr/nostr/pull/1191)
-- Implement `fmt::Display` for `CoordinateBorrow` (https://github.com/rust-nostr/nostr/pull/1194)
-- Add `Kind::BlossomServerList` variant (https://github.com/rust-nostr/nostr/pull/1195)
-- Add `EventBuilder::blossom_server_list` function (https://github.com/rust-nostr/nostr/pull/1195)
-- Add support for `nprofile` parsing in `PublicKey::from_bech32` (https://github.com/rust-nostr/nostr/pull/1248)
+- Add `RelayUrlScheme` enum and `RelayUrl::scheme` method (https://github.com/nostrdevkit/nostr/pull/1127)
+- Add `Method::Unknown` variant (https://github.com/nostrdevkit/nostr/pull/1162)
+- Add `Kind::Highlight` variant (https://github.com/nostrdevkit/nostr/pull/1191)
+- Implement `fmt::Display` for `CoordinateBorrow` (https://github.com/nostrdevkit/nostr/pull/1194)
+- Add `Kind::BlossomServerList` variant (https://github.com/nostrdevkit/nostr/pull/1195)
+- Add `EventBuilder::blossom_server_list` function (https://github.com/nostrdevkit/nostr/pull/1195)
+- Add support for `nprofile` parsing in `PublicKey::from_bech32` (https://github.com/nostrdevkit/nostr/pull/1248)
 - Add support for `nevent` parsing in `EventId::from_bech32`
-- Add `MachineReadablePrefix::Custom` variant (https://github.com/rust-nostr/nostr/pull/1258)
-- Add `RelayMetadata::{is_read, is_write}` functions (https://github.com/rust-nostr/nostr/pull/1290)
-- Add the kind number in the kind doc (https://github.com/rust-nostr/nostr/pull/1293)
-- Add `PowAdapter` and `AsyncPowAdapter` traits (https://github.com/rust-nostr/nostr/pull/1334)
-- Add `UnsignedEvent::mine` and `UnsignedEvent::mine_async` (https://github.com/rust-nostr/nostr/pull/1334)
-- Add `banner`, `self`, `terms_of_service` to `RelayInformationDocument` (https://github.com/rust-nostr/nostr/pull/1336)
-- Add `restricted_writes`, `default_limit` to `Limitation` (https://github.com/rust-nostr/nostr/pull/1336)
-- Add NIP-66 kinds and relay discovery tags (https://github.com/rust-nostr/nostr/pull/1346)
-- Add `Filter::tag` to add a generic single-letter tag from an already-constructed `Tag` (https://github.com/rust-nostr/nostr/issues/1359)
-- Add `GiftWrapBuilder::expiration` and `PrivateDirectMessageBuilder::expiration` to set a NIP-40 expiration relative to the gift wrap's `created_at` (https://github.com/rust-nostr/nostr/pull/1384)
+- Add `MachineReadablePrefix::Custom` variant (https://github.com/nostrdevkit/nostr/pull/1258)
+- Add `RelayMetadata::{is_read, is_write}` functions (https://github.com/nostrdevkit/nostr/pull/1290)
+- Add the kind number in the kind doc (https://github.com/nostrdevkit/nostr/pull/1293)
+- Add `PowAdapter` and `AsyncPowAdapter` traits (https://github.com/nostrdevkit/nostr/pull/1334)
+- Add `UnsignedEvent::mine` and `UnsignedEvent::mine_async` (https://github.com/nostrdevkit/nostr/pull/1334)
+- Add `banner`, `self`, `terms_of_service` to `RelayInformationDocument` (https://github.com/nostrdevkit/nostr/pull/1336)
+- Add `restricted_writes`, `default_limit` to `Limitation` (https://github.com/nostrdevkit/nostr/pull/1336)
+- Add NIP-66 kinds and relay discovery tags (https://github.com/nostrdevkit/nostr/pull/1346)
+- Add `Filter::tag` to add a generic single-letter tag from an already-constructed `Tag` (https://github.com/nostrdevkit/nostr/issues/1359)
+- Add `GiftWrapBuilder::expiration` and `PrivateDirectMessageBuilder::expiration` to set a NIP-40 expiration relative to the gift wrap's `created_at` (https://github.com/nostrdevkit/nostr/pull/1384)
 
 ### Removed
 
 - Remove unnecessary `#[cfg(feature = "std")]` from `UnsignedEvent::sign` method
-- Remove `url-fork` dependency (https://github.com/rust-nostr/nostr/pull/1179)
+- Remove `url-fork` dependency (https://github.com/nostrdevkit/nostr/pull/1179)
 - Remove nip47 `multi_*` methods following spec cleanup (https://github.com/nostr-protocol/nips/pull/2210)
-- Remove `once_cell` dependency (https://github.com/rust-nostr/nostr/pull/1267)
-- Remove `kind` field in `CommentTarget::Coordinate` variant (https://github.com/rust-nostr/nostr/pull/1294)
-- Remove `Timestamp::as_u64` (https://github.com/rust-nostr/nostr/pull/1295)
-- Remove `Nip19Event::from_event` (https://github.com/rust-nostr/nostr/pull/1296)
-- Remove `relay_countries`, `retention`, `language_tags`, `tags`, `posting_policy` from `RelayInformationDocument` (https://github.com/rust-nostr/nostr/pull/1336)
-- Remove `Retention`, `RetentionKind` from `nip11` (https://github.com/rust-nostr/nostr/pull/1336)
-- Remove `max_filters` from `Limitation` (https://github.com/rust-nostr/nostr/pull/1336)
+- Remove `once_cell` dependency (https://github.com/nostrdevkit/nostr/pull/1267)
+- Remove `kind` field in `CommentTarget::Coordinate` variant (https://github.com/nostrdevkit/nostr/pull/1294)
+- Remove `Timestamp::as_u64` (https://github.com/nostrdevkit/nostr/pull/1295)
+- Remove `Nip19Event::from_event` (https://github.com/nostrdevkit/nostr/pull/1296)
+- Remove `relay_countries`, `retention`, `language_tags`, `tags`, `posting_policy` from `RelayInformationDocument` (https://github.com/nostrdevkit/nostr/pull/1336)
+- Remove `Retention`, `RetentionKind` from `nip11` (https://github.com/nostrdevkit/nostr/pull/1336)
+- Remove `max_filters` from `Limitation` (https://github.com/nostrdevkit/nostr/pull/1336)
 
 ### Fixed
 
-- Remove unused generic in `EventBuilder::request_vanish` function (https://github.com/rust-nostr/nostr/pull/1181)
+- Remove unused generic in `EventBuilder::request_vanish` function (https://github.com/nostrdevkit/nostr/pull/1181)
 
 ### Performance
 
-- Optimize NIP-21 URI parsing in `PublicKey::parse` (https://github.com/rust-nostr/nostr/pull/1308)
-- Optimize event serialization by ~73% (https://github.com/rust-nostr/nostr/pull/1319)
+- Optimize NIP-21 URI parsing in `PublicKey::parse` (https://github.com/nostrdevkit/nostr/pull/1308)
+- Optimize event serialization by ~73% (https://github.com/nostrdevkit/nostr/pull/1319)
 
 ## v0.44.3 - 2026/05/19
 
 ### Fixed
 
-- Add `a` tag of replaceable and addressable events in `EventBuilder::repost` (https://github.com/rust-nostr/nostr/pull/1184)
-- Handle legacy events with `mention` marker (https://github.com/rust-nostr/nostr/pull/1193)
-- Parse "HEAD" as `TagKing::Head` (https://github.com/rust-nostr/nostr/pull/1215)
+- Add `a` tag of replaceable and addressable events in `EventBuilder::repost` (https://github.com/nostrdevkit/nostr/pull/1184)
+- Handle legacy events with `mention` marker (https://github.com/nostrdevkit/nostr/pull/1193)
+- Parse "HEAD" as `TagKing::Head` (https://github.com/nostrdevkit/nostr/pull/1215)
 
 ## v0.44.2 - 2025/12/04
 
 ### Fixed
 
-- Fix parsing of e tag with blank values (https://github.com/rust-nostr/nostr/pull/1158)
+- Fix parsing of e tag with blank values (https://github.com/nostrdevkit/nostr/pull/1158)
 
 ## v0.44.1 - 2025/11/09
 
@@ -137,25 +137,25 @@
 
 ### Breaking changes
 
-- Change the `address` field type in `CommentTarget::Coordinate` to `CoordinateBorrow` (https://github.com/rust-nostr/nostr/pull/1034)
-- Change the `EventBuilder::comment` function `root` and `comment_to` parameters types from `&Event` to `CommentTarget<'_>` (https://github.com/rust-nostr/nostr/pull/1047)
-- Set `payment_hash` as optional in `MakeInvoiceResponse` (https://github.com/rust-nostr/nostr/pull/1045)
-- Remove `hex` module (https://github.com/rust-nostr/nostr/pull/1051)
-- Use `Cow` for non-copy fields in `nip22::CommentTarget` enum (https://github.com/rust-nostr/nostr/pull/1053)
-- Change `EventBuilder::reaction` args (https://github.com/rust-nostr/nostr/pull/1063)
-- Remove `EventBuilder::reaction_extended` (https://github.com/rust-nostr/nostr/pull/1063)
+- Change the `address` field type in `CommentTarget::Coordinate` to `CoordinateBorrow` (https://github.com/nostrdevkit/nostr/pull/1034)
+- Change the `EventBuilder::comment` function `root` and `comment_to` parameters types from `&Event` to `CommentTarget<'_>` (https://github.com/nostrdevkit/nostr/pull/1047)
+- Set `payment_hash` as optional in `MakeInvoiceResponse` (https://github.com/nostrdevkit/nostr/pull/1045)
+- Remove `hex` module (https://github.com/nostrdevkit/nostr/pull/1051)
+- Use `Cow` for non-copy fields in `nip22::CommentTarget` enum (https://github.com/nostrdevkit/nostr/pull/1053)
+- Change `EventBuilder::reaction` args (https://github.com/nostrdevkit/nostr/pull/1063)
+- Remove `EventBuilder::reaction_extended` (https://github.com/nostrdevkit/nostr/pull/1063)
 - Change NIP-47 `GetInfoResponse` `pubkey` type from `PublicKey` to `String`
-- Change `methods` type to `Vec<Method>` in `GetInfoResponse` (https://github.com/rust-nostr/nostr/pull/1094)
-- Merge `ClientMessage::Req` and `ClientMessage::ReqMultiFilter` variants (https://github.com/rust-nostr/nostr/pull/1101)
-- Rename `public_key` to `remote_signer_public_key` in `NostrConnectRequest::Connect` variant (https://github.com/rust-nostr/nostr/pull/1111)
+- Change `methods` type to `Vec<Method>` in `GetInfoResponse` (https://github.com/nostrdevkit/nostr/pull/1094)
+- Merge `ClientMessage::Req` and `ClientMessage::ReqMultiFilter` variants (https://github.com/nostrdevkit/nostr/pull/1101)
+- Rename `public_key` to `remote_signer_public_key` in `NostrConnectRequest::Connect` variant (https://github.com/nostrdevkit/nostr/pull/1111)
 
 ### Added
 
-- Add NIP-B0 support (https://github.com/rust-nostr/nostr/pull/1077)
-- Add NIP-7D support (https://github.com/rust-nostr/nostr/pull/1071)
-- Add NIP-C7 support (https://github.com/rust-nostr/nostr/pull/1067)
-- Add NIP-60 support (https://github.com/rust-nostr/nostr/pull/1092)
-- Add NIP-A0 support (https://github.com/rust-nostr/nostr/pull/1032)
+- Add NIP-B0 support (https://github.com/nostrdevkit/nostr/pull/1077)
+- Add NIP-7D support (https://github.com/nostrdevkit/nostr/pull/1071)
+- Add NIP-C7 support (https://github.com/nostrdevkit/nostr/pull/1067)
+- Add NIP-60 support (https://github.com/nostrdevkit/nostr/pull/1092)
+- Add NIP-A0 support (https://github.com/nostrdevkit/nostr/pull/1032)
 - Implement `ToBech32` trait for `Nip21`
 - Implement `ToBech32` for `Coordinate`
 - Implement `ToNostrUri` for `Coordinate`
@@ -168,35 +168,35 @@
 - Add `Timestamp::as_secs`
 - Add `EventBuilder::tag_maybe`
 - Add `Kind::CashuNutZapInfo` (10019) and `Kind::CashuNutZap` (9321) variants
-- Add nip47 holdinvoice methods and notification (https://github.com/rust-nostr/nostr/pull/1019)
-- Add `TransactionState` to `LookupInvoiceResponse` and `PaymentNotification` (https://github.com/rust-nostr/nostr/pull/1045)
-- Add `description`, `description_hash`, `preimage`, `amount`, `created_at` and `expires_at` optional fields to `MakeInvoiceResponse` (https://github.com/rust-nostr/nostr/pull/1045)
-- Add `fees_paid` field to `PayKeysendResponse` (https://github.com/rust-nostr/nostr/pull/1045)
+- Add nip47 holdinvoice methods and notification (https://github.com/nostrdevkit/nostr/pull/1019)
+- Add `TransactionState` to `LookupInvoiceResponse` and `PaymentNotification` (https://github.com/nostrdevkit/nostr/pull/1045)
+- Add `description`, `description_hash`, `preimage`, `amount`, `created_at` and `expires_at` optional fields to `MakeInvoiceResponse` (https://github.com/nostrdevkit/nostr/pull/1045)
+- Add `fees_paid` field to `PayKeysendResponse` (https://github.com/nostrdevkit/nostr/pull/1045)
 - Add `nip47::Method::as_str` method
-- Add `CommentTarget::{event, coordinate, external}` to point to a specific thing (https://github.com/rust-nostr/nostr/pull/1034)
-- Add `nips::nip73::Nip73Kind` and `TagStandard::Nip73Kind` (https://github.com/rust-nostr/nostr/pull/1039)
-- Add repository state announcements kind `Kind::RepoState` (30618) (https://github.com/rust-nostr/nostr/pull/1041)
-- Add `HEAD` tag kind (https://github.com/rust-nostr/nostr/pull/1043)
-- Add `CommentTarget::as_vec` to convert the comment target into a vector of tags (https://github.com/rust-nostr/nostr/pull/1038)
-- Add `hex` dependency (https://github.com/rust-nostr/nostr/pull/1051)
-- Add `nip25::ReactionTarget` (https://github.com/rust-nostr/nostr/pull/1063)
-- Add `RelayUrl::host` function (https://github.com/rust-nostr/nostr/pull/1066)
-- Add support for multithreaded event POW mining (https://github.com/rust-nostr/nostr/pull/1075)
+- Add `CommentTarget::{event, coordinate, external}` to point to a specific thing (https://github.com/nostrdevkit/nostr/pull/1034)
+- Add `nips::nip73::Nip73Kind` and `TagStandard::Nip73Kind` (https://github.com/nostrdevkit/nostr/pull/1039)
+- Add repository state announcements kind `Kind::RepoState` (30618) (https://github.com/nostrdevkit/nostr/pull/1041)
+- Add `HEAD` tag kind (https://github.com/nostrdevkit/nostr/pull/1043)
+- Add `CommentTarget::as_vec` to convert the comment target into a vector of tags (https://github.com/nostrdevkit/nostr/pull/1038)
+- Add `hex` dependency (https://github.com/nostrdevkit/nostr/pull/1051)
+- Add `nip25::ReactionTarget` (https://github.com/nostrdevkit/nostr/pull/1063)
+- Add `RelayUrl::host` function (https://github.com/nostrdevkit/nostr/pull/1066)
+- Add support for multithreaded event POW mining (https://github.com/nostrdevkit/nostr/pull/1075)
 
 ### Changed
 
-- NIP-47 fields synchronized with current specs (https://github.com/rust-nostr/nostr/pull/1021)
-- Check that `a`/`A` and `k`/`K` tags have the same event kind in NIP-22 events (https://github.com/rust-nostr/nostr/pull/1035)
-- Deserialize NIP-47 empty strings as `None` (https://github.com/rust-nostr/nostr/pull/1079)
+- NIP-47 fields synchronized with current specs (https://github.com/nostrdevkit/nostr/pull/1021)
+- Check that `a`/`A` and `k`/`K` tags have the same event kind in NIP-22 events (https://github.com/nostrdevkit/nostr/pull/1035)
+- Deserialize NIP-47 empty strings as `None` (https://github.com/nostrdevkit/nostr/pull/1079)
 - Make `EventBuilder::reaction` target arg generic over `ReactionTarget` type
 - Make `EventBuilder::comment` and `EventBuilder::voice_message_reply` args generic over `CommentTarget` type
-- Ensure rumor matches seal author when unwrapping NIP-59 gift (https://github.com/rust-nostr/nostr/pull/1123)
+- Ensure rumor matches seal author when unwrapping NIP-59 gift (https://github.com/nostrdevkit/nostr/pull/1123)
 
 ### Deprecated
 
 - Deprecate `Timestamp::as_u64`
 - Deprecate `Nip19Event::from_event`
-- Deprecate `kind` field in `CommentTarget::Coordinate` variant (https://github.com/rust-nostr/nostr/pull/1035)
+- Deprecate `kind` field in `CommentTarget::Coordinate` variant (https://github.com/nostrdevkit/nostr/pull/1035)
 
 ## v0.43.1 - 2025/08/21
 
@@ -208,84 +208,84 @@
 
 ### Breaking changes
 
-- Move NIP-07 from `nostr` to `nip07` crate (https://github.com/rust-nostr/nostr/pull/937)
-- Remove `NostrConnectMethod::GetRelays`, `NostrConnectRequest::GetRelays` and `ResponseResult::GetRelays` (https://github.com/rust-nostr/nostr/pull/894)
-- Remove `Market::Mention` (NIP-10) (https://github.com/rust-nostr/nostr/pull/895)
-- Remove `parser` feature (https://github.com/rust-nostr/nostr/pull/899)
-- Update `Nip19Profile::new` and `Nip19Coordinate::new` signature (https://github.com/rust-nostr/nostr/pull/910)
-- Update `RelayInformationDocument::get` signature (https://github.com/rust-nostr/nostr/pull/913)
-- Remove `TagStandard::Delegation` and `TagKind::Delegation` (https://github.com/rust-nostr/nostr/pull/929)
-- Remove `nip05` cargo feature (https://github.com/rust-nostr/nostr/pull/936)
-- Convert `nip05` module to be I/O-free (https://github.com/rust-nostr/nostr/pull/936)
-- Convert `nip11` module to be I/O-free (https://github.com/rust-nostr/nostr/pull/950)
-- Convert `nip96` module to be I/O-free (https://github.com/rust-nostr/nostr/pull/935)
-- Add `MatchEventOptions` as a parameter to `Filter::match_event` function (https://github.com/rust-nostr/nostr/pull/976)
+- Move NIP-07 from `nostr` to `nip07` crate (https://github.com/nostrdevkit/nostr/pull/937)
+- Remove `NostrConnectMethod::GetRelays`, `NostrConnectRequest::GetRelays` and `ResponseResult::GetRelays` (https://github.com/nostrdevkit/nostr/pull/894)
+- Remove `Market::Mention` (NIP-10) (https://github.com/nostrdevkit/nostr/pull/895)
+- Remove `parser` feature (https://github.com/nostrdevkit/nostr/pull/899)
+- Update `Nip19Profile::new` and `Nip19Coordinate::new` signature (https://github.com/nostrdevkit/nostr/pull/910)
+- Update `RelayInformationDocument::get` signature (https://github.com/nostrdevkit/nostr/pull/913)
+- Remove `TagStandard::Delegation` and `TagKind::Delegation` (https://github.com/nostrdevkit/nostr/pull/929)
+- Remove `nip05` cargo feature (https://github.com/nostrdevkit/nostr/pull/936)
+- Convert `nip05` module to be I/O-free (https://github.com/nostrdevkit/nostr/pull/936)
+- Convert `nip11` module to be I/O-free (https://github.com/nostrdevkit/nostr/pull/950)
+- Convert `nip96` module to be I/O-free (https://github.com/nostrdevkit/nostr/pull/935)
+- Add `MatchEventOptions` as a parameter to `Filter::match_event` function (https://github.com/nostrdevkit/nostr/pull/976)
 
 ### Changed
 
-- Rework `NostrParser` (https://github.com/rust-nostr/nostr/pull/899)
-- Enhance `NostrParser` with flexible parsing options (https://github.com/rust-nostr/nostr/pull/912)
-- Impl `Any` for `NostrSigner` (https://github.com/rust-nostr/nostr/pull/918)
+- Rework `NostrParser` (https://github.com/nostrdevkit/nostr/pull/899)
+- Enhance `NostrParser` with flexible parsing options (https://github.com/nostrdevkit/nostr/pull/912)
+- Impl `Any` for `NostrSigner` (https://github.com/nostrdevkit/nostr/pull/918)
 - Make `TagKind` helper constructors `const`
 
 ### Added
 
-- Add NIP-88 support (https://github.com/rust-nostr/nostr/pull/892)
-- Add `Nip11GetOptions` (https://github.com/rust-nostr/nostr/pull/913)
-- Add `RelayUrl::domain` method (https://github.com/rust-nostr/nostr/pull/914)
-- Add `fees_paid` to `nip47::PayInvoiceResponse` (https://github.com/rust-nostr/nostr/pull/971)
+- Add NIP-88 support (https://github.com/nostrdevkit/nostr/pull/892)
+- Add `Nip11GetOptions` (https://github.com/nostrdevkit/nostr/pull/913)
+- Add `RelayUrl::domain` method (https://github.com/nostrdevkit/nostr/pull/914)
+- Add `fees_paid` to `nip47::PayInvoiceResponse` (https://github.com/nostrdevkit/nostr/pull/971)
 - Add `nip96::UploadResponseStatus::is_success` method
 
 ### Fixed
 
-- Fix support for NIP-44 on no_std env (https://github.com/rust-nostr/nostr/pull/955)
+- Fix support for NIP-44 on no_std env (https://github.com/nostrdevkit/nostr/pull/955)
 
 ### Removed
 
-- Remove regex dep (https://github.com/rust-nostr/nostr/pull/899)
+- Remove regex dep (https://github.com/nostrdevkit/nostr/pull/899)
 
 ### Deprecated
 
-- Deprecate `nip21::extract_from_text` function (https://github.com/rust-nostr/nostr/pull/923)
+- Deprecate `nip21::extract_from_text` function (https://github.com/nostrdevkit/nostr/pull/923)
 - Deprecate `Tags::from_text` constructor
-- Deprecate NIP-26 (https://github.com/rust-nostr/nostr/pull/928)
+- Deprecate NIP-26 (https://github.com/nostrdevkit/nostr/pull/928)
 
 ## v0.42.2 - 2025/06/28
 
 ### Fixed
 
-- Fix index out of bounds in `Tags::dedup` (https://github.com/rust-nostr/nostr/pull/949)
+- Fix index out of bounds in `Tags::dedup` (https://github.com/nostrdevkit/nostr/pull/949)
 
 ## v0.42.1 - 2025/05/26
 
 ### Added
 
-- Add detailed error handling for NIP-47 response deserialization (https://github.com/rust-nostr/nostr/pull/890)
+- Add detailed error handling for NIP-47 response deserialization (https://github.com/nostrdevkit/nostr/pull/890)
 
 ### Fixed
 
-- Fix NIP-47 request params serialization (https://github.com/rust-nostr/nostr/pull/891)
+- Fix NIP-47 request params serialization (https://github.com/nostrdevkit/nostr/pull/891)
 
 ## v0.42.0 - 2025/05/20
 
 ### Breaking changes
 
-- Rework nip46 module (https://github.com/rust-nostr/nostr/pull/865)
+- Rework nip46 module (https://github.com/nostrdevkit/nostr/pull/865)
 
 ### Changed
 
-- Rename `nip22::Comment` to `nip22::CommentTarget` (https://github.com/rust-nostr/nostr/pull/882)
+- Rename `nip22::Comment` to `nip22::CommentTarget` (https://github.com/nostrdevkit/nostr/pull/882)
 
 ### Added
 
-- Add `UnsignedEvent::id` method (https://github.com/rust-nostr/nostr/pull/868)
-- Add `TagKind::single_letter` constructor (https://github.com/rust-nostr/nostr/pull/871)
-- Add NIP-73 blockchain address and transaction (https://github.com/rust-nostr/nostr/pull/879)
+- Add `UnsignedEvent::id` method (https://github.com/nostrdevkit/nostr/pull/868)
+- Add `TagKind::single_letter` constructor (https://github.com/nostrdevkit/nostr/pull/871)
+- Add NIP-73 blockchain address and transaction (https://github.com/nostrdevkit/nostr/pull/879)
 
 ### Fixed
 
-- Handle `A` and `E` standard tags (https://github.com/rust-nostr/nostr/pull/870)
-- Fix `nip22::extract_root` to handle uppercase tags when `is_root` is true (https://github.com/rust-nostr/nostr/pull/876)
+- Handle `A` and `E` standard tags (https://github.com/nostrdevkit/nostr/pull/870)
+- Fix `nip22::extract_root` to handle uppercase tags when `is_root` is true (https://github.com/nostrdevkit/nostr/pull/876)
 
 ## v0.41.0 - 2025/04/15
 
@@ -301,7 +301,7 @@
 - Add `TagKind::u` constructor
 - Derive `Copy` for `HttpMethod`
 - Add `nip98::verify_auth_header`
-- Add `push`, `pop`, `insert` and `extend` methods to the `Tag` struct (https://github.com/rust-nostr/nostr/pull/817)
+- Add `push`, `pop`, `insert` and `extend` methods to the `Tag` struct (https://github.com/nostrdevkit/nostr/pull/817)
 - Add `nip47::Notification`
 - Add `MachineReadablePrefix::as_str` method
 - Derive `Hash` for `EventBuilder` and `Metadata`
@@ -309,7 +309,7 @@
 ### Fixed
 
 - Fix missing `transactions` object in serialization of nip47 ListTransactions ResponseResult
-- Fix NIP32 implementation (https://github.com/rust-nostr/nostr/commit/6979744839381ffa2b27f2d1efa5e13e522cdf24)
+- Fix NIP32 implementation (https://github.com/nostrdevkit/nostr/commit/6979744839381ffa2b27f2d1efa5e13e522cdf24)
 
 ## v0.40.0 - 2025/03/18
 
@@ -318,7 +318,7 @@
 - Update `Nip19Event` relays field type from `Vec<String>` to `Vec<RelayUrl>`
 - Change the `Err` type of `ToBech32` to `Infallible` for `SecretKey`, `PublicKey` and `EventId`
 - Update `Tags::new` signature
-- Remove `WeakTag` (https://github.com/rust-nostr/nostr/pull/755)
+- Remove `WeakTag` (https://github.com/nostrdevkit/nostr/pull/755)
 - Change `TagStandard::Relays` variant inner value from `Vec<Url>` to `Vec<RelayUrl>`
 - Split `NostrURI` into `ToNostrUri` and `FromNostrUri` traits
 - Replace generic parameter `AsRef<str>` with `&str` in `Coordinate::parse` and `Coordinate::from_kpi_format`
@@ -340,35 +340,35 @@
 
 ### Added
 
-- Add NIP-38 support (https://github.com/rust-nostr/nostr/pull/771)
+- Add NIP-38 support (https://github.com/nostrdevkit/nostr/pull/771)
 - Add NIP-60 event kinds
-- Add NIP-62 support (https://github.com/rust-nostr/nostr/pull/777)
-- Add `NostrParser` (https://github.com/rust-nostr/nostr/pull/781)
-- Add `nip21::extract_from_text` function (https://github.com/rust-nostr/nostr/pull/754)
-- Add `EventBuilder::allow_self_tagging` (https://github.com/rust-nostr/nostr/pull/744)
+- Add NIP-62 support (https://github.com/nostrdevkit/nostr/pull/777)
+- Add `NostrParser` (https://github.com/nostrdevkit/nostr/pull/781)
+- Add `nip21::extract_from_text` function (https://github.com/nostrdevkit/nostr/pull/754)
+- Add `EventBuilder::allow_self_tagging` (https://github.com/nostrdevkit/nostr/pull/744)
 - Add `Nip19Event::from_event`
 - Add `Tag::client` constructor
-- Add `Tag::len` method (https://github.com/rust-nostr/nostr/pull/755)
-- Add `push`, `pop`, `insert`, `remove`, `extend` and `retain` methods to `Tags` struct (https://github.com/rust-nostr/nostr/pull/755)
-- Add `with_capacity`, `from_list`, `from_text` and `parse` constructors to `Tags` struct (https://github.com/rust-nostr/nostr/pull/755)
-- Add `Tags::dedup` method (https://github.com/rust-nostr/nostr/pull/755)
+- Add `Tag::len` method (https://github.com/nostrdevkit/nostr/pull/755)
+- Add `push`, `pop`, `insert`, `remove`, `extend` and `retain` methods to `Tags` struct (https://github.com/nostrdevkit/nostr/pull/755)
+- Add `with_capacity`, `from_list`, `from_text` and `parse` constructors to `Tags` struct (https://github.com/nostrdevkit/nostr/pull/755)
+- Add `Tags::dedup` method (https://github.com/nostrdevkit/nostr/pull/755)
 - Add `EncryptedSecretKey::decrypt` method
 - Add `Nip19Coordinate` struct
 - Add `Coordinate::verify` method
 - Add `TagStandard::Client` variant
-- Add `EventBuilder::dedup_tags` method (https://github.com/rust-nostr/nostr/pull/772)
+- Add `EventBuilder::dedup_tags` method (https://github.com/nostrdevkit/nostr/pull/772)
 - Impl `FromIterator<Tag>` for `Tags`
 - Add `EventDeletionRequest` struct
 - Add `notifications` field to NIP47 `GetInfoResponse`
 - Add `RelayMetadata::as_str` method
-- Add `nip42::is_valid_auth_event` function (https://github.com/rust-nostr/nostr/commit/e7a91ec69ab3b804cad0df8fccbcc53fd8dc7cc8)
+- Add `nip42::is_valid_auth_event` function (https://github.com/nostrdevkit/nostr/commit/e7a91ec69ab3b804cad0df8fccbcc53fd8dc7cc8)
 - Add `Tag::relays` constructor
 
 ### Fixed
 
-- Fix `EventBuilder::git_repository_announcement` constructor according to last NIP34 rev (https://github.com/rust-nostr/nostr/pull/764)
-- Fix `EventBuilder::git_issue` constructor according to last NIP34 rev (https://github.com/rust-nostr/nostr/pull/764)
-- Fix `EventBuilder::git_patch` constructor according to last NIP34 rev (https://github.com/rust-nostr/nostr/pull/764)
+- Fix `EventBuilder::git_repository_announcement` constructor according to last NIP34 rev (https://github.com/nostrdevkit/nostr/pull/764)
+- Fix `EventBuilder::git_issue` constructor according to last NIP34 rev (https://github.com/nostrdevkit/nostr/pull/764)
+- Fix `EventBuilder::git_patch` constructor according to last NIP34 rev (https://github.com/nostrdevkit/nostr/pull/764)
 - nostr: `Tag::hashtag` now lowercases the hashtag as per NIP-24
 
 ### Removed

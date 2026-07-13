@@ -1705,7 +1705,7 @@ mod tests {
     }
 
     // Issues:
-    // - https://github.com/rust-nostr/nostr/issues/1078
+    // - https://github.com/nostrdevkit/nostr/issues/1078
     // - https://github.com/getAlby/hub/issues/1746
     #[test]
     fn test_parse_get_info_response_with_empty_strings() {

@@ -843,7 +843,7 @@ mod tests {
             name: Some(String::from("Test nostr repository")),
             description: Some(String::from("Long desc")),
             web: Vec::new(),
-            clone: vec![Url::parse("https://github.com/rust-nostr/nostr.git").unwrap()],
+            clone: vec![Url::parse("https://github.com/nostrdevkit/nostr.git").unwrap()],
             relays: vec![
                 RelayUrl::parse("wss://example.com").unwrap(),
                 RelayUrl::parse("wss://example.org").unwrap(),
@@ -865,7 +865,7 @@ mod tests {
             vec!["d", "test"],
             vec!["name", "Test nostr repository"],
             vec!["description", "Long desc"],
-            vec!["clone", "https://github.com/rust-nostr/nostr.git"],
+            vec!["clone", "https://github.com/nostrdevkit/nostr.git"],
             vec!["relays", "wss://example.com", "wss://example.org"],
             vec!["r", "aa231c4c6a5777dc89b42207b499891a344add5c", "euc"],
             vec![
@@ -1014,7 +1014,7 @@ mod tests {
             pull_request_event,
             pull_request_author,
             current_commit: Sha1Hash::from_str("b1fa697b5cd42fbb6ec9fef9009609200387e0b4").unwrap(),
-            clone: vec![Url::parse("https://github.com/rust-nostr/nostr.git").unwrap()],
+            clone: vec![Url::parse("https://github.com/nostrdevkit/nostr.git").unwrap()],
             merge_base: Some(
                 Sha1Hash::from_str("c88d901b42ff8389330d6d5d4044cf1d196696f3").unwrap(),
             ),
@@ -1044,7 +1044,7 @@ mod tests {
                 "68d81165918100b7da43fc28f7d1fc12554466e1115886b9e7bb326f65ec4272",
             ],
             vec!["c", "b1fa697b5cd42fbb6ec9fef9009609200387e0b4"],
-            vec!["clone", "https://github.com/rust-nostr/nostr.git"],
+            vec!["clone", "https://github.com/nostrdevkit/nostr.git"],
             vec!["merge-base", "c88d901b42ff8389330d6d5d4044cf1d196696f3"],
         ])
         .unwrap();

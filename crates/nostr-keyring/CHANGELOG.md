@@ -31,7 +31,7 @@
 
 ### Changed
 
-- Bump MSRV to 1.85.0 (https://github.com/rust-nostr/nostr/pull/1267)
+- Bump MSRV to 1.85.0 (https://github.com/nostrdevkit/nostr/pull/1267)
 
 ## v0.44.1 - 2025/11/09
 
@@ -47,11 +47,11 @@ No notable changes in this release.
 
 ### Changed
 
-- Re-export `keyring::Entry` and `keyring::Error` (https://github.com/rust-nostr/nostr/pull/974)
+- Re-export `keyring::Entry` and `keyring::Error` (https://github.com/nostrdevkit/nostr/pull/974)
 
 ## v0.42.1 - 2025/06/28
 
-- Fix keys persistence between OS restarts on Linux (https://github.com/rust-nostr/nostr/pull/942)
+- Fix keys persistence between OS restarts on Linux (https://github.com/nostrdevkit/nostr/pull/942)
 
 ## v0.42.0 - 2025/05/20
 

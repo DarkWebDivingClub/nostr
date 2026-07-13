@@ -31,11 +31,11 @@
 
 ### Breaking changes
 
-- Require `AsyncGetPublicKey + AsyncSignEvent` for signed client operations (https://github.com/rust-nostr/nostr/pull/1329)
+- Require `AsyncGetPublicKey + AsyncSignEvent` for signed client operations (https://github.com/nostrdevkit/nostr/pull/1329)
 
 ### Changed
 
-- Bump MSRV to 1.85.0 (https://github.com/rust-nostr/nostr/pull/1267)
+- Bump MSRV to 1.85.0 (https://github.com/nostrdevkit/nostr/pull/1267)
 
 ## v0.44.0 - 2025/11/06
 
@@ -49,7 +49,7 @@ No notable changes in this release.
 
 ### Fixed
 
-- blossom: fix url serialization (https://github.com/rust-nostr/nostr/pull/956)
+- blossom: fix url serialization (https://github.com/nostrdevkit/nostr/pull/956)
 
 ## v0.42.0 - 2025/05/20
 

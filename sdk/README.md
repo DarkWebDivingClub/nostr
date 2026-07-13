@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/nostr-sdk.svg)](https://crates.io/crates/nostr-sdk)
 [![crates.io - Downloads](https://img.shields.io/crates/d/nostr-sdk)](https://crates.io/crates/nostr-sdk)
 [![Documentation](https://docs.rs/nostr-sdk/badge.svg)](https://docs.rs/nostr-sdk)
-[![CI](https://github.com/rust-nostr/nostr/actions/workflows/ci.yml/badge.svg)](https://github.com/rust-nostr/nostr/actions/workflows/ci.yml)
+[![CI](https://github.com/nostrdevkit/nostr/actions/workflows/ci.yml/badge.svg)](https://github.com/nostrdevkit/nostr/actions/workflows/ci.yml)
 [![MIT](https://img.shields.io/crates/l/nostr-sdk.svg)](../LICENSE)
 
 ## Description
@@ -137,7 +137,7 @@ The following crate feature flags are available:
 
 This crate supports the `wasm32` targets.
 
-An example can be found at [`nostr-sdk-wasm-example`](https://github.com/rust-nostr/nostr-sdk-wasm-example) repo.
+An example can be found at [`nostr-sdk-wasm-example`](https://github.com/nostrdevkit/nostr-sdk-wasm-example) repo.
 
 On macOS, you need to install `llvm`:
 
@@ -159,7 +159,7 @@ All notable changes to this library are documented in the [CHANGELOG.md](CHANGEL
 
 ## Donations
 
-`rust-nostr` is free and open-source. This means we do not earn any revenue by selling it. Instead, we rely on your financial support. If you actively use any of the `rust-nostr` libs/software/services, then please [donate](https://rust-nostr.org/donate).
+`rust-nostr` is free and open-source. This means we do not earn any revenue by selling it. Instead, we rely on your financial support. If you actively use any of the `rust-nostr` libs/software/services, then please [donate](https://nostrdevkit.org/donate).
 
 ## License
 

@@ -31,19 +31,19 @@
 
 ### Breaking changes
 
-- Replace `NostrSigner` implementation with `AsyncNostrSigner` (https://github.com/rust-nostr/nostr/pull/1329)
+- Replace `NostrSigner` implementation with `AsyncNostrSigner` (https://github.com/nostrdevkit/nostr/pull/1329)
 
 ### Changed
 
-- Allow customizing HTML page (https://github.com/rust-nostr/nostr/pull/1203)
-- Bump MSRV to 1.85.0 (https://github.com/rust-nostr/nostr/pull/1267)
+- Allow customizing HTML page (https://github.com/nostrdevkit/nostr/pull/1203)
+- Bump MSRV to 1.85.0 (https://github.com/nostrdevkit/nostr/pull/1267)
 
 ## v0.44.0 - 2025/11/06
 
 ### Added
 
-- `BrowserSignerProxy::is_started` function to know if the server currently running or not (https://github.com/rust-nostr/nostr/pull/1025)
-- `BrowserSignerProxy::is_session_active` returns whether there is an active session with the browser (https://github.com/rust-nostr/nostr/pull/1026)
+- `BrowserSignerProxy::is_started` function to know if the server currently running or not (https://github.com/nostrdevkit/nostr/pull/1025)
+- `BrowserSignerProxy::is_session_active` returns whether there is an active session with the browser (https://github.com/nostrdevkit/nostr/pull/1026)
 
 ## v0.43.0 - 2025/07/28
 

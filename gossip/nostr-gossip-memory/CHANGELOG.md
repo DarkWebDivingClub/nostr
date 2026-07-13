@@ -36,12 +36,12 @@
 ### Changed
 
 - Increase TTL for lists to 24 hours
-- Replace `Mutex` with `RwLock` for better concurrency (https://github.com/rust-nostr/nostr/pull/1126)
-- Bump MSRV to 1.85.0 (https://github.com/rust-nostr/nostr/pull/1267)
+- Replace `Mutex` with `RwLock` for better concurrency (https://github.com/nostrdevkit/nostr/pull/1126)
+- Bump MSRV to 1.85.0 (https://github.com/nostrdevkit/nostr/pull/1267)
 
 ### Added
 
-- Add support for `GossipAllowedRelays` filtering during relay selection (https://github.com/rust-nostr/nostr/pull/1128)
+- Add support for `GossipAllowedRelays` filtering during relay selection (https://github.com/nostrdevkit/nostr/pull/1128)
 
 ## v0.44.0 - 2025/11/06
 

@@ -32,9 +32,9 @@ resolver = "2"
 
 [workspace.package]
 edition = "2024"
-authors = ["Yuki Kishimoto <yukikishimoto@protonmail.com>", "Rust Nostr Developers"]
-homepage = "https://github.com/rust-nostr/nostr"
-repository = "https://github.com/rust-nostr/nostr.git"
+authors = ["Yuki Kishimoto <yukikishimoto@protonmail.com>", "Nostr Dev Kit Developers"]
+homepage = "https://github.com/nostrdevkit/nostr"
+repository = "https://github.com/nostrdevkit/nostr.git"
 license = "MIT"
 rust-version = "1.85.0"
 

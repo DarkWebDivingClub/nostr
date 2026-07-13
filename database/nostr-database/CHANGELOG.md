@@ -31,19 +31,19 @@
 
 ### Breaking changes
 
-- Remove `Backend::is_persistent` method (https://github.com/rust-nostr/nostr/pull/1138)
-- Use `NonZeroUsize` for bounded capacities instead of `usize` (https://github.com/rust-nostr/nostr/pull/1139)
-- Move `MemoryDatabase` to `nostr-memory` crate (https://github.com/rust-nostr/nostr/pull/1263)
+- Remove `Backend::is_persistent` method (https://github.com/nostrdevkit/nostr/pull/1138)
+- Use `NonZeroUsize` for bounded capacities instead of `usize` (https://github.com/nostrdevkit/nostr/pull/1139)
+- Move `MemoryDatabase` to `nostr-memory` crate (https://github.com/nostrdevkit/nostr/pull/1263)
 
 ### Changed
 
-- Extend `Backend` variants (https://github.com/rust-nostr/nostr/pull/1138)
-- Bump MSRV to 1.85.0 (https://github.com/rust-nostr/nostr/pull/1267)
+- Extend `Backend` variants (https://github.com/nostrdevkit/nostr/pull/1138)
+- Bump MSRV to 1.85.0 (https://github.com/nostrdevkit/nostr/pull/1267)
 
 ### Added
 
-- Add `Backend::custom` constructor (https://github.com/rust-nostr/nostr/pull/1138)
-- Add `NostrDatabase::features` method (https://github.com/rust-nostr/nostr/pull/1138)
+- Add `Backend::custom` constructor (https://github.com/nostrdevkit/nostr/pull/1138)
+- Add `NostrDatabase::features` method (https://github.com/nostrdevkit/nostr/pull/1138)
 
 ## v0.44.0 - 2025/11/06
 
@@ -53,12 +53,12 @@ No notable changes in this release.
 
 ### Breaking changes
 
-- Merge traits into `NostrDatabase` (https://github.com/rust-nostr/nostr/pull/916)
-- Remove `NostrDatabase::has_coordinate_been_deleted` (https://github.com/rust-nostr/nostr/pull/917)
+- Merge traits into `NostrDatabase` (https://github.com/nostrdevkit/nostr/pull/916)
+- Remove `NostrDatabase::has_coordinate_been_deleted` (https://github.com/nostrdevkit/nostr/pull/917)
 
 ### Changed
 
-- Impl `Any` for `NostrDatabase` (https://github.com/rust-nostr/nostr/pull/918)
+- Impl `Any` for `NostrDatabase` (https://github.com/nostrdevkit/nostr/pull/918)
 - Impl `Default` for `Events` struct
 - impl `FromIterator<Event>` for `Events` struct
 - Bump lru from 0.14 to 0.16

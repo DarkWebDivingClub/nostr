@@ -105,7 +105,7 @@ impl WebSocketTransport for DefaultWebsocketTransport {
             let (tx, rx) = socket.split();
 
             // NOTE: don't use sink_map_err here, as it may cause panics!
-            // Issue: https://github.com/rust-nostr/nostr/issues/984
+            // Issue: https://github.com/nostrdevkit/nostr/issues/984
             let sink: WebSocketSink = Box::pin(TransportSink(tx)) as WebSocketSink;
             let stream: WebSocketStream = Box::pin(rx.map_err(Error::transport)) as WebSocketStream;
 

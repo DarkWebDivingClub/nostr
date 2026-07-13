@@ -31,76 +31,76 @@
 
 ### Breaking changes
 
-- Replace signer-based NIP-42 authentication with a dedicated `Authenticator` (https://github.com/rust-nostr/nostr/pull/1340)
-- Remove `ClientBuilder::signer` and `RelayBuilder::signer` (https://github.com/rust-nostr/nostr/pull/1340)
-- Remove `Client::signer`, `Client::automatic_authentication`, `Client::sign_event_builder`, `Client::send_event_builder` and `Client::send_event_builder_to` (https://github.com/rust-nostr/nostr/pull/1340)
+- Replace signer-based NIP-42 authentication with a dedicated `Authenticator` (https://github.com/nostrdevkit/nostr/pull/1340)
+- Remove `ClientBuilder::signer` and `RelayBuilder::signer` (https://github.com/nostrdevkit/nostr/pull/1340)
+- Remove `Client::signer`, `Client::automatic_authentication`, `Client::sign_event_builder`, `Client::send_event_builder` and `Client::send_event_builder_to` (https://github.com/nostrdevkit/nostr/pull/1340)
 - Replace `usize` with `u8` for gossip relay limits
 - Remove `autoconnect` option from `ClientOptions`
-- Change `Client::stream_events*` output to include the `RelayUrl` and `Result`, enabling callers to identify which relay sent the event or if a specific relay encountered an error (https://github.com/rust-nostr/nostr/pull/1156)
-- Change `RelayPool::stream_events*` output to include the `RelayUrl` and `Result`, enabling callers to identify which relay sent the event or if a specific relay encountered an error (https://github.com/rust-nostr/nostr/pull/1156)
+- Change `Client::stream_events*` output to include the `RelayUrl` and `Result`, enabling callers to identify which relay sent the event or if a specific relay encountered an error (https://github.com/nostrdevkit/nostr/pull/1156)
+- Change `RelayPool::stream_events*` output to include the `RelayUrl` and `Result`, enabling callers to identify which relay sent the event or if a specific relay encountered an error (https://github.com/nostrdevkit/nostr/pull/1156)
 - Replace `RelayServiceFlags` with `RelayCapabilities`
 - Remove `Client::reset` method
-- Change `Client::try_connect` and `Relay::try_connect` signature (https://github.com/rust-nostr/nostr/pull/1229)
-- Remove `Client::subscribe_with_id`, `Client::subscribe_to`, `Client::subscribe_with_id_to`, `Client::subscribe_targed` and `Relay::subscribe_with_id` (https://github.com/rust-nostr/nostr/pull/1232)
-- Change `Client::subscribe` signature (https://github.com/rust-nostr/nostr/pull/1232) 
-- Remove `Relay::sync_with_items` (https://github.com/rust-nostr/nostr/pull/1235)
-- Replace `Reconciliation` struct with `SyncSummary` (https://github.com/rust-nostr/nostr/pull/1235)
-- Change `Client::sync` and `Relay::sync` signature (https://github.com/rust-nostr/nostr/pull/1235)
-- Make `RelayPool` private (https://github.com/rust-nostr/nostr/pull/1237)
-- Replace `RelayPoolNotification` with `ClientNotification` (https://github.com/rust-nostr/nostr/pull/1237)
-- Relays no longer inherit subscriptions of the pool (https://github.com/rust-nostr/nostr/pull/1237)
-- Remove `Client::batch_msgs` and `Relay::batch_msgs` (https://github.com/rust-nostr/nostr/pull/1240)
+- Change `Client::try_connect` and `Relay::try_connect` signature (https://github.com/nostrdevkit/nostr/pull/1229)
+- Remove `Client::subscribe_with_id`, `Client::subscribe_to`, `Client::subscribe_with_id_to`, `Client::subscribe_targed` and `Relay::subscribe_with_id` (https://github.com/nostrdevkit/nostr/pull/1232)
+- Change `Client::subscribe` signature (https://github.com/nostrdevkit/nostr/pull/1232) 
+- Remove `Relay::sync_with_items` (https://github.com/nostrdevkit/nostr/pull/1235)
+- Replace `Reconciliation` struct with `SyncSummary` (https://github.com/nostrdevkit/nostr/pull/1235)
+- Change `Client::sync` and `Relay::sync` signature (https://github.com/nostrdevkit/nostr/pull/1235)
+- Make `RelayPool` private (https://github.com/nostrdevkit/nostr/pull/1237)
+- Replace `RelayPoolNotification` with `ClientNotification` (https://github.com/nostrdevkit/nostr/pull/1237)
+- Relays no longer inherit subscriptions of the pool (https://github.com/nostrdevkit/nostr/pull/1237)
+- Remove `Client::batch_msgs` and `Relay::batch_msgs` (https://github.com/nostrdevkit/nostr/pull/1240)
 - Change `Client::relay` output to return `Result<Output<Relay>>`
-- Remove `ClientOptions` in favor of `ClientBuilder` (https://github.com/rust-nostr/nostr/pull/1241)
-- Remove `Client::handle_notifications` and `Relay_handle_notifications` (https://github.com/rust-nostr/nostr/pull/1245)
+- Remove `ClientOptions` in favor of `ClientBuilder` (https://github.com/nostrdevkit/nostr/pull/1241)
+- Remove `Client::handle_notifications` and `Relay_handle_notifications` (https://github.com/nostrdevkit/nostr/pull/1245)
 - Remove `timeout` from `WebSocketTransport`
-- Remove `tor` feature (https://github.com/rust-nostr/nostr/pull/1253)
-- Remove `pow-multi-thread`, `all-nips`, `nip03`,`nip04`, `nip06`, `nip44`, `nip47`, `nip49`, `nip57`, `nip59`, `nip96` and `nip98`features (https://github.com/rust-nostr/nostr/pull/1254)
-- Remove `TimeSupplier` (https://github.com/rust-nostr/nostr/pull/1266)
-- Remove `EventBuilder::build_with_ctx` (https://github.com/rust-nostr/nostr/pull/1266)
-- Remove `Event::is_expired_with_supplier` (https://github.com/rust-nostr/nostr/pull/1266)
-- Remove `Timestamp::now_with_supplier` and `Timestamp::tweaked_with_supplier_and_rng` (https://github.com/rust-nostr/nostr/pull/1266)
-- Box `RelayMessage` in `RelayNotification` and `ClientNotification` (https://github.com/rust-nostr/nostr/pull/1299)
-- Replace `Connection` and `ConnectionTarget` with `Proxy` (https://github.com/rust-nostr/nostr/pull/1351)
+- Remove `tor` feature (https://github.com/nostrdevkit/nostr/pull/1253)
+- Remove `pow-multi-thread`, `all-nips`, `nip03`,`nip04`, `nip06`, `nip44`, `nip47`, `nip49`, `nip57`, `nip59`, `nip96` and `nip98`features (https://github.com/nostrdevkit/nostr/pull/1254)
+- Remove `TimeSupplier` (https://github.com/nostrdevkit/nostr/pull/1266)
+- Remove `EventBuilder::build_with_ctx` (https://github.com/nostrdevkit/nostr/pull/1266)
+- Remove `Event::is_expired_with_supplier` (https://github.com/nostrdevkit/nostr/pull/1266)
+- Remove `Timestamp::now_with_supplier` and `Timestamp::tweaked_with_supplier_and_rng` (https://github.com/nostrdevkit/nostr/pull/1266)
+- Box `RelayMessage` in `RelayNotification` and `ClientNotification` (https://github.com/nostrdevkit/nostr/pull/1299)
+- Replace `Connection` and `ConnectionTarget` with `Proxy` (https://github.com/nostrdevkit/nostr/pull/1351)
 
 ### Changed
 
-- Improve gossip concurrency with per-key semaphore system (https://github.com/rust-nostr/nostr/pull/1250)
-- Redesign `Client::add_relay` API (https://github.com/rust-nostr/nostr/pull/1227)
-- Redesign `Client::remove_relay` API (https://github.com/rust-nostr/nostr/pull/1228)
-- Redesign `Client::remove_relays` API (https://github.com/rust-nostr/nostr/pull/1229)
-- Redesign `Client::connect`, `Client::try_connect` and `Relay::try_connect` APIs (https://github.com/rust-nostr/nostr/pull/1229)
-- Redesign `Client::relays` API (https://github.com/rust-nostr/nostr/pull/1231)
-- Redesign `Client::subscribe` and `Relay::subscribe` APIs (https://github.com/rust-nostr/nostr/pull/1232)
-- Redesign `Client::stream_events` and `Relay::stream_events` APIs (https://github.com/rust-nostr/nostr/pull/1233)
-- Redesign `Client::fetch_events` and `Relay::fetch_events` APIs (https://github.com/rust-nostr/nostr/pull/1234)
-- Redesign `Client::sync` and `Relay::sync` APIs (https://github.com/rust-nostr/nostr/pull/1235)
-- Redesign `Client::send_event` and `Relay::send_event` APIs (https://github.com/rust-nostr/nostr/pull/1236)
-- Redesign `Client::unsubscribe` and `Relay::unsubscribe` APIs (https://github.com/rust-nostr/nostr/pull/1238)
-- Redesign `Client::unsubscribe_all` and `Relay::unsubscribe_all` APIs (https://github.com/rust-nostr/nostr/pull/1239)
-- Redesign `Client::send_msg` and `Relay::send_msg` APIs (https://github.com/rust-nostr/nostr/pull/1240)
-- Redesign `Client::notifications` and `Relay::notifications` APIs (https://github.com/rust-nostr/nostr/pull/1245)
-- Bump MSRV to 1.85.0 (https://github.com/rust-nostr/nostr/pull/1267)
+- Improve gossip concurrency with per-key semaphore system (https://github.com/nostrdevkit/nostr/pull/1250)
+- Redesign `Client::add_relay` API (https://github.com/nostrdevkit/nostr/pull/1227)
+- Redesign `Client::remove_relay` API (https://github.com/nostrdevkit/nostr/pull/1228)
+- Redesign `Client::remove_relays` API (https://github.com/nostrdevkit/nostr/pull/1229)
+- Redesign `Client::connect`, `Client::try_connect` and `Relay::try_connect` APIs (https://github.com/nostrdevkit/nostr/pull/1229)
+- Redesign `Client::relays` API (https://github.com/nostrdevkit/nostr/pull/1231)
+- Redesign `Client::subscribe` and `Relay::subscribe` APIs (https://github.com/nostrdevkit/nostr/pull/1232)
+- Redesign `Client::stream_events` and `Relay::stream_events` APIs (https://github.com/nostrdevkit/nostr/pull/1233)
+- Redesign `Client::fetch_events` and `Relay::fetch_events` APIs (https://github.com/nostrdevkit/nostr/pull/1234)
+- Redesign `Client::sync` and `Relay::sync` APIs (https://github.com/nostrdevkit/nostr/pull/1235)
+- Redesign `Client::send_event` and `Relay::send_event` APIs (https://github.com/nostrdevkit/nostr/pull/1236)
+- Redesign `Client::unsubscribe` and `Relay::unsubscribe` APIs (https://github.com/nostrdevkit/nostr/pull/1238)
+- Redesign `Client::unsubscribe_all` and `Relay::unsubscribe_all` APIs (https://github.com/nostrdevkit/nostr/pull/1239)
+- Redesign `Client::send_msg` and `Relay::send_msg` APIs (https://github.com/nostrdevkit/nostr/pull/1240)
+- Redesign `Client::notifications` and `Relay::notifications` APIs (https://github.com/nostrdevkit/nostr/pull/1245)
+- Bump MSRV to 1.85.0 (https://github.com/nostrdevkit/nostr/pull/1267)
 - Terminate event stream on drop
-- Replace `hex` dependency with `faster-hex` (https://github.com/rust-nostr/nostr/pull/1319)
+- Replace `hex` dependency with `faster-hex` (https://github.com/nostrdevkit/nostr/pull/1319)
 
 ### Added
 
 - Add `Client::is_shutdown`
 - Add `RelayBuilder` struct and `Relay` constructors
-- Re-add support for multi-filter REQ (https://github.com/rust-nostr/nostr/pull/1176)
+- Re-add support for multi-filter REQ (https://github.com/nostrdevkit/nostr/pull/1176)
 - Add `Output::new` constructor and `Output::into_inner` method
-- Add idle timeout for negentropy sync (https://github.com/rust-nostr/nostr/pull/1131)
-- Add `GossipAllowedRelays` to `GossipOptions` to filter relays during selection (https://github.com/rust-nostr/nostr/pull/1128)
-- Add `AdmitPolicy::admit_auth` to control relay authentication (https://github.com/rust-nostr/nostr/pull/1218)
-- Add gossip background refresher (https://github.com/rust-nostr/nostr/pull/1260)
-- Add `AdmitPolicy::admit_relay` (https://github.com/rust-nostr/nostr/pull/1339)
-- Add `Proxy` with global, onion-only and custom relay proxy policies (https://github.com/rust-nostr/nostr/pull/1351)
-- Add `Authenticator` and `SignerAuthenticator` for NIP-42 relay authentication (https://github.com/rust-nostr/nostr/pull/1340)
+- Add idle timeout for negentropy sync (https://github.com/nostrdevkit/nostr/pull/1131)
+- Add `GossipAllowedRelays` to `GossipOptions` to filter relays during selection (https://github.com/nostrdevkit/nostr/pull/1128)
+- Add `AdmitPolicy::admit_auth` to control relay authentication (https://github.com/nostrdevkit/nostr/pull/1218)
+- Add gossip background refresher (https://github.com/nostrdevkit/nostr/pull/1260)
+- Add `AdmitPolicy::admit_relay` (https://github.com/nostrdevkit/nostr/pull/1339)
+- Add `Proxy` with global, onion-only and custom relay proxy policies (https://github.com/nostrdevkit/nostr/pull/1351)
+- Add `Authenticator` and `SignerAuthenticator` for NIP-42 relay authentication (https://github.com/nostrdevkit/nostr/pull/1340)
 
 ### Fixed
 
-- Fix subscription verification for multi-filter REQs (https://github.com/rust-nostr/nostr/pull/1349)
+- Fix subscription verification for multi-filter REQs (https://github.com/nostrdevkit/nostr/pull/1349)
 
 ## v0.44.1 - 2025/11/09
 
@@ -112,37 +112,37 @@
 
 ### Breaking changes
 
-- Remove `lmdb`, `ndb` and `indexeddb` features (https://github.com/rust-nostr/nostr/pull/1083)
-- Replace `ReceiverStream` with `BoxedStream` (https://github.com/rust-nostr/nostr/pull/1087 and https://github.com/rust-nostr/nostr/pull/1121)
+- Remove `lmdb`, `ndb` and `indexeddb` features (https://github.com/nostrdevkit/nostr/pull/1083)
+- Replace `ReceiverStream` with `BoxedStream` (https://github.com/nostrdevkit/nostr/pull/1087 and https://github.com/nostrdevkit/nostr/pull/1121)
 
 ### Changed
 
-- Fetch gossip NIP-17 list only if really needed (https://github.com/rust-nostr/nostr/pull/1090)
-- Try to fetch only newer events when updating gossip lists (https://github.com/rust-nostr/nostr/pull/1090)
-- Don't send kind 3 (contact list) to inbox relays when using gossip (https://github.com/rust-nostr/nostr/pull/1112)
+- Fetch gossip NIP-17 list only if really needed (https://github.com/nostrdevkit/nostr/pull/1090)
+- Try to fetch only newer events when updating gossip lists (https://github.com/nostrdevkit/nostr/pull/1090)
+- Don't send kind 3 (contact list) to inbox relays when using gossip (https://github.com/nostrdevkit/nostr/pull/1112)
 
 ### Added
 
-- `Client::public_key` function to retrieve the public key (https://github.com/rust-nostr/nostr/pull/1028)
+- `Client::public_key` function to retrieve the public key (https://github.com/nostrdevkit/nostr/pull/1028)
 
 ## v0.43.0 - 2025/07/28
 
 ### Breaking changes
 
-- Update `Client::subscriptions` and `Client::subscription` outputs (https://github.com/rust-nostr/nostr/pull/980)
+- Update `Client::subscriptions` and `Client::subscription` outputs (https://github.com/nostrdevkit/nostr/pull/980)
 
 ### Changed
 
-- Extract at max 3 relays per NIP65 marker (https://github.com/rust-nostr/nostr/pull/951)
+- Extract at max 3 relays per NIP65 marker (https://github.com/nostrdevkit/nostr/pull/951)
 
 ### Added
 
-- Add `ClientOptions::sleep_when_idle` (https://github.com/rust-nostr/nostr/pull/959)
-- add `verify_subscriptions` and `ban_relay_on_mismatch` to `ClientOptions` (https://github.com/rust-nostr/nostr/pull/998)
+- Add `ClientOptions::sleep_when_idle` (https://github.com/nostrdevkit/nostr/pull/959)
+- add `verify_subscriptions` and `ban_relay_on_mismatch` to `ClientOptions` (https://github.com/nostrdevkit/nostr/pull/998)
 
 ### Deprecated
 
-- Deprecate `Options` in favor of `ClientOptions` (https://github.com/rust-nostr/nostr/pull/958)
+- Deprecate `Options` in favor of `ClientOptions` (https://github.com/nostrdevkit/nostr/pull/958)
 
 ## v0.42.0 - 2025/05/20
 
