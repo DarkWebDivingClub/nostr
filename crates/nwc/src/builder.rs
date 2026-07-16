@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use nostr::nips::nip47::NostrWalletConnectUri;
+use nostr::nips::nip47::{Nip47Ciphers, NostrWalletConnectUri};
 use nostr_sdk::monitor::Monitor;
 use nostr_sdk::relay::RelayOptions;
 
@@ -24,6 +24,11 @@ pub struct NostrWalletConnectBuilder {
     ///
     /// See [`RelayOptions`] for more details.
     pub relay: RelayOptions,
+    /// NIP-47 cipher used for request encryption and response decryption.
+    ///
+    /// When `None`, the client fetches the wallet info event to determine the
+    /// cipher.
+    pub cipher: Option<Nip47Ciphers>,
 }
 
 impl NostrWalletConnectBuilder {
@@ -34,6 +39,7 @@ impl NostrWalletConnectBuilder {
             timeout: DEFAULT_TIMEOUT,
             monitor: None,
             relay: RelayOptions::default(),
+            cipher: None,
         }
     }
 
@@ -55,6 +61,20 @@ impl NostrWalletConnectBuilder {
     #[inline]
     pub fn relay(mut self, opts: RelayOptions) -> Self {
         self.relay = opts;
+        self
+    }
+
+    /// Configure legacy NIP04 cipher regardless of wallet support.
+    #[inline]
+    pub fn force_nip04(mut self) -> Self {
+        self.cipher = Some(Nip47Ciphers::NIP04);
+        self
+    }
+
+    /// Configure nip44 v2 cipher regardless of wallet support.
+    #[inline]
+    pub fn force_nip44_v2(mut self) -> Self {
+        self.cipher = Some(Nip47Ciphers::NIP44V2);
         self
     }
 

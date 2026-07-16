@@ -12,8 +12,8 @@
 
 use std::collections::HashMap;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use futures_core::Stream;
@@ -41,6 +41,7 @@ pub struct NostrWalletConnect {
     uri: NostrWalletConnectUri,
     client: Client,
     timeout: Duration,
+    cipher: Arc<RwLock<Option<Nip47Ciphers>>>,
     relay_opts: RelayOptions,
     bootstrapped: Arc<AtomicBool>,
     notifications_subscribed: Arc<AtomicBool>,
@@ -83,6 +84,7 @@ impl NostrWalletConnect {
             client,
             timeout: builder.timeout,
             relay_opts: builder.relay,
+            cipher: Arc::new(RwLock::new(builder.cipher)),
             bootstrapped: Arc::new(AtomicBool::new(false)),
             notifications_subscribed: Arc::new(AtomicBool::new(false)),
         }
@@ -105,6 +107,31 @@ impl NostrWalletConnect {
     pub async fn status(&self) -> HashMap<RelayUrl, RelayStatus> {
         let relays = self.client.relays().await;
         relays.into_iter().map(|(u, r)| (u, r.status())).collect()
+    }
+
+    /// Store the cipher for later reuse
+    fn set_cipher(&self, cipher: Nip47Ciphers) {
+        *self.cipher.write().expect("Set function do not panic") = Some(cipher);
+    }
+
+    /// Return the NIP-47 cipher to use, caching it if not already known
+    ///
+    /// Falls back to NIP-04 when the remote wallet does not advertise a any
+    /// cipher.
+    async fn get_cipher(&self) -> Nip47Ciphers {
+        let cipher = *self.cipher.read().expect("Set function do not panic");
+
+        match cipher {
+            Some(cipher) => cipher,
+            None => {
+                let cipher = self
+                    .get_wallet_cipher()
+                    .await
+                    .unwrap_or(Nip47Ciphers::NIP04);
+                self.set_cipher(cipher);
+                cipher
+            }
+        }
     }
 
     /// Connect and subscribe
@@ -131,14 +158,34 @@ impl NostrWalletConnect {
         Ok(())
     }
 
+    /// Fetch the latest cipher advertised by the wallet, if any.
+    async fn get_wallet_cipher(&self) -> Option<Nip47Ciphers> {
+        let filter = Filter::new()
+            .kind(Kind::WalletConnectInfo)
+            .author(self.uri.public_key);
+
+        let info_event = self.client.fetch_events(filter).await.ok()?.first_owned()?;
+
+        info_event
+            .tags
+            .iter()
+            .find_map(|t| match Nip47Tag::parse(t.as_slice()).ok()? {
+                Nip47Tag::Encryption(et) => Some(et.latest()),
+            })
+    }
+
     async fn send_request(&self, req: Request, timeout: Duration) -> Result<Response, Error> {
         // Bootstrap
         self.bootstrap().await?;
+        let cipher = self.get_cipher().await;
 
-        tracing::debug!("Sending request '{}'", req.as_json());
+        tracing::debug!(
+            "Sending request '{}' encrypted using '{cipher}'",
+            req.as_json()
+        );
 
         // Convert request to event
-        let event: Event = req.to_event(&self.uri)?;
+        let event: Event = req.to_event(&self.uri, cipher)?;
 
         // Construct the filter to wait for the response
         let filter = Filter::new()
@@ -164,7 +211,7 @@ impl NostrWalletConnect {
         let received_event: Event = res?;
 
         // Parse response
-        let response: Response = Response::from_event(&self.uri, &received_event)?;
+        let response: Response = Response::from_event(&self.uri, &received_event, cipher)?;
 
         // Return response
         Ok(response)
@@ -232,7 +279,10 @@ impl NostrWalletConnect {
         let notification_filter = Filter::new()
             .author(self.uri.public_key)
             .pubkey(client_pubkey)
-            .kind(Kind::WalletConnectNotification)
+            .kinds([
+                Kind::WalletConnectNotification,
+                Kind::WalletConnectNotificationNip44V2,
+            ])
             .since(Timestamp::now());
 
         tracing::debug!("Notification filter: {:?}", notification_filter);
@@ -286,7 +336,9 @@ impl NostrWalletConnect {
                     return None;
                 }
 
-                if event.kind != Kind::WalletConnectNotification {
+                if event.kind != Kind::WalletConnectNotification
+                    || event.kind != Kind::WalletConnectNotificationNip44V2
+                {
                     tracing::trace!("Ignoring event with kind: {}", event.kind);
                     return None;
                 }

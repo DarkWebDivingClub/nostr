@@ -48,6 +48,7 @@
 - Add `NostrWalletConnect::builder` constructor (https://github.com/nostrdevkit/nostr/pull/1140)
 - Add `NostrWalletConnect::notifications` method
 - Add `NostrWalletConnect::client` method
+- Add support for `nip44_v2` (https://github.com/nostrdevkit/nostr/pull/1393)
 
 ### Deprecated
 
