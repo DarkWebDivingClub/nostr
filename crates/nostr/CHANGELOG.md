@@ -92,6 +92,7 @@
 - Add `GiftWrapBuilder::expiration` and `PrivateDirectMessageBuilder::expiration` to set a NIP-40 expiration relative to the gift wrap's `created_at` (https://github.com/nostrdevkit/nostr/pull/1384)
 - Add `WalletConnectNotificationNip44V2` kind 23197 (https://github.com/nostrdevkit/nostr/pull/1393)
 - Add `Nip47Tag` (https://github.com/nostrdevkit/nostr/pull/1393)
+- Add support for `nip44_v2` in NIP-47 (https://github.com/nostrdevkit/nostr/pull/1393)
 
 ### Removed
 

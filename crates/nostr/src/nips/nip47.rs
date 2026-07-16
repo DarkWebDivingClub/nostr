@@ -19,8 +19,8 @@ use serde::ser::{SerializeMap, SerializeStruct};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
-use super::nip04;
 use super::util::{invalid_uri, unexpected_result, unsupported_method};
+use super::{nip04, nip44};
 use crate::error::{Error, ErrorKind};
 #[cfg(all(feature = "std", feature = "os-rng"))]
 use crate::event::FinalizeEvent;
@@ -767,11 +767,23 @@ impl Request {
 
     /// Create request [Event]
     #[cfg(all(feature = "std", feature = "os-rng"))]
-    pub fn to_event(self, uri: &NostrWalletConnectUri) -> Result<Event, Error> {
-        let encrypted = nip04::encrypt(&uri.secret, &uri.public_key, self.as_json())?;
+    pub fn to_event(
+        self,
+        uri: &NostrWalletConnectUri,
+        cipher: Nip47Ciphers,
+    ) -> Result<Event, Error> {
+        let latest = cipher.latest();
+        let encrypted = latest.encrypt(&uri.secret, &uri.public_key, &self.as_json())?;
+        let encryption_tag = if latest == Nip47Ciphers::NIP44V2 {
+            Some(Nip47Tag::Encryption(latest).to_tag())
+        } else {
+            None
+        };
+
         let keys: Keys = Keys::new(uri.secret.clone());
         EventBuilder::new(Kind::WalletConnectRequest, encrypted)
             .tag(Tag::public_key(uri.public_key))
+            .tag_maybe(encryption_tag)
             .finalize(&keys)
     }
 }
@@ -1061,8 +1073,13 @@ struct ResponseTemplate {
 impl Response {
     /// Deserialize from [Event]
     #[inline]
-    pub fn from_event(uri: &NostrWalletConnectUri, event: &Event) -> Result<Self, Error> {
-        let decrypt_res: String = nip04::decrypt(&uri.secret, &event.pubkey, &event.content)?;
+    pub fn from_event(
+        uri: &NostrWalletConnectUri,
+        event: &Event,
+        cipher: Nip47Ciphers,
+    ) -> Result<Self, Error> {
+        let decrypt_res = cipher.decrypt(&uri.secret, &event.pubkey, &event.content)?;
+
         Self::from_json(&decrypt_res)
     }
 
@@ -1445,7 +1462,12 @@ impl Notification {
     /// Deserialize from [Event]
     #[inline]
     pub fn from_event(uri: &NostrWalletConnectUri, event: &Event) -> Result<Self, Error> {
-        let decrypt_res: String = nip04::decrypt(&uri.secret, &event.pubkey, &event.content)?;
+        let decrypt_res = if event.kind == Kind::WalletConnectNotificationNip44V2 {
+            nip44::decrypt(&uri.secret, &event.pubkey, &event.content)?
+        } else {
+            nip04::decrypt(&uri.secret, &event.pubkey, &event.content)?
+        };
+
         Self::from_json(decrypt_res)
     }
 
