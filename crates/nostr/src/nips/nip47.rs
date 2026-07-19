@@ -1655,6 +1655,25 @@ mod tests {
 
     use super::*;
 
+    const NOTIFICATION_JSON: &str = r#"{
+        "notification_type": "payment_received",
+        "notification": {
+            "type": "incoming",
+            "state": "settled",
+            "invoice": "abcd",
+            "description": "string1",
+            "description_hash": "string2",
+            "preimage": "string3",
+            "payment_hash": "string4",
+            "amount": 1234,
+            "fees_paid": 123,
+            "created_at": 123456789,
+            "expires_at": 546132287,
+            "settled_at": 843548111,
+            "metadata": {}
+        }
+    }"#;
+
     #[test]
     fn test_method_eq() {
         assert_eq!(Method::GetBalance, Method::GetBalance);
@@ -1886,25 +1905,7 @@ mod tests {
 
     #[test]
     fn test_notifications_parse_and_serialization() {
-        let json = r#"{
-            "notification_type": "payment_received",
-            "notification": {
-                "type": "incoming",
-                "state": "settled",
-                "invoice": "abcd",
-                "description": "string1",
-                "description_hash": "string2",
-                "preimage": "string3",
-                "payment_hash": "string4",
-                "amount": 1234,
-                "fees_paid": 123,
-                "created_at": 123456789,
-                "expires_at": 546132287,
-                "settled_at": 843548111,
-                "metadata": {}
-            }
-        }"#;
-        let notification_parsed = Notification::from_json(json).unwrap();
+        let notification_parsed = Notification::from_json(NOTIFICATION_JSON).unwrap();
         assert_eq!(
             notification_parsed.notification_type,
             NotificationType::PaymentReceived
@@ -1957,6 +1958,200 @@ mod tests {
                 ],
                 notifications: Vec::new()
             }
+        );
+    }
+
+    #[test]
+    fn test_encryption_tag_parsing() {
+        let tag = Tag::new(vec![String::from("encryption"), String::from("")]);
+        assert!(Nip47Tag::parse(tag).is_err());
+
+        let tag = Tag::new(vec![String::from("encryption"), String::from("  ")]);
+        assert!(Nip47Tag::parse(tag).is_err());
+
+        let tag = Tag::new(vec![String::from("encryption"), String::from("nip44_v2")]);
+        assert_eq!(
+            Nip47Tag::parse(tag).unwrap(),
+            Nip47Tag::Encryption(Nip47Ciphers::NIP44V2),
+        );
+
+        let tag = Tag::new(vec![
+            String::from("encryption"),
+            String::from("nip44_v2 nip04"),
+        ]);
+        assert_eq!(
+            Nip47Tag::parse(tag).unwrap(),
+            Nip47Tag::Encryption(Nip47Ciphers::NIP44V2.add(Nip47Ciphers::NIP04)),
+        );
+
+        // Ignore unknown ciphers
+        let tag = Tag::new(vec![
+            String::from("encryption"),
+            String::from("nip44_v2  nip04 new_cipher"),
+        ]);
+        assert_eq!(
+            Nip47Tag::parse(tag).unwrap(),
+            Nip47Tag::Encryption(Nip47Ciphers::NIP44V2.add(Nip47Ciphers::NIP04)),
+        );
+
+        // error if no known cipher
+        let tag = Tag::new(vec![
+            String::from("encryption"),
+            String::from("new_cipher new_cipher_v2"),
+        ]);
+        assert!(Nip47Tag::parse(tag).is_err());
+    }
+
+    #[test]
+    fn test_encryption_tag_display() {
+        // Single
+        assert_eq!(Nip47Ciphers::NIP44V2.to_string(), "nip44_v2");
+        assert_eq!(Nip47Ciphers::NIP04.to_string(), "nip04");
+
+        // multiple
+        assert_eq!(
+            Nip47Ciphers::NIP44V2.add(Nip47Ciphers::NIP04).to_string(),
+            "nip44_v2 nip04",
+        );
+
+        // With `encryption` tag
+        assert_eq!(
+            Nip47Tag::Encryption(Nip47Ciphers::NIP44V2).to_tag(),
+            Tag::new(vec![String::from("encryption"), String::from("nip44_v2")]),
+        );
+    }
+
+    #[cfg(all(
+        feature = "std",
+        feature = "os-rng",
+        feature = "nip04",
+        feature = "nip44"
+    ))]
+    #[test]
+    fn test_request_encryption() {
+        let keys = Keys::generate();
+        let secret = SecretKey::generate();
+        let uri = NostrWalletConnectUri::new(keys.public_key, vec![], secret.clone(), None);
+
+        // Single cipher
+        let request = Request::get_balance()
+            .to_event(&uri, Nip47Ciphers::NIP04)
+            .unwrap();
+        let plain_request = nip04::decrypt(&secret, &keys.public_key, &request.content).unwrap();
+        assert_eq!(plain_request, Request::get_balance().as_json());
+
+        // multiple ciphers, a case when passing the wallet encryption tag. The
+        // newest one should be used
+        let request = Request::get_balance()
+            .to_event(&uri, Nip47Ciphers::NIP04.add(Nip47Ciphers::NIP44V2))
+            .unwrap();
+        let plain_request = nip44::decrypt(&secret, &keys.public_key, &request.content).unwrap();
+        assert_eq!(plain_request, Request::get_balance().as_json());
+    }
+
+    #[cfg(all(
+        feature = "std",
+        feature = "os-rng",
+        feature = "nip04",
+        feature = "nip44"
+    ))]
+    #[test]
+    fn test_response_decryption() {
+        let wallet_keys = Keys::generate();
+        let client_keys = Keys::generate();
+        let uri = NostrWalletConnectUri::new(
+            wallet_keys.public_key,
+            vec![],
+            client_keys.secret_key().clone(),
+            None,
+        );
+
+        let response = Response {
+            result_type: Method::GetBalance,
+            error: None,
+            result: Some(ResponseResult::GetBalance(GetBalanceResponse {
+                balance: 43_000,
+            })),
+        };
+
+        let enc_response = nip44::encrypt(
+            wallet_keys.secret_key(),
+            &client_keys.public_key(),
+            response.as_json(),
+            nip44::Version::V2,
+        )
+        .unwrap();
+        let response_event = EventBuilder::new(Kind::WalletConnectResponse, enc_response)
+            .finalize(&wallet_keys)
+            .unwrap();
+        assert_eq!(
+            Response::from_event(&uri, &response_event, Nip47Ciphers::NIP44V2).unwrap(),
+            response
+        );
+
+        let enc_response = nip04::encrypt(
+            wallet_keys.secret_key(),
+            &client_keys.public_key(),
+            response.as_json(),
+        )
+        .unwrap();
+        let response_event = EventBuilder::new(Kind::WalletConnectResponse, enc_response)
+            .finalize(&wallet_keys)
+            .unwrap();
+        assert_eq!(
+            Response::from_event(&uri, &response_event, Nip47Ciphers::NIP04).unwrap(),
+            response
+        );
+    }
+
+    #[cfg(all(
+        feature = "std",
+        feature = "os-rng",
+        feature = "nip04",
+        feature = "nip44"
+    ))]
+    #[test]
+    fn test_notification_decryption() {
+        let wallet_keys = Keys::generate();
+        let client_keys = Keys::generate();
+        let uri = NostrWalletConnectUri::new(
+            wallet_keys.public_key,
+            vec![],
+            client_keys.secret_key().clone(),
+            None,
+        );
+
+        let notification = Notification::from_json(NOTIFICATION_JSON).unwrap();
+
+        let enc_notification = nip44::encrypt(
+            wallet_keys.secret_key(),
+            &client_keys.public_key(),
+            NOTIFICATION_JSON,
+            nip44::Version::V2,
+        )
+        .unwrap();
+        let notification_event =
+            EventBuilder::new(Kind::WalletConnectNotificationNip44V2, enc_notification)
+                .finalize(&wallet_keys)
+                .unwrap();
+        assert_eq!(
+            Notification::from_event(&uri, &notification_event).unwrap(),
+            notification
+        );
+
+        let enc_notification = nip04::encrypt(
+            wallet_keys.secret_key(),
+            &client_keys.public_key(),
+            NOTIFICATION_JSON,
+        )
+        .unwrap();
+        let notification_event =
+            EventBuilder::new(Kind::WalletConnectNotification, enc_notification)
+                .finalize(&wallet_keys)
+                .unwrap();
+        assert_eq!(
+            Notification::from_event(&uri, &notification_event).unwrap(),
+            notification
         );
     }
 }
