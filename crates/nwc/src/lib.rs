@@ -116,7 +116,7 @@ impl NostrWalletConnect {
 
     /// Return the NIP-47 cipher to use, caching it if not already known
     ///
-    /// Falls back to NIP-04 when the remote wallet does not advertise a any
+    /// Falls back to NIP-04 when the remote wallet does not advertise any
     /// cipher.
     async fn get_cipher(&self) -> Nip47Ciphers {
         let cipher = *self.cipher.read().expect("Set function do not panic");
@@ -387,5 +387,274 @@ impl NostrWalletConnect {
     #[inline]
     pub async fn shutdown(&self) {
         self.client.shutdown().await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use nostr_sdk::local_relay::MockRelay;
+
+    use super::*;
+
+    const RESPONSE: Response = Response {
+        result_type: Method::GetBalance,
+        error: None,
+        result: Some(nip47::ResponseResult::GetBalance(GetBalanceResponse {
+            balance: 0xDEADBEEF,
+        })),
+    };
+
+    fn create_keys(relay_url: RelayUrl) -> (Keys, Keys, NostrWalletConnectUri) {
+        let wallet_keys = Keys::generate();
+        let client_keys = Keys::generate();
+        let uri = NostrWalletConnectUri::new(
+            wallet_keys.public_key(),
+            vec![relay_url],
+            client_keys.secret_key().clone(),
+            None,
+        );
+        (wallet_keys, client_keys, uri)
+    }
+
+    async fn run_wallet(
+        wkeys: Keys,
+        ckeys: Keys,
+        relay_url: RelayUrl,
+        advertise_ciphers: Option<Nip47Ciphers>,
+        expected_cipher: Nip47Ciphers,
+    ) {
+        let client = Client::new();
+        client.add_relay(relay_url).and_connect().await.unwrap();
+
+        if let Some(ciphers) = advertise_ciphers {
+            let event = EventBuilder::new(Kind::WalletConnectInfo, "")
+                .tag(Nip47Tag::Encryption(ciphers).to_tag())
+                .finalize(&wkeys)
+                .unwrap();
+            client.send_event(&event).await.unwrap();
+        }
+
+        let request = client
+            .fetch_events(
+                Filter::new()
+                    .kind(Kind::WalletConnectRequest)
+                    .author(ckeys.public_key)
+                    .pubkey(wkeys.public_key),
+            )
+            .policy(ReqExitPolicy::WaitForEvents(1))
+            .await
+            .unwrap()
+            .first_owned()
+            .unwrap();
+
+        let cipher = request
+            .tags
+            .iter()
+            .find_map(|tag| match Nip47Tag::parse(tag.as_slice()).ok()? {
+                Nip47Tag::Encryption(ciphers) => Some(ciphers),
+            })
+            .unwrap_or(Nip47Ciphers::NIP04);
+
+        assert_eq!(
+            expected_cipher, cipher,
+            "expected: {expected_cipher}. Found {cipher}"
+        );
+
+        let enc_response = cipher
+            .encrypt(wkeys.secret_key(), &ckeys.public_key(), &RESPONSE.as_json())
+            .unwrap();
+        let response_event = EventBuilder::new(Kind::WalletConnectResponse, enc_response)
+            .tag(Tag::public_key(ckeys.public_key))
+            .tag(Tag::event(request.id))
+            .finalize(&wkeys)
+            .unwrap();
+        client.send_event(&response_event).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_send_request_no_cipher() {
+        let relay = MockRelay::run().await.unwrap();
+        let relay_url = relay.url().await;
+
+        let (wkeys, ckeys, uri) = create_keys(relay_url.clone());
+
+        tokio::spawn(run_wallet(
+            wkeys,
+            ckeys,
+            relay_url,
+            None,
+            Nip47Ciphers::NIP04,
+        ));
+
+        let client = NostrWalletConnectBuilder::new(uri).build();
+
+        // `send_request` should use nip04 because there is no info event.
+        let wallet_response = client
+            .send_request(Request::get_balance(), Duration::from_secs(3))
+            .await
+            .unwrap();
+        assert_eq!(RESPONSE, wallet_response);
+    }
+
+    #[tokio::test]
+    async fn test_send_request_no_cipher_but_info_single_cipher() {
+        let relay = MockRelay::run().await.unwrap();
+        let relay_url = relay.url().await;
+
+        let (wkeys, ckeys, uri) = create_keys(relay_url.clone());
+
+        tokio::spawn(run_wallet(
+            wkeys,
+            ckeys,
+            relay_url,
+            Some(Nip47Ciphers::NIP44V2),
+            Nip47Ciphers::NIP44V2,
+        ));
+
+        // Wait for the info event
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        let client = NostrWalletConnectBuilder::new(uri).build();
+
+        // `send_request` should use nip44_v2 because of the info event.
+        let wallet_response = client
+            .send_request(Request::get_balance(), Duration::from_secs(3))
+            .await
+            .unwrap();
+        assert_eq!(RESPONSE, wallet_response);
+    }
+
+    #[tokio::test]
+    async fn test_send_request_no_cipher_but_info_single_old_cipher() {
+        let relay = MockRelay::run().await.unwrap();
+        let relay_url = relay.url().await;
+
+        let (wkeys, ckeys, uri) = create_keys(relay_url.clone());
+
+        tokio::spawn(run_wallet(
+            wkeys,
+            ckeys,
+            relay_url,
+            Some(Nip47Ciphers::NIP04),
+            Nip47Ciphers::NIP04,
+        ));
+
+        // Wait for the info event
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        let client = NostrWalletConnectBuilder::new(uri).build();
+
+        // `send_request` should use nip04 because of the info event.
+        let wallet_response = client
+            .send_request(Request::get_balance(), Duration::from_secs(3))
+            .await
+            .unwrap();
+        assert_eq!(RESPONSE, wallet_response);
+    }
+
+    #[tokio::test]
+    async fn test_send_request_no_cipher_but_info_latest_cipher() {
+        let relay = MockRelay::run().await.unwrap();
+        let relay_url = relay.url().await;
+
+        let (wkeys, ckeys, uri) = create_keys(relay_url.clone());
+
+        tokio::spawn(run_wallet(
+            wkeys,
+            ckeys,
+            relay_url,
+            Some(Nip47Ciphers::NIP04.add(Nip47Ciphers::NIP44V2)),
+            Nip47Ciphers::NIP44V2,
+        ));
+
+        // Wait for the info event
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        let client = NostrWalletConnectBuilder::new(uri).build();
+
+        // `send_request` should use nip44_v2 because of the info event.
+        let wallet_response = client
+            .send_request(Request::get_balance(), Duration::from_secs(3))
+            .await
+            .unwrap();
+        assert_eq!(RESPONSE, wallet_response);
+    }
+
+    #[tokio::test]
+    async fn test_send_request_nip04_cipher_no_info() {
+        let relay = MockRelay::run().await.unwrap();
+        let relay_url = relay.url().await;
+
+        let (wkeys, ckeys, uri) = create_keys(relay_url.clone());
+
+        tokio::spawn(run_wallet(
+            wkeys,
+            ckeys,
+            relay_url,
+            None,
+            Nip47Ciphers::NIP04,
+        ));
+
+        // Wait for the info event
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        let client = NostrWalletConnectBuilder::new(uri).force_nip04().build();
+
+        // `send_request` should use nip04 because of the force.
+        let wallet_response = client
+            .send_request(Request::get_balance(), Duration::from_secs(3))
+            .await
+            .unwrap();
+        assert_eq!(RESPONSE, wallet_response);
+    }
+
+    #[tokio::test]
+    async fn test_send_request_nip44_cipher_no_info() {
+        let relay = MockRelay::run().await.unwrap();
+        let relay_url = relay.url().await;
+
+        let (wkeys, ckeys, uri) = create_keys(relay_url.clone());
+
+        tokio::spawn(run_wallet(
+            wkeys,
+            ckeys,
+            relay_url,
+            None,
+            Nip47Ciphers::NIP44V2,
+        ));
+
+        // Wait for the info event
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        let client = NostrWalletConnectBuilder::new(uri).force_nip44_v2().build();
+
+        // `send_request` should use nip44_v2 because of the force.
+        let wallet_response = client
+            .send_request(Request::get_balance(), Duration::from_secs(3))
+            .await
+            .unwrap();
+        assert_eq!(RESPONSE, wallet_response);
+    }
+
+    #[tokio::test]
+    async fn test_send_request_nip04_cipher_with_info() {
+        let relay = MockRelay::run().await.unwrap();
+        let relay_url = relay.url().await;
+
+        let (wkeys, ckeys, uri) = create_keys(relay_url.clone());
+
+        tokio::spawn(run_wallet(
+            wkeys,
+            ckeys,
+            relay_url,
+            Some(Nip47Ciphers::NIP04.add(Nip47Ciphers::NIP44V2)),
+            Nip47Ciphers::NIP04,
+        ));
+
+        // Wait for the info event
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        let client = NostrWalletConnectBuilder::new(uri).force_nip04().build();
+
+        // `send_request` should use nip04 because of the force.
+        let wallet_response = client
+            .send_request(Request::get_balance(), Duration::from_secs(3))
+            .await
+            .unwrap();
+        assert_eq!(RESPONSE, wallet_response);
     }
 }
