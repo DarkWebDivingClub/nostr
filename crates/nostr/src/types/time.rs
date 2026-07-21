@@ -27,10 +27,7 @@ const DAYS_PER_400Y: i64 = 365 * 400 + 97;
 const DAYS_PER_100Y: i64 = 365 * 100 + 24;
 const DAYS_PER_4Y: i64 = 365 * 4 + 1;
 
-const TO_HUMAN_DATE_BUF: [u8; 20] = [
-    b'0', b'0', b'0', b'0', b'-', b'0', b'0', b'-', b'0', b'0', b'T', b'0', b'0', b':', b'0', b'0',
-    b':', b'0', b'0', b'Z',
-];
+const TO_HUMAN_DATE_BUF: [u8; 20] = *b"0000-00-00T00:00:00Z";
 
 /// Unix timestamp in seconds
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
