@@ -12,8 +12,8 @@
 
 use std::collections::HashMap;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::time::Duration;
 
 use futures_core::Stream;
@@ -35,13 +35,42 @@ const NOTIFICATIONS_ID: &str = "nwc-notifications";
 #[deprecated(since = "0.45.0", note = "Use NostrWalletConnect instead")]
 pub type NWC = NostrWalletConnect;
 
+#[derive(Debug)]
+struct AtomicCipher(AtomicU32);
+
+impl From<Option<Nip47Ciphers>> for AtomicCipher {
+    fn from(value: Option<Nip47Ciphers>) -> Self {
+        match value {
+            Some(cipher) => Self::new(cipher),
+            None => Self(AtomicU32::from(0)),
+        }
+    }
+}
+
+impl AtomicCipher {
+    /// Create an atomic reference to the given cipher for lock-free shared access.
+    #[inline]
+    fn new(cipher: Nip47Ciphers) -> Self {
+        Self(AtomicU32::from(cipher.as_u32()))
+    }
+
+    /// If any cipher is set, returns it; otherwise returns None.
+    #[inline]
+    fn load(&self) -> Option<Nip47Ciphers> {
+        match self.0.load(Ordering::SeqCst) {
+            0 => None,
+            cipher => Nip47Ciphers::from_u32(cipher),
+        }
+    }
+}
+
 /// Nostr Wallet Connect client
 #[derive(Debug, Clone)]
 pub struct NostrWalletConnect {
     uri: NostrWalletConnectUri,
     client: Client,
     timeout: Duration,
-    cipher: Arc<RwLock<Option<Nip47Ciphers>>>,
+    cipher: Arc<AtomicCipher>,
     relay_opts: RelayOptions,
     bootstrapped: Arc<AtomicBool>,
     notifications_subscribed: Arc<AtomicBool>,
@@ -84,7 +113,7 @@ impl NostrWalletConnect {
             client,
             timeout: builder.timeout,
             relay_opts: builder.relay,
-            cipher: Arc::new(RwLock::new(builder.cipher)),
+            cipher: Arc::new(AtomicCipher::from(builder.cipher)),
             bootstrapped: Arc::new(AtomicBool::new(false)),
             notifications_subscribed: Arc::new(AtomicBool::new(false)),
         }
@@ -109,17 +138,12 @@ impl NostrWalletConnect {
         relays.into_iter().map(|(u, r)| (u, r.status())).collect()
     }
 
-    /// Store the cipher for later reuse
-    fn set_cipher(&self, cipher: Nip47Ciphers) {
-        *self.cipher.write().expect("Set function do not panic") = Some(cipher);
-    }
-
     /// Return the NIP-47 cipher to use, caching it if not already known
     ///
     /// Falls back to NIP-04 when the remote wallet does not advertise any
     /// cipher.
     async fn get_cipher(&self) -> Nip47Ciphers {
-        let cipher = *self.cipher.read().expect("Set function do not panic");
+        let cipher = self.cipher.load();
 
         match cipher {
             Some(cipher) => cipher,
@@ -128,7 +152,12 @@ impl NostrWalletConnect {
                     .get_wallet_cipher()
                     .await
                     .unwrap_or(Nip47Ciphers::NIP04);
-                self.set_cipher(cipher);
+                _ = self.cipher.0.compare_exchange(
+                    0,
+                    cipher.as_u32(),
+                    Ordering::SeqCst,
+                    Ordering::SeqCst,
+                );
                 cipher
             }
         }

@@ -172,6 +172,22 @@ define_ciphers![
 ];
 
 impl Nip47Ciphers {
+    /// Resolves a raw `u32` value into a cipher, if one exists.
+    pub fn from_u32(inner: u32) -> Option<Self> {
+        for (cipher, _) in Self::ALL {
+            if cipher.0 == inner {
+                return Some(*cipher);
+            }
+        }
+        None
+    }
+
+    /// The latest cipher value as its raw inner `u32`.
+    #[inline]
+    pub fn as_u32(&self) -> u32 {
+        self.latest().0
+    }
+
     /// Combine two sets of supported ciphers.
     ///
     /// Used to build the wallet info `encryption` tag.
