@@ -1779,7 +1779,7 @@ dependencies = [
 
 [[package]]
 name = "nostr"
-version = "0.45.0-alpha.4"
+version = "0.45.0-alpha.5"
 dependencies = [
  "aes",
  "base64",
@@ -1805,7 +1805,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-blossom"
-version = "0.45.0-alpha.4"
+version = "0.45.0-alpha.5"
 dependencies = [
  "base64",
  "clap",
@@ -1818,7 +1818,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-browser-signer"
-version = "0.45.0-alpha.4"
+version = "0.45.0-alpha.5"
 dependencies = [
  "js-sys",
  "nostr",
@@ -1830,7 +1830,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-browser-signer-proxy"
-version = "0.45.0-alpha.4"
+version = "0.45.0-alpha.5"
 dependencies = [
  "atomic-destructor",
  "bytes",
@@ -1849,7 +1849,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-connect"
-version = "0.45.0-alpha.4"
+version = "0.45.0-alpha.5"
 dependencies = [
  "async-utility",
  "dialoguer",
@@ -1865,7 +1865,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-database"
-version = "0.45.0-alpha.4"
+version = "0.45.0-alpha.5"
 dependencies = [
  "btreecap",
  "flatbuffers 25.12.19",
@@ -1884,7 +1884,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-gossip"
-version = "0.45.0-alpha.4"
+version = "0.45.0-alpha.5"
 dependencies = [
  "nostr",
  "opaquerr",
@@ -1892,7 +1892,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-gossip-memory"
-version = "0.45.0-alpha.4"
+version = "0.45.0-alpha.5"
 dependencies = [
  "indexmap",
  "lru",
@@ -1904,7 +1904,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-gossip-sqlite"
-version = "0.45.0-alpha.4"
+version = "0.45.0-alpha.5"
 dependencies = [
  "async-utility",
  "nostr",
@@ -1926,7 +1926,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-keyring"
-version = "0.45.0-alpha.4"
+version = "0.45.0-alpha.5"
 dependencies = [
  "async-utility",
  "keyring",
@@ -1937,7 +1937,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-lmdb"
-version = "0.45.0-alpha.4"
+version = "0.45.0-alpha.5"
 dependencies = [
  "async-utility",
  "flume",
@@ -1953,7 +1953,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-memory"
-version = "0.45.0-alpha.4"
+version = "0.45.0-alpha.5"
 dependencies = [
  "btreecap",
  "nostr",
@@ -1964,7 +1964,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-ndb"
-version = "0.45.0-alpha.4"
+version = "0.45.0-alpha.5"
 dependencies = [
  "nostr",
  "nostr-database",
@@ -1973,7 +1973,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-sdk"
-version = "0.45.0-alpha.4"
+version = "0.45.0-alpha.5"
 dependencies = [
  "async-utility",
  "async-wsocket",
@@ -2002,7 +2002,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-sqlite"
-version = "0.45.0-alpha.4"
+version = "0.45.0-alpha.5"
 dependencies = [
  "async-utility",
  "nostr",
@@ -2041,7 +2041,7 @@ dependencies = [
 
 [[package]]
 name = "nwc"
-version = "0.45.0-alpha.4"
+version = "0.45.0-alpha.5"
 dependencies = [
  "futures-core",
  "nostr",
