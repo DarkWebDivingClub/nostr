@@ -25,6 +25,12 @@ use super::Error;
 use crate::util::{self, hkdf};
 use crate::{PublicKey, SecretKey};
 
+const VERSION_SIZE: usize = 1;
+const NONCE_SIZE: usize = 32;
+const MIN_CIPHERTEXT_SIZE: usize = 2 + 32;
+const HMAC_SIZE: usize = 32;
+const MIN_PAYLOAD_SIZE: usize = VERSION_SIZE + NONCE_SIZE + MIN_CIPHERTEXT_SIZE + HMAC_SIZE;
+
 const MESSAGE_KEYS_SIZE: usize = 76;
 const MESSAGES_KEYS_ENCRYPTION_SIZE: usize = 32;
 const MESSAGES_KEYS_NONCE_SIZE: usize = 12;
@@ -43,6 +49,8 @@ pub enum ErrorV2 {
     Utf8Encode(FromUtf8Error),
     /// HKDF Length
     HkdfLength(usize),
+    /// Payload is too short
+    PayloadTooShort,
     /// Try from slice
     TryFromSlice,
     /// Message is empty
@@ -64,6 +72,7 @@ impl fmt::Display for ErrorV2 {
             Self::FromSlice(e) => e.fmt(f),
             Self::Utf8Encode(e) => write!(f, "error while encoding to UTF-8: {e}"),
             Self::HkdfLength(size) => write!(f, "invalid Length for HKDF: {size}"),
+            Self::PayloadTooShort => f.write_str("payload size is too short"),
             Self::TryFromSlice => f.write_str("could not convert slice to array"),
             Self::MessageEmpty => f.write_str("message empty"),
             Self::MessageTooLong => f.write_str("message too long"),
@@ -234,16 +243,21 @@ pub fn decrypt_to_bytes(
     conversation_key: &ConversationKey,
     payload: &[u8],
 ) -> Result<Vec<u8>, Error> {
-    // Get data from payload
     let len: usize = payload.len();
+
+    if len < MIN_PAYLOAD_SIZE {
+        return Err(ErrorV2::PayloadTooShort.into());
+    }
+
+    // Extract nonce, buffer and hmac from payload
     let nonce: &[u8] = payload
-        .get(1..33)
+        .get(VERSION_SIZE..VERSION_SIZE + NONCE_SIZE)
         .ok_or_else(|| Error::NotFound(String::from("nonce")))?;
     let buffer: &[u8] = payload
-        .get(33..len - 32)
+        .get(VERSION_SIZE + NONCE_SIZE..len - HMAC_SIZE)
         .ok_or_else(|| Error::NotFound(String::from("buffer")))?;
     let mac: &[u8] = payload
-        .get(len - 32..)
+        .get(len - HMAC_SIZE..)
         .ok_or_else(|| Error::NotFound(String::from("hmac")))?;
 
     // Compose Message Keys
@@ -253,7 +267,7 @@ pub fn decrypt_to_bytes(
     let mut engine: HmacEngine<Sha256Hash> = HmacEngine::new(keys.auth());
     engine.input(nonce);
     engine.input(buffer);
-    let calculated_mac: [u8; 32] = Hmac::from_engine(engine).to_byte_array();
+    let calculated_mac: [u8; HMAC_SIZE] = Hmac::from_engine(engine).to_byte_array();
     if mac != calculated_mac.as_slice() {
         return Err(ErrorV2::InvalidHmac.into());
     }
@@ -263,16 +277,17 @@ pub fn decrypt_to_bytes(
     let mut buffer: Vec<u8> = buffer.to_vec();
     cipher.apply_keystream(&mut buffer);
 
-    let be_bytes: [u8; 2] = buffer[0..2]
+    let be_bytes: [u8; 2] = buffer
+        .get(0..2)
+        .ok_or(ErrorV2::InvalidPadding)?
         .try_into()
-        .map_err(|_| Error::from(ErrorV2::TryFromSlice))?;
+        .map_err(|_| ErrorV2::InvalidPadding)?;
     let unpadded_len: usize = u16::from_be_bytes(be_bytes) as usize;
 
-    if buffer.len() < 2 + unpadded_len {
-        return Err(ErrorV2::InvalidPadding.into());
-    }
+    let unpadded: &[u8] = buffer
+        .get(2..2 + unpadded_len)
+        .ok_or(ErrorV2::InvalidPadding)?;
 
-    let unpadded: &[u8] = &buffer[2..2 + unpadded_len];
     if unpadded.is_empty() {
         return Err(ErrorV2::MessageEmpty.into());
     }
@@ -643,6 +658,69 @@ mod tests {
                 "Unexpected error in invalid decrypt #{}",
                 i
             );
+        }
+    }
+
+    fn make_authenticated_short_v2_payload(
+        conversation_key: &ConversationKey,
+        ciphertext_len: usize,
+    ) -> Vec<u8> {
+        assert!(
+            ciphertext_len <= 1,
+            "this helper is intended for the 65/66-byte regression cases"
+        );
+
+        let nonce: [u8; 32] = [0x42; 32];
+
+        let keys: MessageKeys = get_message_keys(conversation_key, &nonce).unwrap();
+
+        // Zero or one encrypted byte. ChaCha20 preserves the buffer length,
+        // therefore the decrypted buffer will also contain zero or one byte.
+        let ciphertext: Vec<u8> = vec![0u8; ciphertext_len];
+
+        // Produce a valid MAC, as a legitimate conversation participant can do.
+        let mut engine: HmacEngine<Sha256Hash> = HmacEngine::new(keys.auth());
+        engine.input(&nonce);
+        engine.input(&ciphertext);
+        let mac: [u8; 32] = Hmac::from_engine(engine).to_byte_array();
+
+        let mut payload: Vec<u8> = Vec::with_capacity(65 + ciphertext_len);
+        payload.push(2); // NIP-44 v2
+        payload.extend_from_slice(&nonce);
+        payload.extend_from_slice(&ciphertext);
+        payload.extend_from_slice(&mac);
+
+        payload
+    }
+
+    #[test]
+    fn test_short_authenticated_payloads_return_error_instead_of_panicking() {
+        // Alice is the sender; Bob is the recipient.
+        let alice_sk =
+            SecretKey::from_str("5c0c523f52a5b6fad39ed2403092df8cebc36318b39383bca6c00808626fab3a")
+                .unwrap();
+        let alice_keys = Keys::new(alice_sk);
+        let alice_pk = alice_keys.public_key();
+
+        let bob_sk =
+            SecretKey::from_str("4b22aa260e4acb7021e32f38a6cdf4b673c6a277755bfce287e370c924dc936d")
+                .unwrap();
+        let bob_keys = Keys::new(bob_sk);
+
+        let conversation_key = ConversationKey::derive(bob_keys.secret_key(), &alice_pk).unwrap();
+
+        for ciphertext_len in [0, 1] {
+            let payload = make_authenticated_short_v2_payload(&conversation_key, ciphertext_len);
+
+            // 1 version + 32 nonce + N ciphertext + 32 MAC.
+            assert_eq!(payload.len(), 65 + ciphertext_len);
+
+            let encoded = general_purpose::STANDARD.encode(&payload);
+
+            let err = nip44::decrypt_to_bytes(bob_keys.secret_key(), &alice_pk, encoded.as_bytes())
+                .unwrap_err();
+
+            assert_eq!(err, Error::V2(ErrorV2::PayloadTooShort));
         }
     }
 }
