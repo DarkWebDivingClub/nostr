@@ -145,6 +145,7 @@ kind_variants! {
     WalletConnectRequest => 23194, "Wallet Connect Request", "<https://github.com/nostr-protocol/nips/blob/master/47.md>",
     WalletConnectResponse => 23195, "Wallet Connect Response", "<https://github.com/nostr-protocol/nips/blob/master/47.md>",
     WalletConnectNotification => 23196, "Wallet Connect Notification", "<https://github.com/nostr-protocol/nips/blob/master/47.md>",
+    WalletConnectNotificationNip44V2 => 23197, "Wallet Connect Notification encrypted using nip44_v2", "<https://github.com/nostr-protocol/nips/blob/master/47.md>",
     NostrConnect => 24133, "Nostr Connect", "<https://github.com/nostr-protocol/nips/blob/master/47.md>",
     LiveEvent => 30311, "Live Event", "<https://github.com/nostr-protocol/nips/blob/master/53.md>",
     LiveEventMessage => 1311, "Live Event Message", "<https://github.com/nostr-protocol/nips/blob/master/53.md>",
