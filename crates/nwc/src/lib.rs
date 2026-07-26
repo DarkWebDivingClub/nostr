@@ -468,8 +468,8 @@ mod tests {
             .fetch_events(
                 Filter::new()
                     .kind(Kind::WalletConnectRequest)
-                    .author(ckeys.public_key)
-                    .pubkey(wkeys.public_key),
+                    .author(ckeys.public_key())
+                    .pubkey(wkeys.public_key()),
             )
             .policy(ReqExitPolicy::WaitForEvents(1))
             .await
@@ -494,7 +494,7 @@ mod tests {
             .encrypt(wkeys.secret_key(), &ckeys.public_key(), &RESPONSE.as_json())
             .unwrap();
         let response_event = EventBuilder::new(Kind::WalletConnectResponse, enc_response)
-            .tag(Tag::public_key(ckeys.public_key))
+            .tag(Tag::public_key(ckeys.public_key()))
             .tag(Tag::event(request.id))
             .finalize(&wkeys)
             .unwrap();

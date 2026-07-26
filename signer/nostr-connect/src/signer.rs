@@ -207,7 +207,7 @@ impl NostrConnectRemoteSigner {
                                             secret,
                                         } => {
                                             if remote_signer_public_key
-                                                == self.keys.signer.public_key
+                                                == self.keys.signer.public_key()
                                             {
                                                 if self.match_secret(secret) {
                                                     NostrConnectResponse::with_result(

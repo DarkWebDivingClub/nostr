@@ -371,7 +371,7 @@ mod tests {
         let gossip = setup().await;
 
         // Single author
-        let filter = Filter::new().author(keys_a.public_key);
+        let filter = Filter::new().author(keys_a.public_key());
         match gossip
             .break_down_filter(
                 filter.clone(),
@@ -392,7 +392,7 @@ mod tests {
         }
 
         // Multiple authors
-        let authors_filter = Filter::new().authors([keys_a.public_key, keys_b.public_key]);
+        let authors_filter = Filter::new().authors([keys_a.public_key(), keys_b.public_key()]);
         match gossip
             .break_down_filter(
                 authors_filter.clone(),
@@ -407,7 +407,7 @@ mod tests {
                 assert_eq!(map.get(&damus_url).unwrap(), &authors_filter);
                 assert_eq!(
                     map.get(&nostr_bg_url).unwrap(),
-                    &Filter::new().author(keys_a.public_key)
+                    &Filter::new().author(keys_a.public_key())
                 );
                 // assert_eq!(
                 //     map.get(&nos_lol_url).unwrap(),
@@ -416,7 +416,7 @@ mod tests {
                 assert!(!map.contains_key(&nostr_mom_url));
                 assert_eq!(
                     map.get(&nostr_info_url).unwrap(),
-                    &Filter::new().author(keys_b.public_key)
+                    &Filter::new().author(keys_b.public_key())
                 );
                 // assert_eq!(
                 //     map.get(&relay_rip_url).unwrap(),
@@ -446,7 +446,7 @@ mod tests {
         }
 
         // Single p tags
-        let p_tag_filter = Filter::new().pubkey(keys_a.public_key);
+        let p_tag_filter = Filter::new().pubkey(keys_a.public_key());
         match gossip
             .break_down_filter(
                 p_tag_filter.clone(),
@@ -471,8 +471,8 @@ mod tests {
 
         // Both author and p tag
         let filter = Filter::new()
-            .author(keys_a.public_key)
-            .pubkey(keys_b.public_key);
+            .author(keys_a.public_key())
+            .pubkey(keys_b.public_key());
         match gossip
             .break_down_filter(
                 filter.clone(),
@@ -497,7 +497,7 @@ mod tests {
 
         // test orphan filters
         let random_keys = Keys::generate();
-        let filter = Filter::new().author(random_keys.public_key);
+        let filter = Filter::new().author(random_keys.public_key());
         match gossip
             .break_down_filter(
                 filter.clone(),

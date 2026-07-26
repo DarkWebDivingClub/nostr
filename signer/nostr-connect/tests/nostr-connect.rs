@@ -57,7 +57,7 @@ async fn test_bunker_uri(user_keys: Keys, relay_url: RelayUrl) {
         .await
         .unwrap();
 
-    assert_eq!(event.pubkey, user_keys.public_key);
+    assert_eq!(event.pubkey, user_keys.public_key());
     assert!(event.verify().is_ok());
 }
 
@@ -95,13 +95,13 @@ async fn test_bunker_uri_no_secret(user_keys: Keys, relay_url: RelayUrl) {
         .await
         .unwrap();
 
-    assert_eq!(event.pubkey, user_keys.public_key);
+    assert_eq!(event.pubkey, user_keys.public_key());
     assert!(event.verify().is_ok());
 }
 
 async fn test_nostrconnect_uri(relay_url: RelayUrl, user_keys: Keys) {
     let app_keys = Keys::generate();
-    let connect_uri = NostrConnectUri::client(app_keys.public_key, [relay_url], "Test App");
+    let connect_uri = NostrConnectUri::client(app_keys.public_key(), [relay_url], "Test App");
 
     let bunker = NostrConnectRemoteSigner::from_uri(
         connect_uri.clone(),
@@ -128,7 +128,7 @@ async fn test_nostrconnect_uri(relay_url: RelayUrl, user_keys: Keys) {
         .await
         .unwrap();
 
-    assert_eq!(event.pubkey, user_keys.public_key);
+    assert_eq!(event.pubkey, user_keys.public_key());
     assert!(event.verify().is_ok());
 }
 

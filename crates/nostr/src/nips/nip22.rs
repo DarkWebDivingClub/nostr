@@ -707,7 +707,7 @@ mod tests {
             "",
         );
 
-        let comment_target = CommentTarget::event(event_id, kind, Some(keys.public_key), None);
+        let comment_target = CommentTarget::event(event_id, kind, Some(keys.public_key()), None);
 
         // Root
         let root_vec = comment_target.as_vec(true);

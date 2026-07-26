@@ -44,8 +44,7 @@ use crate::util::SECP256K1;
 /// Nostr keys
 #[derive(Clone)]
 pub struct Keys {
-    /// Public key
-    pub public_key: PublicKey,
+    public_key: PublicKey,
     secret_key: SecretKey,
     keypair: Keypair,
 }

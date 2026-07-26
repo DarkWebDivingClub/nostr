@@ -44,7 +44,7 @@ impl NostrConnect {
     ) -> Result<Self, Error> {
         // Check app keys
         if let NostrConnectUri::Client { public_key, .. } = &uri {
-            if public_key != &client_keys.public_key {
+            if public_key != &client_keys.public_key() {
                 return Err(Error::public_key_not_match_app_keys());
             }
         }

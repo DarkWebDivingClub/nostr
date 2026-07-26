@@ -2047,13 +2047,13 @@ mod tests {
     fn test_request_encryption() {
         let keys = Keys::generate();
         let secret = SecretKey::generate();
-        let uri = NostrWalletConnectUri::new(keys.public_key, vec![], secret.clone(), None);
+        let uri = NostrWalletConnectUri::new(keys.public_key(), vec![], secret.clone(), None);
 
         // Single cipher
         let request = Request::get_balance()
             .to_event(&uri, Nip47Ciphers::NIP04)
             .unwrap();
-        let plain_request = nip04::decrypt(&secret, &keys.public_key, &request.content).unwrap();
+        let plain_request = nip04::decrypt(&secret, &keys.public_key(), &request.content).unwrap();
         assert_eq!(plain_request, Request::get_balance().as_json());
 
         // multiple ciphers, a case when passing the wallet encryption tag. The
@@ -2061,7 +2061,7 @@ mod tests {
         let request = Request::get_balance()
             .to_event(&uri, Nip47Ciphers::NIP04.add(Nip47Ciphers::NIP44V2))
             .unwrap();
-        let plain_request = nip44::decrypt(&secret, &keys.public_key, &request.content).unwrap();
+        let plain_request = nip44::decrypt(&secret, &keys.public_key(), &request.content).unwrap();
         assert_eq!(plain_request, Request::get_balance().as_json());
     }
 
@@ -2076,7 +2076,7 @@ mod tests {
         let wallet_keys = Keys::generate();
         let client_keys = Keys::generate();
         let uri = NostrWalletConnectUri::new(
-            wallet_keys.public_key,
+            wallet_keys.public_key(),
             vec![],
             client_keys.secret_key().clone(),
             None,
@@ -2131,7 +2131,7 @@ mod tests {
         let wallet_keys = Keys::generate();
         let client_keys = Keys::generate();
         let uri = NostrWalletConnectUri::new(
-            wallet_keys.public_key,
+            wallet_keys.public_key(),
             vec![],
             client_keys.secret_key().clone(),
             None,

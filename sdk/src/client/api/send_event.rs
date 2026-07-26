@@ -714,7 +714,7 @@ mod tests {
         // Sends an event to the inbox relay
         // NOTE: this is not a NIP-17 event, as the nip59 feature is required, so we are sending a fake gift wrap tagging the recipient
         let event = EventBuilder::new(Kind::GiftWrap, "payload")
-            .tag(Tag::public_key(bob_keys.public_key))
+            .tag(Tag::public_key(bob_keys.public_key()))
             .finalize(&Keys::generate())
             .unwrap();
         let output = client.send_event(&event).to_nip17().await.unwrap();
@@ -744,7 +744,7 @@ mod tests {
         // NOTE: this is not a NIP-17 event, as the nip59 feature is required, so we are sending a fake gift wrap tagging the recipient
         let bob_keys = Keys::generate();
         let event = EventBuilder::new(Kind::GiftWrap, "payload")
-            .tag(Tag::public_key(bob_keys.public_key))
+            .tag(Tag::public_key(bob_keys.public_key()))
             .finalize(&Keys::generate())
             .unwrap();
 

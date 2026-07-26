@@ -137,7 +137,7 @@ macro_rules! gossip_unit_tests {
             // Test MostReceived selection
             let most_received = store
                 .get_best_relays(
-                    &keys.public_key,
+                    &keys.public_key(),
                     BestRelaySelection::MostReceived { limit: 10 },
                     GossipAllowedRelays::default(),
                 )

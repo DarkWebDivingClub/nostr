@@ -109,8 +109,8 @@ macro_rules! database_unit_tests {
                 .finalize(&to_vanish)
                 .unwrap();
             let replaceable = ContactListBuilder::new([
-                Contact::new(Keys::generate().public_key),
-                Contact::new(Keys::generate().public_key),
+                Contact::new(Keys::generate().public_key()),
+                Contact::new(Keys::generate().public_key()),
             ])
             .finalize(&to_vanish)
             .unwrap();
@@ -119,7 +119,7 @@ macro_rules! database_unit_tests {
                 .finalize(&to_vanish)
                 .unwrap();
             let dummy_gift_wrap = EventBuilder::new(Kind::GiftWrap, ":)")
-                .tag(Tag::public_key(to_vanish.public_key))
+                .tag(Tag::public_key(to_vanish.public_key()))
                 .finalize(&helper)
                 .unwrap();
 
@@ -132,7 +132,7 @@ macro_rules! database_unit_tests {
             // Make sure the event are there
             assert_eq!(
                 store
-                    .count(Filter::new().author(to_vanish.public_key))
+                    .count(Filter::new().author(to_vanish.public_key()))
                     .await
                     .unwrap(),
                 4
@@ -142,7 +142,7 @@ macro_rules! database_unit_tests {
                     .count(
                         Filter::new()
                             .kind(Kind::GiftWrap)
-                            .pubkey(to_vanish.public_key)
+                            .pubkey(to_vanish.public_key())
                     )
                     .await
                     .unwrap(),
@@ -515,7 +515,7 @@ macro_rules! database_unit_tests {
 
             // Test filter query
             let events = store
-                .query(Filter::new().author(keys.public_key).kind(Kind::Metadata))
+                .query(Filter::new().author(keys.public_key()).kind(Kind::Metadata))
                 .await
                 .expect("Failed to query events");
             assert_eq!(events.to_vec(), vec![expected_event.clone()]);
@@ -541,7 +541,7 @@ macro_rules! database_unit_tests {
 
             // Test filter query
             let events = store
-                .query(Filter::new().author(keys.public_key).kind(Kind::Metadata))
+                .query(Filter::new().author(keys.public_key()).kind(Kind::Metadata))
                 .await
                 .unwrap();
             assert_eq!(events.to_vec(), vec![new_expected_event]);
@@ -565,7 +565,7 @@ macro_rules! database_unit_tests {
                         .custom_created_at(now - Duration::from_secs(120)),
                 )
                 .await;
-            let coordinate = Coordinate::new(Kind::from(33_333), keys.public_key).identifier("my-id-a");
+            let coordinate = Coordinate::new(Kind::from(33_333), keys.public_key()).identifier("my-id-a");
 
             // Test event by ID
             let event = get_existent_event_by_id(&store, &expected_event.id).await;
@@ -952,7 +952,7 @@ macro_rules! database_unit_tests {
             // Check if the events deleted
             assert_eq!(
                 store
-                    .count(Filter::new().author(to_vanish.public_key))
+                    .count(Filter::new().author(to_vanish.public_key()))
                     .await
                     .unwrap(),
                 1 // The request to vanish event
@@ -962,7 +962,7 @@ macro_rules! database_unit_tests {
                     .count(
                         Filter::new()
                             .kind(Kind::GiftWrap)
-                            .pubkey(to_vanish.public_key)
+                            .pubkey(to_vanish.public_key())
                     )
                     .await
                     .unwrap(),
@@ -1002,7 +1002,7 @@ macro_rules! database_unit_tests {
             // Check if the events deleted
             assert_eq!(
                 store
-                    .count(Filter::new().author(to_vanish.public_key))
+                    .count(Filter::new().author(to_vanish.public_key()))
                     .await
                     .unwrap(),
                 1 // The request to vanish event
@@ -1012,7 +1012,7 @@ macro_rules! database_unit_tests {
                     .count(
                         Filter::new()
                             .kind(Kind::GiftWrap)
-                            .pubkey(to_vanish.public_key)
+                            .pubkey(to_vanish.public_key())
                     )
                     .await
                     .unwrap(),
