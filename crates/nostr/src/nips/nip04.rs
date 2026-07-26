@@ -27,11 +27,15 @@ use crate::{key, util, PublicKey, SecretKey};
 type Aes256CbcEnc = Encryptor<Aes256>;
 type Aes256CbcDec = Decryptor<Aes256>;
 
+const IV_SIZE: usize = 16;
+
 /// `NIP04` error
 #[derive(Debug, PartialEq)]
 pub enum Error {
     /// Key error
     Key(key::Error),
+    /// Invalid IV len
+    InvalidIVLen,
     /// Invalid content format
     InvalidContentFormat,
     /// Error while decoding from base64
@@ -49,6 +53,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Key(e) => e.fmt(f),
+            Self::InvalidIVLen => f.write_str("Invalid IV length"),
             Self::InvalidContentFormat => f.write_str("Invalid NIP04 content format"),
             Self::Base64Decode => f.write_str("Error while decoding NIP04 from base64"),
             Self::Utf8Encode => f.write_str("Error while encoding NIP04 to UTF-8"),
@@ -98,7 +103,7 @@ where
     let key: [u8; 32] = util::generate_shared_key(secret_key, public_key)?;
 
     // Generate iv
-    let mut iv: [u8; 16] = [0u8; 16];
+    let mut iv: [u8; IV_SIZE] = [0u8; IV_SIZE];
     rng.fill_bytes(&mut iv);
 
     // Compose cipher
@@ -138,9 +143,10 @@ where
     let iv: Vec<u8> = general_purpose::STANDARD
         .decode(parsed_content[1])
         .map_err(|_| Error::Base64Decode)?;
+    let iv: [u8; IV_SIZE] = iv.as_slice().try_into().map_err(|_| Error::InvalidIVLen)?;
     let key: [u8; 32] = util::generate_shared_key(secret_key, public_key)?;
 
-    let cipher = Aes256CbcDec::new(&key.into(), iv.as_slice().into());
+    let cipher = Aes256CbcDec::new(&key.into(), &iv.into());
     let result = cipher
         .decrypt_padded_vec_mut::<Pkcs7>(&encrypted_content)
         .map_err(|_| Error::WrongBlockMode)?;
@@ -237,5 +243,26 @@ mod tests {
             .unwrap_err(),
             Error::WrongBlockMode
         );
+    }
+
+    #[test]
+    fn test_decryption_with_invalid_iv_length() {
+        let sender_sk =
+            SecretKey::from_str("6b911fd37cdf5c81d4c0adb1ab7fa822ed253ab0ad9aa18d77257c88b29b718e")
+                .unwrap();
+        let receiver_sk =
+            SecretKey::from_str("7b911fd37cdf5c81d4c0adb1ab7fa822ed253ab0ad9aa18d77257c88b29b718e")
+                .unwrap();
+        let receiver_pk = Keys::new(receiver_sk).public_key();
+
+        for len in [0, 1, 15, 17, 32] {
+            let ciphertext = general_purpose::STANDARD.encode([0u8; 16]);
+            let iv = general_purpose::STANDARD.encode(vec![0u8; len]);
+            let encrypted_content = format!("{ciphertext}?iv={iv}");
+
+            let err = decrypt(&sender_sk, &receiver_pk, encrypted_content).unwrap_err();
+
+            assert_eq!(err, Error::InvalidIVLen);
+        }
     }
 }
