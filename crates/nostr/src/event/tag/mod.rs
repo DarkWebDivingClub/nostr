@@ -94,6 +94,29 @@ impl Tag {
         Self { buf }
     }
 
+    /// Constructs a tag from its raw string representation without validation.
+    ///
+    /// The first element is treated as the tag kind and every subsequent
+    /// element as a tag value. Unlike [`Tag::parse`], this constructor does not
+    /// check that the input contains at least one element.
+    ///
+    /// This constructor is intended for inputs that were already validated,
+    /// such as data produced by a trusted decoder. Use [`Tag::parse`] for
+    /// untrusted or otherwise unvalidated input.
+    ///
+    /// This function does not validate the tag against any NIP-specific
+    /// structure or content requirements.
+    ///
+    /// # Safety
+    ///
+    /// `tag` must contain at least one element. Passing an empty vector violates
+    /// the invariant relied upon by methods such as [`Tag::kind`] and may cause
+    /// them to panic.
+    #[inline]
+    pub unsafe fn new_unchecked(tag: Vec<String>) -> Self {
+        Self { buf: tag }
+    }
+
     /// Parse tag
     ///
     /// Return error if the tag is empty!
