@@ -5,9 +5,10 @@
 
 use core::cmp;
 
-use nostr::event::EventBorrow;
 use nostr::nips::nip01::Coordinate;
 use nostr::{EventId, PublicKey, SingleLetterTag, Timestamp};
+
+use crate::store::event::DatabaseEvent;
 
 const CREATED_AT_BE: usize = 8;
 const KIND_BE: usize = 2;
@@ -31,7 +32,7 @@ pub(super) struct EventIndexKeys {
 }
 
 impl EventIndexKeys {
-    pub fn new(event: EventBorrow<'_>) -> Self {
+    pub fn new(event: DatabaseEvent<'_>) -> Self {
         // Index by created_at and id
         let ci_index: Vec<u8> = make_ci_index_key(event.created_at, event.id);
 

@@ -11,6 +11,7 @@ use heed::RoTxn;
 use nostr_database::prelude::*;
 
 mod error;
+mod event;
 mod filter;
 mod ingester;
 pub(crate) mod lmdb;

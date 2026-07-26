@@ -4,7 +4,6 @@
 
 //! Nostr Database Flatbuffers
 
-use std::borrow::Cow;
 use std::fmt;
 
 use flatbuffers::InvalidFlatbuffer;
@@ -52,6 +51,7 @@ impl fmt::Display for MissingField {
     }
 }
 
+// TODO: replace with an opaque err (or use the database error)
 /// FlatBuffers Error
 #[derive(Debug)]
 pub enum Error {
@@ -179,72 +179,5 @@ impl FlatBufferDecode for Event {
                 .to_owned(),
             Signature::from_slice(&ev.sig().ok_or(Error::FieldNotFound(MissingField::Sig))?.0)?,
         ))
-    }
-}
-
-impl<'a> FlatBufferDecodeBorrowed<'a> for EventBorrow<'a> {
-    fn decode(buf: &'a [u8]) -> Result<Self, Error> {
-        let ev = event_fbs::root_as_event(buf)?;
-
-        let fb_tags = ev.tags().ok_or(Error::FieldNotFound(MissingField::Tags))?;
-        let mut tags = Vec::with_capacity(fb_tags.len());
-
-        for tag in fb_tags.iter().filter_map(|t| t.data()) {
-            tags.push(CowTag::parse(tag.into_iter().map(Cow::Borrowed).collect())?);
-        }
-
-        Ok(Self {
-            id: &ev.id().ok_or(Error::FieldNotFound(MissingField::Id))?.0,
-            pubkey: &ev
-                .pubkey()
-                .ok_or(Error::FieldNotFound(MissingField::Pubkey))?
-                .0,
-            created_at: Timestamp::from_secs(ev.created_at()),
-            kind: ev.kind() as u16, // TODO: should use try_into
-            tags,
-            content: ev
-                .content()
-                .ok_or(Error::FieldNotFound(MissingField::Content))?,
-            sig: &ev.sig().ok_or(Error::FieldNotFound(MissingField::Sig))?.0,
-        })
-    }
-}
-
-#[cfg(bench)]
-mod benches {
-    use super::*;
-    use crate::test::{Bencher, black_box};
-
-    #[bench]
-    pub fn bench_decode_flatbuf_event_borrow(bh: &mut Bencher) {
-        let json = r#"{
-              "content": "+",
-              "created_at": 1716508454,
-              "id": "3e9e9c2fbf263590860a9c60a7de6b0d166230a5a15aa8dcdb70f537cec9807a",
-              "kind": 7,
-              "pubkey": "3bbddb5c7233ad993b41cb639e63122120f391b8580a9b83aae33c648230e0a3",
-              "sig": "3f2ba6d713e4851500b81de2d2ef44b72f1eff061898bf8488e74f7e4ed141b0dadab4c3a9c6b237f3a6db83171bd41eafd7ab973f6fb067a4305e95abeadeee",
-              "tags": [
-                [
-                  "e",
-                  "e1e786c60ed884b6e784712aaf70e63b848b7403ef651b52b701d87739ea1808",
-                  "",
-                  "",
-                  "04c915daefee38317fa734444acee390a8269fe5810b2241e5e6dd343dfbecc9"
-                ],
-                [
-                  "p",
-                  "04c915daefee38317fa734444acee390a8269fe5810b2241e5e6dd343dfbecc9"
-                ]
-              ]
-            }"#;
-        let event = Event::from_json(json).unwrap();
-
-        let mut fbb = FlatBufferBuilder::new();
-        let bytes = event.encode(&mut fbb);
-
-        bh.iter(|| {
-            black_box(EventBorrow::decode(bytes)).unwrap();
-        });
     }
 }

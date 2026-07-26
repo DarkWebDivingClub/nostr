@@ -21,14 +21,12 @@ use secp256k1::schnorr::Signature;
 use secp256k1::{Message, Secp256k1, Verification};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-mod borrow;
 mod builder;
 mod id;
 mod kind;
 mod tag;
 mod unsigned;
 
-pub use self::borrow::*;
 pub use self::builder::*;
 pub use self::id::*;
 pub use self::kind::*;

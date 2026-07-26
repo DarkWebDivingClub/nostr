@@ -4,8 +4,9 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
-use nostr::event::EventBorrow;
 use nostr::{Filter, SingleLetterTag, Timestamp};
+
+use super::event::DatabaseEvent;
 
 const TITLE: &str = "title";
 const DESCRIPTION: &str = "description";
@@ -25,17 +26,17 @@ pub(crate) struct DatabaseFilter {
 
 impl DatabaseFilter {
     #[inline]
-    fn ids_match(&self, event: &EventBorrow) -> bool {
+    fn ids_match(&self, event: &DatabaseEvent) -> bool {
         self.ids.is_empty() || self.ids.contains(event.id)
     }
 
     #[inline]
-    fn authors_match(&self, event: &EventBorrow) -> bool {
+    fn authors_match(&self, event: &DatabaseEvent) -> bool {
         self.authors.is_empty() || self.authors.contains(event.pubkey)
     }
 
     #[inline]
-    fn tag_match(&self, event: &EventBorrow) -> bool {
+    fn tag_match(&self, event: &DatabaseEvent) -> bool {
         if self.generic_tags.is_empty() {
             return true;
         }
@@ -61,12 +62,12 @@ impl DatabaseFilter {
     }
 
     #[inline]
-    fn kind_match(&self, event: &EventBorrow) -> bool {
+    fn kind_match(&self, event: &DatabaseEvent) -> bool {
         self.kinds.is_empty() || self.kinds.contains(&event.kind)
     }
 
     #[inline]
-    fn search_match(&self, event: &EventBorrow) -> bool {
+    fn search_match(&self, event: &DatabaseEvent) -> bool {
         match &self.search {
             Some(query) => {
                 // NOTE: `query` was already converted to lowercase
@@ -95,7 +96,7 @@ impl DatabaseFilter {
     }
 
     #[inline]
-    pub(crate) fn match_event(&self, event: &EventBorrow) -> bool {
+    pub(crate) fn match_event(&self, event: &DatabaseEvent) -> bool {
         self.ids_match(event)
             && self.authors_match(event)
             && self.kind_match(event)
@@ -182,7 +183,7 @@ mod tests {
     #[test]
     fn test_search_match_in_content() {
         let event = create_test_event("Hello World");
-        let event: EventBorrow = (&event).into();
+        let event: DatabaseEvent = (&event).into();
 
         let mut filter = DatabaseFilter::from(Filter::new());
 
@@ -205,7 +206,7 @@ mod tests {
             .tag(Tag::parse(["title", "Search userfacing tags"]).unwrap())
             .finalize(&keys)
             .unwrap();
-        let event: EventBorrow = (&event).into();
+        let event: DatabaseEvent = (&event).into();
 
         let mut filter = DatabaseFilter::from(Filter::new());
 
@@ -219,7 +220,7 @@ mod tests {
     #[test]
     fn test_search_empty_query() {
         let event = create_test_event("test");
-        let event: EventBorrow = (&event).into();
+        let event: DatabaseEvent = (&event).into();
         let mut filter = DatabaseFilter::from(Filter::new());
 
         filter.search = Some("".to_string());
@@ -229,7 +230,7 @@ mod tests {
     #[test]
     fn test_search_no_query() {
         let event = create_test_event("test");
-        let event: EventBorrow = (&event).into();
+        let event: DatabaseEvent = (&event).into();
         let filter = DatabaseFilter::from(Filter::new());
 
         assert!(filter.match_event(&event));
@@ -238,7 +239,7 @@ mod tests {
     #[test]
     fn test_search_partial_match() {
         let event = create_test_event("nostr protocol");
-        let event: EventBorrow = (&event).into();
+        let event: DatabaseEvent = (&event).into();
         let mut filter = DatabaseFilter::from(Filter::new());
 
         filter.search = Some("proto".to_string());

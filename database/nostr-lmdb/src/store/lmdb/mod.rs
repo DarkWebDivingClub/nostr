@@ -19,6 +19,7 @@ mod index;
 
 use self::index::EventIndexKeys;
 use super::error::{MigrationError, StoreError};
+use super::event::DatabaseEvent;
 use super::filter::DatabaseFilter;
 use crate::NostrLmdbBuilder;
 
@@ -276,7 +277,7 @@ impl Lmdb {
                 let (_id, event_bytes) = result?;
 
                 // Decode event
-                if let Ok(event) = EventBorrow::decode(event_bytes) {
+                if let Ok(event) = DatabaseEvent::decode(event_bytes) {
                     // Build just the kc_index key
                     let kc_index_key =
                         index::make_kc_index_key(event.kind, event.created_at, event.id);
@@ -323,7 +324,7 @@ impl Lmdb {
             .put(txn, event.id.as_bytes(), event.encode(fbb))?;
 
         // Index event
-        let event: EventBorrow = EventBorrow::from(event);
+        let event: DatabaseEvent = DatabaseEvent::from(event);
         let index: EventIndexKeys = EventIndexKeys::new(event);
         self.index_event(txn, index)
     }
@@ -414,7 +415,7 @@ impl Lmdb {
             let (_id, event) = result?;
 
             // Decode event
-            if let Ok(event) = EventBorrow::decode(event) {
+            if let Ok(event) = DatabaseEvent::decode(event) {
                 // Build indexes
                 let index: EventIndexKeys = EventIndexKeys::new(event);
                 indexes.push(index);
@@ -525,9 +526,9 @@ impl Lmdb {
         &self,
         txn: &'a RoTxn,
         event_id: &[u8],
-    ) -> Result<Option<EventBorrow<'a>>, StoreError> {
+    ) -> Result<Option<DatabaseEvent<'a>>, StoreError> {
         match self.events.get(txn, event_id)? {
-            Some(bytes) => Ok(Some(EventBorrow::decode(bytes)?)),
+            Some(bytes) => Ok(Some(DatabaseEvent::decode(bytes)?)),
             None => Ok(None),
         }
     }
@@ -541,7 +542,7 @@ impl Lmdb {
                 .into_iter()
                 .map(|event| EventIndexKeys::new(event))
                 .collect()
-        }; // All EventBorrow instances dropped here
+        }; // All DatabaseEvent instances dropped here
 
         // Now we can safely mutate the transaction
         for index in indexes {
@@ -594,11 +595,11 @@ impl Lmdb {
     }
 
     /// Find all events that match the filter
-    pub fn query<'a>(
+    pub(crate) fn query<'a>(
         &'a self,
         txn: &'a RoTxn,
         filter: Filter,
-    ) -> Result<Box<dyn Iterator<Item = EventBorrow<'a>> + 'a>, StoreError> {
+    ) -> Result<Box<dyn Iterator<Item = DatabaseEvent<'a>> + 'a>, StoreError> {
         if let (Some(since), Some(until)) = (filter.since, filter.until) {
             if since > until {
                 return Ok(Box::new(iter::empty()));
@@ -606,7 +607,7 @@ impl Lmdb {
         }
 
         // We insert into a BTreeSet to keep them time-ordered
-        let mut output: BTreeSet<EventBorrow<'a>> = BTreeSet::new();
+        let mut output: BTreeSet<DatabaseEvent<'a>> = BTreeSet::new();
 
         let limit: Option<usize> = filter.limit;
         let since = filter.since.unwrap_or_else(Timestamp::min);
@@ -660,7 +661,7 @@ impl Lmdb {
         txn: &'a RoTxn,
         filter: DatabaseFilter,
         limit: Option<usize>,
-        output: &mut BTreeSet<EventBorrow<'a>>,
+        output: &mut BTreeSet<DatabaseEvent<'a>>,
     ) -> Result<(), StoreError> {
         // Fetch by id
         for id in filter.ids.iter() {
@@ -689,7 +690,7 @@ impl Lmdb {
         since: Timestamp,
         until: Timestamp,
         limit: Option<usize>,
-        output: &mut BTreeSet<EventBorrow<'a>>,
+        output: &mut BTreeSet<DatabaseEvent<'a>>,
     ) -> Result<(), StoreError> {
         // We may bring since forward if we hit the limit without going back that
         // far, so we use a mutable since:
@@ -758,7 +759,7 @@ impl Lmdb {
         since: Timestamp,
         until: Timestamp,
         limit: Option<usize>,
-        output: &mut BTreeSet<EventBorrow<'a>>,
+        output: &mut BTreeSet<DatabaseEvent<'a>>,
     ) -> Result<(), StoreError> {
         // We may bring since forward if we hit the limit without going back that
         // far, so we use a mutable since:
@@ -788,7 +789,7 @@ impl Lmdb {
         since: Timestamp,
         until: Timestamp,
         limit: Option<usize>,
-        output: &mut BTreeSet<EventBorrow<'a>>,
+        output: &mut BTreeSet<DatabaseEvent<'a>>,
     ) -> Result<(), StoreError> {
         // We may bring since forward if we hit the limit without going back that
         // far, so we use a mutable since:
@@ -842,7 +843,7 @@ impl Lmdb {
         since: Timestamp,
         until: Timestamp,
         limit: Option<usize>,
-        output: &mut BTreeSet<EventBorrow<'a>>,
+        output: &mut BTreeSet<DatabaseEvent<'a>>,
     ) -> Result<(), StoreError> {
         // We may bring since forward if we hit the limit without going back that
         // far, so we use a mutable since:
@@ -872,7 +873,7 @@ impl Lmdb {
         since: Timestamp,
         until: Timestamp,
         limit: Option<usize>,
-        output: &mut BTreeSet<EventBorrow<'a>>,
+        output: &mut BTreeSet<DatabaseEvent<'a>>,
     ) -> Result<(), StoreError> {
         // We may bring since forward if we hit the limit without going back that
         // far, so we use a mutable since:
@@ -900,7 +901,7 @@ impl Lmdb {
         since: Timestamp,
         until: Timestamp,
         limit: Option<usize>,
-        output: &mut BTreeSet<EventBorrow<'a>>,
+        output: &mut BTreeSet<DatabaseEvent<'a>>,
     ) -> Result<(), StoreError> {
         // We may bring since forward if we hit the limit without going back that
         // far, so we use a mutable since:
@@ -924,7 +925,7 @@ impl Lmdb {
         since: Timestamp,
         until: Timestamp,
         limit: Option<usize>,
-        output: &mut BTreeSet<EventBorrow<'a>>,
+        output: &mut BTreeSet<DatabaseEvent<'a>>,
     ) -> Result<(), StoreError> {
         // We may bring since forward if we hit the limit without going back that
         // far, so we use a mutable since:
@@ -951,13 +952,13 @@ impl Lmdb {
         since: Timestamp,
         until: Timestamp,
         limit: Option<usize>,
-    ) -> Result<Box<dyn Iterator<Item = EventBorrow<'a>> + 'a>, StoreError> {
+    ) -> Result<Box<dyn Iterator<Item = DatabaseEvent<'a>> + 'a>, StoreError> {
         // Iterate over created _at index, so events are already sorted
         Ok(Box::new(
             self.ci_iter(txn, since, until)?
                 .filter_map(move |res| {
                     let (_key, value) = res.ok()?;
-                    let event: EventBorrow = self.get_event_by_id(txn, value).ok()??;
+                    let event: DatabaseEvent = self.get_event_by_id(txn, value).ok()??;
 
                     if filter.match_event(&event) {
                         Some(event)
@@ -976,7 +977,7 @@ impl Lmdb {
         iter: I,
         since: &mut Timestamp,
         limit: Option<usize>,
-        output: &mut BTreeSet<EventBorrow<'a>>,
+        output: &mut BTreeSet<DatabaseEvent<'a>>,
     ) -> Result<(), StoreError>
     where
         I: IntoIterator<Item = &'i [u8]>,
@@ -1015,12 +1016,12 @@ impl Lmdb {
         Ok(())
     }
 
-    pub fn find_replaceable_event<'a>(
+    fn find_replaceable_event<'a>(
         &self,
         txn: &'a RoTxn,
         author: &PublicKey,
         kind: Kind,
-    ) -> Result<Option<EventBorrow<'a>>, StoreError> {
+    ) -> Result<Option<DatabaseEvent<'a>>, StoreError> {
         if !kind.is_replaceable() {
             return Err(StoreError::WrongEventKind);
         }
@@ -1041,11 +1042,11 @@ impl Lmdb {
         Ok(None)
     }
 
-    pub fn find_addressable_event<'a>(
+    fn find_addressable_event<'a>(
         &'a self,
         txn: &'a RoTxn,
         addr: &Coordinate,
-    ) -> Result<Option<EventBorrow<'a>>, StoreError> {
+    ) -> Result<Option<DatabaseEvent<'a>>, StoreError> {
         if !addr.kind.is_addressable() {
             return Err(StoreError::WrongEventKind);
         }
@@ -1407,7 +1408,7 @@ impl Lmdb {
 }
 
 /// Check if the new event should replace the stored one.
-fn has_event_been_replaced(stored: &EventBorrow, event: &Event) -> bool {
+fn has_event_been_replaced(stored: &DatabaseEvent, event: &Event) -> bool {
     match stored.created_at.cmp(&event.created_at) {
         Ordering::Greater => true,
         Ordering::Equal => {
@@ -1477,15 +1478,15 @@ mod tests {
 
             // Verify kc_index was populated by querying by kind
             let filter = Filter::new().kind(Kind::from(1));
-            let results: Vec<EventBorrow> = lmdb.query(&txn, filter).unwrap().collect();
+            let results: Vec<DatabaseEvent> = lmdb.query(&txn, filter).unwrap().collect();
             assert_eq!(results.len(), 2, "Should find 2 events of kind 1");
 
             let filter = Filter::new().kind(Kind::from(3));
-            let results: Vec<EventBorrow> = lmdb.query(&txn, filter).unwrap().collect();
+            let results: Vec<DatabaseEvent> = lmdb.query(&txn, filter).unwrap().collect();
             assert_eq!(results.len(), 1, "Should find 1 event of kind 3");
 
             let filter = Filter::new().kind(Kind::from(5));
-            let results: Vec<EventBorrow> = lmdb.query(&txn, filter).unwrap().collect();
+            let results: Vec<DatabaseEvent> = lmdb.query(&txn, filter).unwrap().collect();
             assert_eq!(results.len(), 1, "Should find 1 event of kind 5");
 
             // Verify kc_index has entries

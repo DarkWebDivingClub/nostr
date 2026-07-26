@@ -18,11 +18,9 @@ use serde::ser::SerializeSeq;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 mod codec;
-mod cow;
 mod list;
 
 pub use self::codec::*;
-pub use self::cow::*;
 pub use self::list::*;
 use super::id::EventId;
 use crate::error::{Error, ErrorKind};

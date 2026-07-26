@@ -130,7 +130,7 @@ impl NostrDatabase for NdbDatabase {
             let res: Result<Note, nostrdb::Error> =
                 self.db.get_note_by_id(&txn, event_id.as_bytes());
             match res {
-                Ok(note) => Ok(Some(ndb_note_to_event(note)?.into_owned())),
+                Ok(note) => Ok(Some(ndb_note_to_event(note)?)),
                 Err(nostrdb::Error::NotFound) => Ok(None),
                 Err(e) => Err(Error::storage(e)),
             }
@@ -158,8 +158,7 @@ impl NostrDatabase for NdbDatabase {
             let res: Vec<QueryResult> = ndb_query(&self.db, &txn, &filter)?;
             events.extend(
                 res.into_iter()
-                    .filter_map(|r| ndb_note_to_event(r.note).ok())
-                    .map(|e| e.into_owned()),
+                    .filter_map(|r| ndb_note_to_event(r.note).ok()),
             );
             Ok(events)
         })
@@ -254,24 +253,32 @@ fn ndb_filter_conversion(f: &Filter) -> nostrdb::Filter {
     filter.build()
 }
 
-fn ndb_note_to_event(note: Note) -> Result<EventBorrow, Error> {
-    Ok(EventBorrow {
-        id: note.id(),
-        pubkey: note.pubkey(),
-        created_at: Timestamp::from(note.created_at()),
-        kind: note
-            .kind()
-            .try_into()
-            .map_err(|e| Error::new(ErrorKind::Protocol, e))?,
-        tags: ndb_note_to_tags(&note)?,
-        content: note.content(),
-        sig: note.sig(),
-    })
+fn ndb_note_to_event(note: Note) -> Result<Event, Error> {
+    let id: EventId = EventId::from_byte_array(*note.id());
+    let pk = PublicKey::from_byte_array(*note.pubkey());
+    let timestamp = Timestamp::from_secs(note.created_at());
+    let kind: u16 = note
+        .kind()
+        .try_into()
+        .map_err(|e| Error::new(ErrorKind::Protocol, e))?;
+    let kind: Kind = Kind::from_u16(kind);
+    let sig: Signature =
+        Signature::from_slice(note.sig()).map_err(|e| Error::new(ErrorKind::Protocol, e))?;
+
+    Ok(Event::new(
+        id,
+        pk,
+        timestamp,
+        kind,
+        ndb_note_to_tags(&note)?,
+        note.content(),
+        sig,
+    ))
 }
 
-fn ndb_note_to_tags<'a>(note: &Note<'a>) -> Result<Vec<CowTag<'a>>, Error> {
+fn ndb_note_to_tags<'a>(note: &Note<'a>) -> Result<Vec<Tag>, Error> {
     let ndb_tags = note.tags();
-    let mut tags: Vec<CowTag<'a>> = Vec::with_capacity(ndb_tags.count() as usize);
+    let mut tags: Vec<Tag> = Vec::with_capacity(ndb_tags.count() as usize);
     for tag in ndb_tags.iter() {
         let tag_str: Vec<Cow<'a, str>> = tag
             .into_iter()
@@ -280,7 +287,7 @@ fn ndb_note_to_tags<'a>(note: &Note<'a>) -> Result<Vec<CowTag<'a>>, Error> {
                 NdbStrVariant::Str(s) => Cow::Borrowed(s),
             })
             .collect();
-        let tag = CowTag::parse(tag_str)?;
+        let tag = Tag::parse(tag_str)?;
         tags.push(tag);
     }
     Ok(tags)
