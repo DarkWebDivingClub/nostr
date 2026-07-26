@@ -24,6 +24,8 @@ use crate::{PublicKey, SecretKey, util};
 type Aes256CbcEnc = Encryptor<Aes256>;
 type Aes256CbcDec = Decryptor<Aes256>;
 
+const IV_SIZE: usize = 16;
+
 /// Encrypt
 ///
 /// <div class="warning"><strong>Unsecure!</strong> Deprecated in favor of NIP17!</div>
@@ -55,7 +57,7 @@ where
     T: AsRef<[u8]>,
 {
     // Generate iv
-    let mut iv: [u8; 16] = [0u8; 16];
+    let mut iv: [u8; IV_SIZE] = [0u8; IV_SIZE];
     rng.fill_bytes(&mut iv);
 
     encrypt_with_iv(secret_key, public_key, content, iv)
@@ -68,7 +70,7 @@ pub fn encrypt_with_iv<T>(
     secret_key: &SecretKey,
     public_key: &PublicKey,
     content: T,
-    iv: [u8; 16],
+    iv: [u8; IV_SIZE],
 ) -> Result<String, Error>
 where
     T: AsRef<[u8]>,
@@ -116,9 +118,13 @@ where
     let iv: Vec<u8> = general_purpose::STANDARD
         .decode(parsed_content[1])
         .map_err(Error::malformed_display)?;
+    let iv: [u8; IV_SIZE] = iv
+        .as_slice()
+        .try_into()
+        .map_err(|_| Error::with_static_message(ErrorKind::Malformed, "invalid IV length"))?;
     let key: [u8; 32] = util::generate_shared_key(secret_key, public_key)?;
 
-    let cipher = Aes256CbcDec::new(&key.into(), iv.as_slice().into());
+    let cipher = Aes256CbcDec::new(&key.into(), &iv.into());
     let result = cipher
         .decrypt_padded_vec_mut::<Pkcs7>(&encrypted_content)
         .map_err(|_| Error::with_static_message(ErrorKind::Crypto, "wrong block mode"))?;
@@ -217,5 +223,27 @@ mod tests {
             .kind(),
             ErrorKind::Crypto
         );
+    }
+
+    #[test]
+    fn test_decryption_with_invalid_iv_length() {
+        let sender_sk =
+            SecretKey::from_str("6b911fd37cdf5c81d4c0adb1ab7fa822ed253ab0ad9aa18d77257c88b29b718e")
+                .unwrap();
+        let receiver_sk =
+            SecretKey::from_str("7b911fd37cdf5c81d4c0adb1ab7fa822ed253ab0ad9aa18d77257c88b29b718e")
+                .unwrap();
+        let receiver_pk = Keys::new(receiver_sk).public_key();
+
+        for len in [0, 1, 15, 17, 32] {
+            let ciphertext = general_purpose::STANDARD.encode([0u8; 16]);
+            let iv = general_purpose::STANDARD.encode(vec![0u8; len]);
+            let encrypted_content = format!("{ciphertext}?iv={iv}");
+
+            let err = decrypt(&sender_sk, &receiver_pk, encrypted_content).unwrap_err();
+
+            assert_eq!(err.kind(), ErrorKind::Malformed);
+            assert_eq!(err.to_string(), "invalid IV length");
+        }
     }
 }
