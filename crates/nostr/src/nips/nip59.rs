@@ -20,8 +20,6 @@ use core::time::Duration;
 
 use secp256k1::{Secp256k1, Verification};
 
-#[cfg(feature = "std")]
-use crate::SECP256K1;
 use crate::error::{Error, ErrorKind};
 #[cfg(all(feature = "std", feature = "os-rng"))]
 use crate::event::{AsyncSignEvent, FinalizeEvent, FinalizeEventAsync, SignEvent};
@@ -31,6 +29,8 @@ use crate::key::{AsyncGetPublicKey, GetPublicKey, Keys};
 #[cfg(all(feature = "std", feature = "os-rng"))]
 use crate::nips::nip44;
 use crate::nips::nip44::{AsyncNip44, Nip44};
+#[cfg(feature = "std")]
+use crate::util::SECP256K1;
 #[cfg(all(feature = "std", feature = "os-rng"))]
 use crate::{EventBuilder, Timestamp};
 use crate::{Kind, PublicKey, Tag};

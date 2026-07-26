@@ -16,9 +16,9 @@ use secp256k1::{Secp256k1, Signing};
 mod bip32;
 
 use self::bip32::{ChildNumber, Xpriv};
-#[cfg(feature = "std")]
-use crate::SECP256K1;
 use crate::error::{Error, ErrorKind};
+#[cfg(feature = "std")]
+use crate::util::SECP256K1;
 use crate::{Keys, SecretKey};
 
 const PURPOSE: u32 = 44;

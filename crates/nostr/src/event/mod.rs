@@ -34,12 +34,12 @@ pub use self::id::*;
 pub use self::kind::*;
 pub use self::tag::*;
 pub use self::unsigned::*;
-#[cfg(feature = "std")]
-use crate::SECP256K1;
 use crate::error::{Error, ErrorKind};
 use crate::nips::nip01::Coordinate;
 use crate::nips::nip19::{Nip19Event, ToBech32};
 use crate::nips::nip21::ToNostrUri;
+#[cfg(feature = "std")]
+use crate::util::SECP256K1;
 use crate::util::impl_json_methods;
 use crate::{Metadata, PublicKey, Timestamp};
 

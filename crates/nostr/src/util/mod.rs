@@ -2,8 +2,6 @@
 // Copyright (c) 2023-2025 Rust Nostr Developers
 // Distributed under the MIT software license
 
-//! Util
-
 #[cfg(feature = "rand")]
 use alloc::string::String;
 use core::convert::Infallible;
@@ -18,14 +16,17 @@ use rand::rand_core::UnwrapErr;
 use rand::rngs::SysRng;
 #[cfg(feature = "std")]
 use secp256k1::{All, Secp256k1};
+#[cfg(any(feature = "nip04", feature = "nip44"))]
 use secp256k1::{Parity, PublicKey as NormalizedPublicKey, XOnlyPublicKey, ecdh};
 
 #[cfg(feature = "nip44")]
-pub mod hkdf;
+pub(crate) mod hkdf;
 mod json;
 
 pub(crate) use self::json::{impl_json_methods, parse_json, parse_json_from_value};
+#[cfg(any(feature = "nip04", feature = "nip44"))]
 use crate::error::Error;
+#[cfg(any(feature = "nip04", feature = "nip44"))]
 use crate::key::{PublicKey, SecretKey};
 
 #[cfg(feature = "rand")]
@@ -60,7 +61,8 @@ where
 ///
 /// **Important: use of a strong cryptographic hash function may be critical to security! Do NOT use
 /// unless you understand cryptographical implications.**
-pub fn generate_shared_key(
+#[cfg(any(feature = "nip04", feature = "nip44"))]
+pub(crate) fn generate_shared_key(
     secret_key: &SecretKey,
     public_key: &PublicKey,
 ) -> Result<[u8; 32], Error> {
@@ -75,7 +77,7 @@ pub fn generate_shared_key(
 
 /// Secp256k1 global context
 #[cfg(feature = "std")]
-pub static SECP256K1: LazyLock<Secp256k1<All>> = LazyLock::new(|| {
+pub(crate) static SECP256K1: LazyLock<Secp256k1<All>> = LazyLock::new(|| {
     #[cfg(feature = "os-rng")]
     let mut ctx: Secp256k1<All> = Secp256k1::new();
     #[cfg(not(feature = "os-rng"))]

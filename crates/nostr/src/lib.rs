@@ -50,7 +50,7 @@ pub mod nips;
 pub mod parser;
 pub mod prelude;
 pub mod types;
-pub mod util;
+mod util;
 
 #[doc(hidden)]
 pub use self::event::{Event, EventBuilder, EventId, Kind, UnsignedEvent};
@@ -68,6 +68,3 @@ pub use self::nips::nip01::Metadata;
 pub use self::nips::nip19::{FromBech32, ToBech32};
 #[doc(hidden)]
 pub use self::types::{ImageDimensions, RelayUrl, RelayUrlArg, Timestamp, Url};
-#[doc(hidden)]
-#[cfg(feature = "std")]
-pub use self::util::SECP256K1;
