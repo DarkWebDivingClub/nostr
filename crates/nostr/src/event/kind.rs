@@ -15,10 +15,6 @@ use serde::ser::{Serialize, Serializer};
 
 use crate::error::Error;
 
-/// NIP90 - Job request range
-pub const NIP90_JOB_REQUEST_RANGE: Range<u16> = 5_000..6_000;
-/// NIP90 - Job result range
-pub const NIP90_JOB_RESULT_RANGE: Range<u16> = 6_000..7_000;
 /// Regular range
 pub const REGULAR_RANGE: Range<u16> = 1_000..10_000;
 /// Replaceable range
@@ -277,22 +273,6 @@ impl Kind {
     #[inline]
     pub fn is_addressable(&self) -> bool {
         ADDRESSABLE_RANGE.contains(&self.as_u16())
-    }
-
-    /// Check if it's a NIP90 job request
-    ///
-    /// <https://github.com/nostr-protocol/nips/blob/master/90.md>
-    #[inline]
-    pub fn is_job_request(&self) -> bool {
-        NIP90_JOB_REQUEST_RANGE.contains(&self.as_u16())
-    }
-
-    /// Check if it's a NIP90 job result
-    ///
-    /// <https://github.com/nostr-protocol/nips/blob/master/90.md>
-    #[inline]
-    pub fn is_job_result(&self) -> bool {
-        NIP90_JOB_RESULT_RANGE.contains(&self.as_u16())
     }
 }
 
