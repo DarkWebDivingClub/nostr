@@ -1,5 +1,11 @@
+#[cfg(feature = "std")]
+use alloc::boxed::Box;
 use core::convert::Infallible;
+#[cfg(feature = "std")]
+use core::future::Future;
 use core::num::NonZeroU8;
+#[cfg(feature = "std")]
+use core::pin::Pin;
 use core::sync::atomic::{AtomicBool, Ordering};
 
 #[cfg(feature = "std")]
@@ -7,8 +13,6 @@ use super::AsyncPowAdapter;
 use super::PowAdapter;
 #[cfg(feature = "std")]
 use super::blocking_wrapper::BlockingPowFuture;
-#[cfg(feature = "std")]
-use crate::util::BoxedFuture;
 use crate::{Tag, UnsignedEvent};
 
 /// A single-threaded PoW miner implementation
@@ -36,7 +40,7 @@ impl AsyncPowAdapter for SingleThreadPow {
         &self,
         unsigned: UnsignedEvent,
         target_difficulty: NonZeroU8,
-    ) -> BoxedFuture<'_, Result<UnsignedEvent, Self::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<UnsignedEvent, Self::Error>> + Send + '_>> {
         let diff: u8 = target_difficulty.get();
 
         Box::pin(async move {

@@ -1,12 +1,14 @@
 use std::convert::Infallible;
+use std::future::Future;
 use std::num::NonZeroU8;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use super::blocking_wrapper::BlockingPowFuture;
-use super::{AsyncPowAdapter, BoxedFuture, PowAdapter, single_thread};
+use super::{AsyncPowAdapter, PowAdapter, single_thread};
 use crate::{Tag, UnsignedEvent};
 
 /// A multithreaded Proof-of-Work miner.
@@ -38,7 +40,7 @@ impl AsyncPowAdapter for MultiThreadPow {
         &self,
         unsigned: UnsignedEvent,
         difficulty: NonZeroU8,
-    ) -> BoxedFuture<'_, Result<UnsignedEvent, Self::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<UnsignedEvent, Self::Error>> + Send + '_>> {
         let diff: u8 = difficulty.get();
 
         Box::pin(async move {

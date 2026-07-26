@@ -6,7 +6,9 @@
 
 use alloc::boxed::Box;
 use alloc::string::String;
+use core::future::Future;
 use core::num::NonZeroU8;
+use core::pin::Pin;
 
 use secp256k1::schnorr::Signature;
 use secp256k1::{Secp256k1, Verification};
@@ -16,7 +18,7 @@ use super::{AsyncSignEvent, FinalizeEvent, FinalizeEventAsync, SignEvent};
 use crate::SECP256K1;
 use crate::error::{Error, ErrorKind};
 use crate::nips::nip13::{AsyncPowAdapter, PowAdapter};
-use crate::util::{BoxedFuture, impl_json_methods};
+use crate::util::impl_json_methods;
 use crate::{Event, EventId, Kind, PublicKey, Tag, Tags, Timestamp};
 
 #[inline]
@@ -201,7 +203,10 @@ where
     type Error = Error;
 
     #[inline]
-    fn finalize_async<'a>(self, signer: &'a S) -> BoxedFuture<'a, Result<Event, Self::Error>>
+    fn finalize_async<'a>(
+        self,
+        signer: &'a S,
+    ) -> Pin<Box<dyn Future<Output = Result<Event, Self::Error>> + Send + 'a>>
     where
         Self: 'a,
         S: 'a,
@@ -234,7 +239,10 @@ pub trait FinalizeUnsignedEvent: Sized {
 /// Finalize a builder into an unsigned event asynchronously.
 pub trait FinalizeUnsignedEventAsync: Sized {
     /// Build the unsigned event with the supplied public key.
-    fn finalize_unsigned_async<'a>(self, public_key: PublicKey) -> BoxedFuture<'a, UnsignedEvent>
+    fn finalize_unsigned_async<'a>(
+        self,
+        public_key: PublicKey,
+    ) -> Pin<Box<dyn Future<Output = UnsignedEvent> + Send + 'a>>
     where
         Self: 'a;
 }

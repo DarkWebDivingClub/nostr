@@ -2,13 +2,14 @@
 
 use std::cmp;
 use std::collections::{BTreeSet, HashSet};
+use std::future::Future;
 use std::num::NonZeroUsize;
 use std::path::Path;
+use std::pin::Pin;
 
 use nostr::nips::nip01::Nip01Tag;
 use nostr::nips::nip17;
 use nostr::nips::nip65::{self, RelayMetadata};
-use nostr::util::BoxedFuture;
 use nostr::{Event, Kind, PublicKey, RelayUrl, Timestamp};
 use nostr_gossip::error::Error;
 use nostr_gossip::flags::GossipFlags;
@@ -593,7 +594,7 @@ impl NostrGossip for NostrGossipSqlite {
         &'a self,
         event: &'a Event,
         relay_url: Option<&'a RelayUrl>,
-    ) -> BoxedFuture<'a, Result<(), Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
         Box::pin(async move {
             self.process_event(event, relay_url)
                 .await
@@ -605,7 +606,7 @@ impl NostrGossip for NostrGossipSqlite {
         &'a self,
         public_key: &'a PublicKey,
         list: GossipListKind,
-    ) -> BoxedFuture<'a, Result<GossipPublicKeyStatus, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<GossipPublicKeyStatus, Error>> + Send + 'a>> {
         Box::pin(async move { self.get_status(public_key, list).await.map_err(Into::into) })
     }
 
@@ -613,7 +614,7 @@ impl NostrGossip for NostrGossipSqlite {
         &'a self,
         public_key: &'a PublicKey,
         list: GossipListKind,
-    ) -> BoxedFuture<'a, Result<(), Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
         Box::pin(async move {
             self._update_fetch_attempt(*public_key, list)
                 .await
@@ -625,7 +626,7 @@ impl NostrGossip for NostrGossipSqlite {
         &self,
         list: GossipListKind,
         limit: NonZeroUsize,
-    ) -> BoxedFuture<'_, Result<BTreeSet<OutdatedPublicKey>, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<BTreeSet<OutdatedPublicKey>, Error>> + Send + '_>> {
         Box::pin(async move {
             self.get_outdated_public_keys(list, limit)
                 .await
@@ -638,7 +639,7 @@ impl NostrGossip for NostrGossipSqlite {
         public_key: &'a PublicKey,
         selection: BestRelaySelection,
         allowed: GossipAllowedRelays,
-    ) -> BoxedFuture<'a, Result<HashSet<RelayUrl>, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<HashSet<RelayUrl>, Error>> + Send + 'a>> {
         Box::pin(async move {
             self._get_best_relays(*public_key, selection, allowed)
                 .await

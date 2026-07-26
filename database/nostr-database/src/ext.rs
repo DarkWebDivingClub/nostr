@@ -5,6 +5,8 @@
 //! Nostr database extension
 
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::future::Future;
+use std::pin::Pin;
 
 use nostr::prelude::*;
 
@@ -14,7 +16,10 @@ use crate::{Events, NostrDatabase, Profile, RelaysMap};
 /// Nostr Event Store Extension
 pub trait NostrDatabaseExt: NostrDatabase {
     /// Get public key metadata
-    fn metadata(&self, public_key: PublicKey) -> BoxedFuture<'_, Result<Option<Metadata>, Error>> {
+    fn metadata(
+        &self,
+        public_key: PublicKey,
+    ) -> Pin<Box<dyn Future<Output = Result<Option<Metadata>, Error>> + Send + '_>> {
         Box::pin(async move {
             let filter = Filter::new()
                 .author(public_key)
@@ -32,7 +37,7 @@ pub trait NostrDatabaseExt: NostrDatabase {
     fn contacts_public_keys(
         &self,
         public_key: PublicKey,
-    ) -> BoxedFuture<'_, Result<HashSet<PublicKey>, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<HashSet<PublicKey>, Error>> + Send + '_>> {
         Box::pin(async move {
             let filter = Filter::new()
                 .author(public_key)
@@ -47,7 +52,10 @@ pub trait NostrDatabaseExt: NostrDatabase {
     }
 
     /// Get contact list with metadata of [`PublicKey`]
-    fn contacts(&self, public_key: PublicKey) -> BoxedFuture<'_, Result<BTreeSet<Profile>, Error>> {
+    fn contacts(
+        &self,
+        public_key: PublicKey,
+    ) -> Pin<Box<dyn Future<Output = Result<BTreeSet<Profile>, Error>> + Send + '_>> {
         Box::pin(async move {
             let filter = Filter::new()
                 .author(public_key)
@@ -84,7 +92,10 @@ pub trait NostrDatabaseExt: NostrDatabase {
     /// Get relays list for [PublicKey]
     ///
     /// <https://github.com/nostr-protocol/nips/blob/master/65.md>
-    fn relay_list(&self, public_key: PublicKey) -> BoxedFuture<'_, Result<RelaysMap, Error>> {
+    fn relay_list(
+        &self,
+        public_key: PublicKey,
+    ) -> Pin<Box<dyn Future<Output = Result<RelaysMap, Error>> + Send + '_>> {
         Box::pin(async move {
             // Query
             let filter: Filter = Filter::default()
@@ -104,10 +115,11 @@ pub trait NostrDatabaseExt: NostrDatabase {
     /// Get relays list for public keys
     ///
     /// <https://github.com/nostr-protocol/nips/blob/master/65.md>
+    #[allow(clippy::type_complexity)]
     fn relay_lists<'a, I>(
         &'a self,
         public_keys: I,
-    ) -> BoxedFuture<'a, Result<HashMap<PublicKey, RelaysMap>, Error>>
+    ) -> Pin<Box<dyn Future<Output = Result<HashMap<PublicKey, RelaysMap>, Error>> + Send + 'a>>
     where
         I: IntoIterator<Item = PublicKey> + Send + 'a,
     {

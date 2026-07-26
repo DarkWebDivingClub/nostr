@@ -19,17 +19,9 @@ use crate::error::Error;
 use crate::future::BoxedFuture;
 
 /// WebSocket transport sink
-#[cfg(not(target_arch = "wasm32"))]
 pub type WebSocketSink = Pin<Box<dyn Sink<Message, Error = Error> + Send>>;
-/// WebSocket transport sink
-#[cfg(target_arch = "wasm32")]
-pub type WebSocketSink = Pin<Box<dyn Sink<Message, Error = Error>>>;
 /// WebSocket transport stream
-#[cfg(not(target_arch = "wasm32"))]
 pub type WebSocketStream = Pin<Box<dyn Stream<Item = Result<Message, Error>> + Send>>;
-/// WebSocket transport stream
-#[cfg(target_arch = "wasm32")]
-pub type WebSocketStream = Pin<Box<dyn Stream<Item = Result<Message, Error>>>>;
 
 #[doc(hidden)]
 pub trait IntoWebSocketTransport {

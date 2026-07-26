@@ -11,6 +11,8 @@ use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt;
+use core::future::Future;
+use core::pin::Pin;
 use core::str::FromStr;
 
 #[cfg(feature = "rand")]
@@ -29,7 +31,7 @@ use crate::key::{AsyncGetPublicKey, GetPublicKey};
 use crate::types::url::{RelayUrl, Url};
 #[cfg(all(feature = "std", feature = "os-rng"))]
 use crate::util;
-use crate::util::{BoxedFuture, impl_json_methods, parse_json};
+use crate::util::{impl_json_methods, parse_json};
 use crate::{Event, EventBuilder, Kind, PublicKey, Tag};
 
 /// NIP46 URI Scheme
@@ -939,7 +941,10 @@ where
 {
     type Error = Error;
 
-    fn finalize_async<'a>(self, signer: &'a S) -> BoxedFuture<'a, Result<Event, Self::Error>>
+    fn finalize_async<'a>(
+        self,
+        signer: &'a S,
+    ) -> Pin<Box<dyn Future<Output = Result<Event, Self::Error>> + Send + 'a>>
     where
         Self: 'a,
         S: 'a,

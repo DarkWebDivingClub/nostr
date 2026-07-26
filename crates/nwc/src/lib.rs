@@ -23,6 +23,7 @@ use nostr_sdk::prelude::*;
 mod api;
 pub mod builder;
 pub mod error;
+mod future;
 pub mod prelude;
 
 pub use self::api::*;

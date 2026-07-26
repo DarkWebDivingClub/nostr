@@ -15,7 +15,10 @@
 // Crate available only for WASM
 #![cfg(target_family = "wasm")]
 
+use std::future::Future;
+use std::pin::Pin;
 use std::str::FromStr;
+use std::task::{Context, Poll};
 
 use js_sys::{Array, Function, JsString, Object, Promise, Reflect};
 use nostr::prelude::*;
@@ -40,6 +43,33 @@ enum CallFunc<'a> {
     Call0,
     Call1(&'a JsValue),
     Call2(&'a JsValue, &'a JsValue),
+}
+
+struct SendWasmFuture<F> {
+    inner: F,
+}
+
+// The browser signer is only compiled for wasm. JS promises are driven by the
+// browser event loop, and the wrapped future must not be polled concurrently.
+unsafe impl<F> Send for SendWasmFuture<F> {}
+
+impl<F> Future for SendWasmFuture<F>
+where
+    F: Future,
+{
+    type Output = F::Output;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        // We only project the pinned field; the inner future is never moved.
+        unsafe { self.map_unchecked_mut(|this| &mut this.inner) }.poll(cx)
+    }
+}
+
+fn boxed_send<'a, F>(future: F) -> Pin<Box<dyn Future<Output = F::Output> + Send + 'a>>
+where
+    F: Future + 'a,
+{
+    Box::pin(SendWasmFuture { inner: future })
 }
 
 /// Signer for interaction with browser extensions (ex. Alby)
@@ -199,8 +229,10 @@ impl AsyncGetPublicKey for BrowserSigner {
     type Error = Error;
 
     #[inline]
-    fn get_public_key_async(&self) -> BoxedFuture<'_, Result<PublicKey, Self::Error>> {
-        Box::pin(async move { self._get_public_key().await })
+    fn get_public_key_async(
+        &self,
+    ) -> Pin<Box<dyn Future<Output = Result<PublicKey, Self::Error>> + Send + '_>> {
+        boxed_send(async move { self._get_public_key().await })
     }
 }
 
@@ -211,8 +243,8 @@ impl AsyncSignEvent for BrowserSigner {
     fn sign_event_async(
         &self,
         unsigned: UnsignedEvent,
-    ) -> BoxedFuture<'_, Result<Event, Self::Error>> {
-        Box::pin(async move { self._sign_event(unsigned).await })
+    ) -> Pin<Box<dyn Future<Output = Result<Event, Self::Error>> + Send + '_>> {
+        boxed_send(async move { self._sign_event(unsigned).await })
     }
 }
 
@@ -223,8 +255,8 @@ impl AsyncNip04 for BrowserSigner {
         &'a self,
         public_key: &'a PublicKey,
         content: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>> {
-        Box::pin(async move {
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>> {
+        boxed_send(async move {
             self.encryption_decryption(NIP04, ENCRYPT, public_key, content)
                 .await
         })
@@ -234,8 +266,8 @@ impl AsyncNip04 for BrowserSigner {
         &'a self,
         public_key: &'a PublicKey,
         encrypted_content: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>> {
-        Box::pin(async move {
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>> {
+        boxed_send(async move {
             self.encryption_decryption(NIP04, DECRYPT, public_key, encrypted_content)
                 .await
         })
@@ -249,8 +281,8 @@ impl AsyncNip44 for BrowserSigner {
         &'a self,
         public_key: &'a PublicKey,
         content: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>> {
-        Box::pin(async move {
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>> {
+        boxed_send(async move {
             self.encryption_decryption(NIP44, ENCRYPT, public_key, content)
                 .await
         })
@@ -260,8 +292,8 @@ impl AsyncNip44 for BrowserSigner {
         &'a self,
         public_key: &'a PublicKey,
         payload: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>> {
-        Box::pin(async move {
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>> {
+        boxed_send(async move {
             self.encryption_decryption(NIP44, DECRYPT, public_key, payload)
                 .await
         })

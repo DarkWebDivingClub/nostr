@@ -3,6 +3,8 @@
 // Distributed under the MIT software license
 
 use std::collections::HashSet;
+use std::future::Future;
+use std::pin::Pin;
 use std::time::Duration;
 
 use nostr_sdk::prelude::*;
@@ -18,7 +20,7 @@ impl AdmitPolicy for WoT {
         _relay_url: &'a RelayUrl,
         _subscription_id: &'a SubscriptionId,
         event: &'a Event,
-    ) -> BoxedFuture<'a, Result<AdmitStatus, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<AdmitStatus, Error>> + Send + 'a>> {
         Box::pin(async move {
             if self.allowed_public_keys.contains(&event.pubkey) {
                 return Ok(AdmitStatus::success());

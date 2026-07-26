@@ -14,10 +14,12 @@ pub use self::mock::*;
 
 #[cfg(test)]
 mod tests {
+    use std::future::Future;
+    use std::pin::Pin;
+
     use nostr::event::{EventBuilder, FinalizeEvent, Tag};
     use nostr::filter::Filter;
     use nostr::key::Keys;
-    use nostr::util::BoxedFuture;
     use nostr_memory::MemoryDatabase;
 
     use super::*;
@@ -33,7 +35,7 @@ mod tests {
             &'a self,
             query: &'a mut Filter,
             _addr: &'a std::net::SocketAddr,
-        ) -> BoxedFuture<'a, QueryPolicyResult> {
+        ) -> Pin<Box<dyn Future<Output = QueryPolicyResult> + Send + 'a>> {
             Box::pin(async move {
                 *query = query.clone().hashtag(UPDATE_TAG);
                 QueryPolicyResult::Accept

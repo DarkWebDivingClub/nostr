@@ -12,7 +12,9 @@
 #![warn(rustdoc::bare_urls)]
 
 use std::collections::HashMap;
+use std::future::Future;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -461,7 +463,9 @@ impl AsyncGetPublicKey for BrowserSignerProxy {
     type Error = Error;
 
     #[inline]
-    fn get_public_key_async(&self) -> BoxedFuture<'_, Result<PublicKey, Self::Error>> {
+    fn get_public_key_async(
+        &self,
+    ) -> Pin<Box<dyn Future<Output = Result<PublicKey, Self::Error>> + Send + '_>> {
         Box::pin(async move { self._get_public_key().await })
     }
 }
@@ -473,7 +477,7 @@ impl AsyncSignEvent for BrowserSignerProxy {
     fn sign_event_async(
         &self,
         unsigned: UnsignedEvent,
-    ) -> BoxedFuture<'_, Result<Event, Self::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Event, Self::Error>> + Send + '_>> {
         Box::pin(async move { self._sign_event(unsigned).await })
     }
 }
@@ -485,7 +489,7 @@ impl AsyncNip04 for BrowserSignerProxy {
         &'a self,
         public_key: &'a PublicKey,
         content: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>> {
         Box::pin(async move { self._nip04_encrypt(public_key, content).await })
     }
 
@@ -493,7 +497,7 @@ impl AsyncNip04 for BrowserSignerProxy {
         &'a self,
         public_key: &'a PublicKey,
         encrypted_content: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>> {
         Box::pin(async move { self._nip04_decrypt(public_key, encrypted_content).await })
     }
 }
@@ -505,7 +509,7 @@ impl AsyncNip44 for BrowserSignerProxy {
         &'a self,
         public_key: &'a PublicKey,
         content: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>> {
         Box::pin(async move { self._nip44_encrypt(public_key, content).await })
     }
 
@@ -513,7 +517,7 @@ impl AsyncNip44 for BrowserSignerProxy {
         &'a self,
         public_key: &'a PublicKey,
         payload: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>> {
         Box::pin(async move { self._nip44_decrypt(public_key, payload).await })
     }
 }

@@ -10,7 +10,9 @@
 #![warn(rustdoc::bare_urls)]
 #![allow(clippy::mutable_key_type)]
 
+use std::future::Future;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 
 use nostr_database::error::Error;
 use nostr_database::prelude::*;
@@ -186,45 +188,54 @@ impl NostrDatabase for NostrLmdb {
     fn save_event<'a>(
         &'a self,
         event: &'a Event,
-    ) -> BoxedFuture<'a, Result<SaveEventStatus, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<SaveEventStatus, Error>> + Send + 'a>> {
         Box::pin(async move { Ok(self.db.save_event(event).await?) })
     }
 
     fn check_id<'a>(
         &'a self,
         event_id: &'a EventId,
-    ) -> BoxedFuture<'a, Result<DatabaseEventStatus, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<DatabaseEventStatus, Error>> + Send + 'a>> {
         Box::pin(async move { Ok(self.db.check_id(*event_id).await?) })
     }
 
     fn event_by_id<'a>(
         &'a self,
         event_id: &'a EventId,
-    ) -> BoxedFuture<'a, Result<Option<Event>, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Option<Event>, Error>> + Send + 'a>> {
         Box::pin(async move { Ok(self.db.get_event_by_id(*event_id).await?) })
     }
 
-    fn count(&self, filter: Filter) -> BoxedFuture<'_, Result<usize, Error>> {
+    fn count(
+        &self,
+        filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<usize, Error>> + Send + '_>> {
         Box::pin(async move { Ok(self.db.count(filter).await?) })
     }
 
-    fn query(&self, filter: Filter) -> BoxedFuture<'_, Result<Events, Error>> {
+    fn query(
+        &self,
+        filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<Events, Error>> + Send + '_>> {
         Box::pin(async move { Ok(self.db.query(filter).await?) })
     }
 
     fn negentropy_items(
         &self,
         filter: Filter,
-    ) -> BoxedFuture<'_, Result<Vec<(EventId, Timestamp)>, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<(EventId, Timestamp)>, Error>> + Send + '_>> {
         Box::pin(async move { Ok(self.db.negentropy_items(filter).await?) })
     }
 
-    fn delete(&self, filter: Filter) -> BoxedFuture<'_, Result<(), Error>> {
+    fn delete(
+        &self,
+        filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
         Box::pin(async move { Ok(self.db.delete(filter).await?) })
     }
 
     #[inline]
-    fn wipe(&self) -> BoxedFuture<'_, Result<(), Error>> {
+    fn wipe(&self) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
         Box::pin(async move { Ok(self.db.wipe().await?) })
     }
 }

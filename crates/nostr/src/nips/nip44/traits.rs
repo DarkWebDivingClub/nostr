@@ -2,12 +2,14 @@
 // Copyright (c) 2023-2025 Rust Nostr Developers
 // Distributed under the MIT software license
 
+use alloc::boxed::Box;
 use alloc::string::String;
 use core::any::Any;
 use core::fmt::Debug;
+use core::future::Future;
+use core::pin::Pin;
 
 use crate::key::PublicKey;
-use crate::util::BoxedFuture;
 
 // TODO: add a trait/method for encrypting using a specific version?
 /// Synchronous NIP-44
@@ -36,12 +38,12 @@ pub trait AsyncNip44: Any + Debug + Send + Sync {
         &'a self,
         public_key: &'a PublicKey,
         content: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>>;
 
     /// Decrypts asynchronously a NIP-44 payload.
     fn nip44_decrypt_async<'a>(
         &'a self,
         public_key: &'a PublicKey,
         payload: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>>;
 }

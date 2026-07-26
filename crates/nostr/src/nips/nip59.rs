@@ -11,7 +11,11 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
 #[cfg(all(feature = "std", feature = "os-rng"))]
+use core::future::Future;
+#[cfg(all(feature = "std", feature = "os-rng"))]
 use core::ops::Range;
+#[cfg(all(feature = "std", feature = "os-rng"))]
+use core::pin::Pin;
 use core::time::Duration;
 
 use secp256k1::{Secp256k1, Verification};
@@ -27,8 +31,6 @@ use crate::key::{AsyncGetPublicKey, GetPublicKey, Keys};
 #[cfg(all(feature = "std", feature = "os-rng"))]
 use crate::nips::nip44;
 use crate::nips::nip44::{AsyncNip44, Nip44};
-#[cfg(all(feature = "std", feature = "os-rng"))]
-use crate::util::BoxedFuture;
 #[cfg(all(feature = "std", feature = "os-rng"))]
 use crate::{EventBuilder, Timestamp};
 use crate::{Kind, PublicKey, Tag};
@@ -204,7 +206,10 @@ where
 {
     type Error = Error;
 
-    fn finalize_async<'a>(self, signer: &'a S) -> BoxedFuture<'a, Result<Event, Self::Error>>
+    fn finalize_async<'a>(
+        self,
+        signer: &'a S,
+    ) -> Pin<Box<dyn Future<Output = Result<Event, Self::Error>> + Send + 'a>>
     where
         Self: 'a,
         S: 'a,
@@ -307,7 +312,10 @@ where
 {
     type Error = Error;
 
-    fn finalize_async<'a>(self, signer: &'a S) -> BoxedFuture<'a, Result<Event, Self::Error>>
+    fn finalize_async<'a>(
+        self,
+        signer: &'a S,
+    ) -> Pin<Box<dyn Future<Output = Result<Event, Self::Error>> + Send + 'a>>
     where
         Self: 'a,
         S: 'a,

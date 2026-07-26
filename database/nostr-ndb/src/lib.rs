@@ -10,8 +10,10 @@
 #![allow(clippy::mutable_key_type)] // TODO: remove when possible. Needed to suppress false positive for async_trait
 
 use std::borrow::Cow;
+use std::future::Future;
 use std::ops::{Deref, DerefMut};
 use std::path::Path;
+use std::pin::Pin;
 
 pub extern crate nostr;
 pub extern crate nostr_database as database;
@@ -89,7 +91,7 @@ impl NostrDatabase for NdbDatabase {
     fn save_event<'a>(
         &'a self,
         event: &'a Event,
-    ) -> BoxedFuture<'a, Result<SaveEventStatus, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<SaveEventStatus, Error>> + Send + 'a>> {
         Box::pin(async move {
             let msg = RelayMessage::Event {
                 subscription_id: Cow::Owned(SubscriptionId::new("ndb")),
@@ -107,7 +109,7 @@ impl NostrDatabase for NdbDatabase {
     fn check_id<'a>(
         &'a self,
         event_id: &'a EventId,
-    ) -> BoxedFuture<'a, Result<DatabaseEventStatus, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<DatabaseEventStatus, Error>> + Send + 'a>> {
         Box::pin(async move {
             let txn = Transaction::new(&self.db).map_err(Error::storage)?;
             let res = self.db.get_note_by_id(&txn, event_id.as_bytes());
@@ -122,7 +124,7 @@ impl NostrDatabase for NdbDatabase {
     fn event_by_id<'a>(
         &'a self,
         event_id: &'a EventId,
-    ) -> BoxedFuture<'a, Result<Option<Event>, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Option<Event>, Error>> + Send + 'a>> {
         Box::pin(async move {
             let txn: Transaction = Transaction::new(&self.db).map_err(Error::storage)?;
             let res: Result<Note, nostrdb::Error> =
@@ -135,7 +137,10 @@ impl NostrDatabase for NdbDatabase {
         })
     }
 
-    fn count(&self, filter: Filter) -> BoxedFuture<'_, Result<usize, Error>> {
+    fn count(
+        &self,
+        filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<usize, Error>> + Send + '_>> {
         Box::pin(async move {
             let txn: Transaction = Transaction::new(&self.db).map_err(Error::storage)?;
             let res: Vec<QueryResult> = ndb_query(&self.db, &txn, &filter)?;
@@ -143,7 +148,10 @@ impl NostrDatabase for NdbDatabase {
         })
     }
 
-    fn query(&self, filter: Filter) -> BoxedFuture<'_, Result<Events, Error>> {
+    fn query(
+        &self,
+        filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<Events, Error>> + Send + '_>> {
         Box::pin(async move {
             let txn: Transaction = Transaction::new(&self.db).map_err(Error::storage)?;
             let mut events: Events = Events::new(&filter);
@@ -160,7 +168,7 @@ impl NostrDatabase for NdbDatabase {
     fn negentropy_items(
         &self,
         filter: Filter,
-    ) -> BoxedFuture<'_, Result<Vec<(EventId, Timestamp)>, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<(EventId, Timestamp)>, Error>> + Send + '_>> {
         Box::pin(async move {
             let txn: Transaction = Transaction::new(&self.db).map_err(Error::storage)?;
             let res: Vec<QueryResult> = ndb_query(&self.db, &txn, &filter)?;
@@ -172,12 +180,15 @@ impl NostrDatabase for NdbDatabase {
     }
 
     #[inline]
-    fn delete(&self, _filter: Filter) -> BoxedFuture<'_, Result<(), Error>> {
+    fn delete(
+        &self,
+        _filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
         Box::pin(async move { Err(Error::unsupported("delete is not supported by nostrdb")) })
     }
 
     #[inline]
-    fn wipe(&self) -> BoxedFuture<'_, Result<(), Error>> {
+    fn wipe(&self) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
         Box::pin(async move { Err(Error::unsupported("wiping is not supported by nostrdb")) })
     }
 }

@@ -8,9 +8,15 @@
 
 #![allow(rustdoc::redundant_explicit_links)]
 
+#[cfg(all(feature = "std", feature = "os-rng", feature = "nip59"))]
+use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
+#[cfg(all(feature = "std", feature = "os-rng", feature = "nip59"))]
+use core::future::Future;
+#[cfg(all(feature = "std", feature = "os-rng", feature = "nip59"))]
+use core::pin::Pin;
 use core::time::Duration;
 
 #[cfg(all(feature = "std", feature = "os-rng", feature = "nip59"))]
@@ -29,8 +35,6 @@ use crate::key::PublicKey;
 #[cfg(all(feature = "std", feature = "os-rng", feature = "nip59"))]
 use crate::key::{AsyncGetPublicKey, GetPublicKey};
 use crate::types::url::RelayUrl;
-#[cfg(all(feature = "std", feature = "os-rng", feature = "nip59"))]
-use crate::util::BoxedFuture;
 
 const RELAY: &str = "relay";
 
@@ -146,7 +150,10 @@ where
 {
     type Error = Error;
 
-    fn finalize_async<'a>(self, signer: &'a S) -> BoxedFuture<'a, Result<Event, Self::Error>>
+    fn finalize_async<'a>(
+        self,
+        signer: &'a S,
+    ) -> Pin<Box<dyn Future<Output = Result<Event, Self::Error>> + Send + 'a>>
     where
         Self: 'a,
         S: 'a,

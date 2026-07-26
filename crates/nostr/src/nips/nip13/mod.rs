@@ -7,12 +7,15 @@
 //!
 //! <https://github.com/nostr-protocol/nips/blob/master/13.md>
 
+use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 use core::any::Any;
 use core::fmt::Debug;
+use core::future::Future;
 use core::num::NonZeroU8;
+use core::pin::Pin;
 
 #[cfg(feature = "std")]
 mod blocking_wrapper;
@@ -27,7 +30,6 @@ use super::util::{missing_tag_kind, take_and_parse_from_str, unknown_tag};
 use crate::UnsignedEvent;
 use crate::error::Error;
 use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
-use crate::util::BoxedFuture;
 
 const NONCE: &str = "nonce";
 
@@ -162,7 +164,7 @@ pub trait AsyncPowAdapter: Any + Debug + Send + Sync {
         &self,
         unsigned: UnsignedEvent,
         difficulty: NonZeroU8,
-    ) -> BoxedFuture<'_, Result<UnsignedEvent, Self::Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<UnsignedEvent, Self::Error>> + Send + '_>>;
 }
 
 #[cfg(test)]
@@ -622,7 +624,8 @@ pub mod tests {
                 &self,
                 mut unsigned_event: UnsignedEvent,
                 target_difficulty: NonZeroU8,
-            ) -> BoxedFuture<'_, Result<UnsignedEvent, Self::Error>> {
+            ) -> Pin<Box<dyn Future<Output = Result<UnsignedEvent, Self::Error>> + Send + '_>>
+            {
                 Box::pin(async move {
                     // Simulate an async work
                     tokio::time::sleep(Duration::from_secs(2)).await;

@@ -11,7 +11,9 @@ use core::cmp::Ordering;
 use core::convert::Infallible;
 use core::fmt;
 use core::fmt::Debug;
+use core::future::Future;
 use core::hash::{Hash, Hasher};
+use core::pin::Pin;
 use core::str::{self, FromStr};
 
 use secp256k1::{Secp256k1, Signing, XOnlyPublicKey};
@@ -21,7 +23,6 @@ use super::secret_key::SecretKey;
 use crate::error::{Error, ErrorKind};
 use crate::nips::nip19::{FromBech32, PREFIX_BECH32_PROFILE, PREFIX_BECH32_PUBLIC_KEY};
 use crate::nips::nip21::{FromNostrUri, SCHEME_WITH_COLON};
-use crate::util::BoxedFuture;
 
 /// Get public key
 pub trait GetPublicKey: Any + Debug + Send + Sync {
@@ -38,7 +39,9 @@ pub trait AsyncGetPublicKey: Any + Debug + Send + Sync {
     type Error: core::error::Error + Send + Sync;
 
     /// Get public key
-    fn get_public_key_async(&self) -> BoxedFuture<'_, Result<PublicKey, Self::Error>>;
+    fn get_public_key_async(
+        &self,
+    ) -> Pin<Box<dyn Future<Output = Result<PublicKey, Self::Error>> + Send + '_>>;
 }
 
 /// Public Key
@@ -197,7 +200,9 @@ impl AsyncGetPublicKey for PublicKey {
     type Error = Infallible;
 
     #[inline]
-    fn get_public_key_async(&self) -> BoxedFuture<'_, Result<PublicKey, Self::Error>> {
+    fn get_public_key_async(
+        &self,
+    ) -> Pin<Box<dyn Future<Output = Result<PublicKey, Self::Error>> + Send + '_>> {
         Box::pin(async move { GetPublicKey::get_public_key(self) })
     }
 }

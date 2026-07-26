@@ -9,7 +9,9 @@ use alloc::boxed::Box;
 use core::cmp::Ordering;
 use core::convert::Infallible;
 use core::fmt;
+use core::future::Future;
 use core::hash::{Hash, Hasher};
+use core::pin::Pin;
 #[cfg(feature = "std")]
 use core::str::FromStr;
 
@@ -36,7 +38,6 @@ use crate::nips::nip04::{AsyncNip04, Nip04};
 use crate::nips::nip44::{AsyncNip44, Nip44};
 #[cfg(feature = "rand")]
 use crate::util;
-use crate::util::BoxedFuture;
 #[cfg(feature = "std")]
 use crate::util::SECP256K1;
 
@@ -291,7 +292,9 @@ impl Nip44 for Keys {
 impl AsyncGetPublicKey for Keys {
     type Error = Infallible;
 
-    fn get_public_key_async(&self) -> BoxedFuture<'_, Result<PublicKey, Self::Error>> {
+    fn get_public_key_async(
+        &self,
+    ) -> Pin<Box<dyn Future<Output = Result<PublicKey, Self::Error>> + Send + '_>> {
         Box::pin(async move { GetPublicKey::get_public_key(self) })
     }
 }
@@ -303,7 +306,7 @@ impl AsyncSignEvent for Keys {
     fn sign_event_async(
         &self,
         unsigned: UnsignedEvent,
-    ) -> BoxedFuture<'_, Result<Event, Self::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Event, Self::Error>> + Send + '_>> {
         Box::pin(async move { SignEvent::sign_event(self, unsigned) })
     }
 }
@@ -316,7 +319,7 @@ impl AsyncNip04 for Keys {
         &'a self,
         public_key: &'a PublicKey,
         content: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>> {
         Box::pin(async move { Nip04::nip04_encrypt(self, public_key, content) })
     }
 
@@ -324,7 +327,7 @@ impl AsyncNip04 for Keys {
         &'a self,
         public_key: &'a PublicKey,
         encrypted_content: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>> {
         Box::pin(async move { Nip04::nip04_decrypt(self, public_key, encrypted_content) })
     }
 }
@@ -337,7 +340,7 @@ impl AsyncNip44 for Keys {
         &'a self,
         public_key: &'a PublicKey,
         content: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>> {
         Box::pin(async move { Nip44::nip44_encrypt(self, public_key, content) })
     }
 
@@ -345,7 +348,7 @@ impl AsyncNip44 for Keys {
         &'a self,
         public_key: &'a PublicKey,
         payload: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>> {
         Box::pin(async move { Nip44::nip44_decrypt(self, public_key, payload) })
     }
 }

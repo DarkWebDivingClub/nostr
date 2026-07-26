@@ -5,6 +5,7 @@ use nostr::prelude::*;
 
 use crate::NostrWalletConnect;
 use crate::error::Error;
+use crate::future::BoxedFuture;
 
 /// Pay keysend
 #[must_use = "Does nothing unless you await!"]

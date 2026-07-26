@@ -6,12 +6,15 @@
 //! Event
 
 use alloc::borrow::Cow;
+use alloc::boxed::Box;
 use alloc::string::String;
 use core::any::Any;
 use core::cmp::Ordering;
 use core::fmt;
 use core::fmt::Debug;
+use core::future::Future;
 use core::hash::{Hash, Hasher};
+use core::pin::Pin;
 
 use secp256k1::constants::SCHNORR_SIGNATURE_SIZE;
 use secp256k1::schnorr::Signature;
@@ -37,7 +40,7 @@ use crate::error::{Error, ErrorKind};
 use crate::nips::nip01::Coordinate;
 use crate::nips::nip19::{Nip19Event, ToBech32};
 use crate::nips::nip21::ToNostrUri;
-use crate::util::{BoxedFuture, impl_json_methods};
+use crate::util::impl_json_methods;
 use crate::{Metadata, PublicKey, Timestamp};
 
 const ID: &str = "id";
@@ -379,7 +382,7 @@ pub trait AsyncSignEvent: Any + Debug + Send + Sync {
     fn sign_event_async(
         &self,
         unsigned: UnsignedEvent,
-    ) -> BoxedFuture<'_, Result<Event, Self::Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Event, Self::Error>> + Send + '_>>;
 }
 
 /// Finalize a builder into a signed event.
@@ -403,7 +406,10 @@ where
     type Error: core::error::Error + Send + Sync;
 
     /// Build and sign the event.
-    fn finalize_async<'a>(self, signer: &'a S) -> BoxedFuture<'a, Result<Event, Self::Error>>
+    fn finalize_async<'a>(
+        self,
+        signer: &'a S,
+    ) -> Pin<Box<dyn Future<Output = Result<Event, Self::Error>> + Send + 'a>>
     where
         Self: 'a,
         S: 'a;

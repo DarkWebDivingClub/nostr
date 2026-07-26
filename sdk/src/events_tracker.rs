@@ -1,4 +1,6 @@
+use std::future::Future;
 use std::num::NonZeroUsize;
+use std::pin::Pin;
 
 use lru::LruCache;
 use nostr::prelude::*;
@@ -39,7 +41,7 @@ impl NostrDatabase for MemoryEventsTracker {
     fn save_event<'a>(
         &'a self,
         event: &'a Event,
-    ) -> BoxedFuture<'a, Result<SaveEventStatus, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<SaveEventStatus, Error>> + Send + 'a>> {
         Box::pin(async move {
             // Mark it as seen
             let mut seen_event_ids = self.tracker.write().await;
@@ -52,7 +54,7 @@ impl NostrDatabase for MemoryEventsTracker {
     fn check_id<'a>(
         &'a self,
         event_id: &'a EventId,
-    ) -> BoxedFuture<'a, Result<DatabaseEventStatus, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<DatabaseEventStatus, Error>> + Send + 'a>> {
         Box::pin(async move {
             let seen_event_ids = self.tracker.read().await;
 
@@ -67,26 +69,35 @@ impl NostrDatabase for MemoryEventsTracker {
     fn event_by_id<'a>(
         &'a self,
         _event_id: &'a EventId,
-    ) -> BoxedFuture<'a, Result<Option<Event>, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Option<Event>, Error>> + Send + 'a>> {
         Box::pin(async move { Ok(None) })
     }
 
-    fn count(&self, _filter: Filter) -> BoxedFuture<'_, Result<usize, Error>> {
+    fn count(
+        &self,
+        _filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<usize, Error>> + Send + '_>> {
         Box::pin(async move { Ok(0) })
     }
 
-    fn query(&self, filter: Filter) -> BoxedFuture<'_, Result<Events, Error>> {
+    fn query(
+        &self,
+        filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<Events, Error>> + Send + '_>> {
         Box::pin(async move { Ok(Events::new(&filter)) })
     }
 
     fn negentropy_items(
         &self,
         _filter: Filter,
-    ) -> BoxedFuture<'_, Result<Vec<(EventId, Timestamp)>, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<(EventId, Timestamp)>, Error>> + Send + '_>> {
         Box::pin(async move { Ok(Vec::new()) })
     }
 
-    fn delete(&self, _filter: Filter) -> BoxedFuture<'_, Result<(), Error>> {
+    fn delete(
+        &self,
+        _filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
         Box::pin(async move {
             Err(Error::unsupported(
                 "delete is not supported for the in-memory events tracker",
@@ -94,7 +105,7 @@ impl NostrDatabase for MemoryEventsTracker {
         })
     }
 
-    fn wipe(&self) -> BoxedFuture<'_, Result<(), Error>> {
+    fn wipe(&self) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
         Box::pin(async move {
             let mut seen_event_ids = self.tracker.write().await;
             seen_event_ids.clear();

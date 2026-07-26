@@ -6,6 +6,8 @@
 
 use std::collections::HashMap;
 use std::fmt;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -65,6 +67,8 @@ impl NostrConnect {
     /// Set an `auth_url` handler
     ///
     /// ```rust
+    /// use std::future::Future;
+    /// use std::pin::Pin;
     /// use std::time::Duration;
     ///
     /// use nostr_connect::prelude::*;
@@ -73,7 +77,7 @@ impl NostrConnect {
     /// struct MyAuthUrlHandler;
     ///
     /// impl AuthUrlHandler for MyAuthUrlHandler {
-    ///     fn on_auth_url(&self, auth_url: Url) -> BoxedFuture<'_, Result<(), Error>> {
+    ///     fn on_auth_url(&self, auth_url: Url) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
     ///         Box::pin(async move {
     ///             webbrowser::open(auth_url.as_str()).map_err(Error::other)?;
     ///             Ok(())
@@ -452,7 +456,10 @@ fn is_valid_connect_response(response: &ResponseResult, expected_secret: Option<
 /// Nostr Connect auth_url handler
 pub trait AuthUrlHandler: fmt::Debug + Send + Sync {
     /// Handle `auth_url` message
-    fn on_auth_url(&self, auth_url: Url) -> BoxedFuture<'_, Result<(), Error>>;
+    fn on_auth_url(
+        &self,
+        auth_url: Url,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>>;
 }
 
 #[doc(hidden)]
@@ -473,7 +480,9 @@ impl AsyncGetPublicKey for NostrConnect {
     type Error = Error;
 
     #[inline]
-    fn get_public_key_async(&self) -> BoxedFuture<'_, Result<PublicKey, Self::Error>> {
+    fn get_public_key_async(
+        &self,
+    ) -> Pin<Box<dyn Future<Output = Result<PublicKey, Self::Error>> + Send + '_>> {
         Box::pin(async move { self._get_public_key().await.copied() })
     }
 }
@@ -485,7 +494,7 @@ impl AsyncSignEvent for NostrConnect {
     fn sign_event_async(
         &self,
         unsigned: UnsignedEvent,
-    ) -> BoxedFuture<'_, Result<Event, Self::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Event, Self::Error>> + Send + '_>> {
         Box::pin(async move { self._sign_event(unsigned).await })
     }
 }
@@ -497,7 +506,7 @@ impl AsyncNip04 for NostrConnect {
         &'a self,
         public_key: &'a PublicKey,
         content: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>> {
         Box::pin(async move { self._nip04_encrypt(*public_key, content.to_string()).await })
     }
 
@@ -505,7 +514,7 @@ impl AsyncNip04 for NostrConnect {
         &'a self,
         public_key: &'a PublicKey,
         encrypted_content: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>> {
         Box::pin(async move {
             self._nip04_decrypt(*public_key, encrypted_content.to_string())
                 .await
@@ -520,7 +529,7 @@ impl AsyncNip44 for NostrConnect {
         &'a self,
         public_key: &'a PublicKey,
         content: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>> {
         Box::pin(async move { self._nip44_encrypt(*public_key, content.to_string()).await })
     }
 
@@ -528,7 +537,7 @@ impl AsyncNip44 for NostrConnect {
         &'a self,
         public_key: &'a PublicKey,
         payload: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>> {
         Box::pin(async move { self._nip44_decrypt(*public_key, payload.to_string()).await })
     }
 }

@@ -3,7 +3,9 @@
 // Distributed under the MIT software license
 
 use std::collections::HashSet;
+use std::future::Future;
 use std::net::SocketAddr;
+use std::pin::Pin;
 use std::time::Duration;
 
 use nostr_sdk::prelude::*;
@@ -19,7 +21,7 @@ impl WritePolicy for AcceptKinds {
         &'a self,
         event: &'a Event,
         _addr: &'a SocketAddr,
-    ) -> BoxedFuture<'a, WritePolicyResult> {
+    ) -> Pin<Box<dyn Future<Output = WritePolicyResult> + Send + 'a>> {
         Box::pin(async move {
             if self.kinds.contains(&event.kind) {
                 // Do nothing, keep processing the event
@@ -42,7 +44,7 @@ impl QueryPolicy for RejectAuthorLimit {
         &'a self,
         query: &'a mut Filter,
         _addr: &'a SocketAddr,
-    ) -> BoxedFuture<'a, QueryPolicyResult> {
+    ) -> Pin<Box<dyn Future<Output = QueryPolicyResult> + Send + 'a>> {
         Box::pin(async move {
             if query.authors.as_ref().map(|a| a.len()).unwrap_or(0) > self.limit {
                 QueryPolicyResult::reject(MachineReadablePrefix::Blocked, "query too expensive")

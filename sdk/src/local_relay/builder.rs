@@ -4,7 +4,9 @@
 
 use std::borrow::Cow;
 use std::fmt;
+use std::future::Future;
 use std::net::{IpAddr, SocketAddr};
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -148,7 +150,7 @@ pub trait WritePolicy: fmt::Debug + Send + Sync {
         &'a self,
         event: &'a Event,
         addr: &'a SocketAddr,
-    ) -> BoxedFuture<'a, WritePolicyResult>;
+    ) -> Pin<Box<dyn Future<Output = WritePolicyResult> + Send + 'a>>;
 }
 
 /// Filters REQ's to the internal relay database
@@ -158,7 +160,7 @@ pub trait QueryPolicy: fmt::Debug + Send + Sync {
         &'a self,
         query: &'a mut Filter,
         addr: &'a SocketAddr,
-    ) -> BoxedFuture<'a, QueryPolicyResult>;
+    ) -> Pin<Box<dyn Future<Output = QueryPolicyResult> + Send + 'a>>;
 }
 
 #[allow(missing_docs)]

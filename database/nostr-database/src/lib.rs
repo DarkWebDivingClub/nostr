@@ -16,6 +16,8 @@ extern crate test;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 pub use nostr;
@@ -190,7 +192,7 @@ pub trait NostrDatabase: Any + Debug + Send + Sync {
     fn save_event<'a>(
         &'a self,
         event: &'a Event,
-    ) -> BoxedFuture<'a, Result<SaveEventStatus, Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<SaveEventStatus, Error>> + Send + 'a>>;
 
     /// Check event status by ID
     ///
@@ -198,27 +200,34 @@ pub trait NostrDatabase: Any + Debug + Send + Sync {
     fn check_id<'a>(
         &'a self,
         event_id: &'a EventId,
-    ) -> BoxedFuture<'a, Result<DatabaseEventStatus, Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<DatabaseEventStatus, Error>> + Send + 'a>>;
 
     /// Get [`Event`] by [`EventId`]
     fn event_by_id<'a>(
         &'a self,
         event_id: &'a EventId,
-    ) -> BoxedFuture<'a, Result<Option<Event>, Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Option<Event>, Error>> + Send + 'a>>;
 
     /// Count the number of events found with [`Filter`].
     ///
     /// Use `Filter::new()` or `Filter::default()` to count all events.
-    fn count(&self, filter: Filter) -> BoxedFuture<'_, Result<usize, Error>>;
+    fn count(
+        &self,
+        filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<usize, Error>> + Send + '_>>;
 
     /// Query stored events.
-    fn query(&self, filter: Filter) -> BoxedFuture<'_, Result<Events, Error>>;
+    fn query(
+        &self,
+        filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<Events, Error>> + Send + '_>>;
 
     /// Get `negentropy` items
+    #[allow(clippy::type_complexity)]
     fn negentropy_items(
         &self,
         filter: Filter,
-    ) -> BoxedFuture<'_, Result<Vec<(EventId, Timestamp)>, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<(EventId, Timestamp)>, Error>> + Send + '_>> {
         Box::pin(async move {
             let events: Events = self.query(filter).await?;
             Ok(events.into_iter().map(|e| (e.id, e.created_at)).collect())
@@ -226,8 +235,11 @@ pub trait NostrDatabase: Any + Debug + Send + Sync {
     }
 
     /// Delete all events that match the [Filter]
-    fn delete(&self, filter: Filter) -> BoxedFuture<'_, Result<(), Error>>;
+    fn delete(
+        &self,
+        filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>>;
 
     /// Wipe all data
-    fn wipe(&self) -> BoxedFuture<'_, Result<(), Error>>;
+    fn wipe(&self) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>>;
 }

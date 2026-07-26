@@ -13,7 +13,9 @@ use std::any::Any;
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashSet};
 use std::fmt::Debug;
+use std::future::Future;
 use std::num::NonZeroUsize;
+use std::pin::Pin;
 use std::sync::Arc;
 
 use nostr::prelude::*;
@@ -203,28 +205,28 @@ pub trait NostrGossip: Any + Debug + Send + Sync {
         &'a self,
         event: &'a Event,
         relay_url: Option<&'a RelayUrl>,
-    ) -> BoxedFuture<'a, Result<(), Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>;
 
     /// Check the [`PublicKey`] status
     fn status<'a>(
         &'a self,
         public_key: &'a PublicKey,
         list: GossipListKind,
-    ) -> BoxedFuture<'a, Result<GossipPublicKeyStatus, Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<GossipPublicKeyStatus, Error>> + Send + 'a>>;
 
     /// Update the last check timestamp for an [`PublicKey`].
     fn update_fetch_attempt<'a>(
         &'a self,
         public_key: &'a PublicKey,
         list: GossipListKind,
-    ) -> BoxedFuture<'a, Result<(), Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>;
 
     /// Get up to `limit` outdated public keys for the specified list kind.
     fn outdated_public_keys(
         &self,
         list: GossipListKind,
         limit: NonZeroUsize,
-    ) -> BoxedFuture<'_, Result<BTreeSet<OutdatedPublicKey>, Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<BTreeSet<OutdatedPublicKey>, Error>> + Send + '_>>;
 
     /// Get the best relays for a [`PublicKey`].
     fn get_best_relays<'a>(
@@ -232,7 +234,7 @@ pub trait NostrGossip: Any + Debug + Send + Sync {
         public_key: &'a PublicKey,
         selection: BestRelaySelection,
         allowed: GossipAllowedRelays,
-    ) -> BoxedFuture<'a, Result<HashSet<RelayUrl>, Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<HashSet<RelayUrl>, Error>> + Send + 'a>>;
 }
 
 #[doc(hidden)]

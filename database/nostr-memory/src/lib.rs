@@ -7,7 +7,9 @@
 #![allow(clippy::mutable_key_type)] // TODO: remove when possible. Needed to suppress false positive for `BTreeSet<Event>`
 #![doc = include_str!("../README.md")]
 
+use core::future::Future;
 use core::num::NonZeroUsize;
+use core::pin::Pin;
 
 use nostr::prelude::*;
 use nostr_database::error::Error;
@@ -77,7 +79,7 @@ impl NostrDatabase for MemoryDatabase {
     fn save_event<'a>(
         &'a self,
         event: &'a Event,
-    ) -> BoxedFuture<'a, Result<SaveEventStatus, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<SaveEventStatus, Error>> + Send + 'a>> {
         Box::pin(async move {
             let mut store = self.store.write().await;
             Ok(store.index_event(event))
@@ -87,7 +89,7 @@ impl NostrDatabase for MemoryDatabase {
     fn check_id<'a>(
         &'a self,
         event_id: &'a EventId,
-    ) -> BoxedFuture<'a, Result<DatabaseEventStatus, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<DatabaseEventStatus, Error>> + Send + 'a>> {
         Box::pin(async move {
             let store = self.store.read().await;
 
@@ -104,21 +106,27 @@ impl NostrDatabase for MemoryDatabase {
     fn event_by_id<'a>(
         &'a self,
         event_id: &'a EventId,
-    ) -> BoxedFuture<'a, Result<Option<Event>, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Option<Event>, Error>> + Send + 'a>> {
         Box::pin(async move {
             let store = self.store.read().await;
             Ok(store.event_by_id(event_id).cloned())
         })
     }
 
-    fn count(&self, filter: Filter) -> BoxedFuture<'_, Result<usize, Error>> {
+    fn count(
+        &self,
+        filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<usize, Error>> + Send + '_>> {
         Box::pin(async move {
             let store = self.store.read().await;
             Ok(store.count(filter))
         })
     }
 
-    fn query(&self, filter: Filter) -> BoxedFuture<'_, Result<Events, Error>> {
+    fn query(
+        &self,
+        filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<Events, Error>> + Send + '_>> {
         Box::pin(async move {
             let store = self.store.read().await;
             let mut events = Events::new(&filter);
@@ -130,14 +138,17 @@ impl NostrDatabase for MemoryDatabase {
     fn negentropy_items(
         &self,
         filter: Filter,
-    ) -> BoxedFuture<'_, Result<Vec<(EventId, Timestamp)>, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<(EventId, Timestamp)>, Error>> + Send + '_>> {
         Box::pin(async move {
             let store = self.store.read().await;
             Ok(store.negentropy_items(filter))
         })
     }
 
-    fn delete(&self, filter: Filter) -> BoxedFuture<'_, Result<(), Error>> {
+    fn delete(
+        &self,
+        filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
         Box::pin(async move {
             let mut store = self.store.write().await;
             store.delete(filter);
@@ -145,7 +156,7 @@ impl NostrDatabase for MemoryDatabase {
         })
     }
 
-    fn wipe(&self) -> BoxedFuture<'_, Result<(), Error>> {
+    fn wipe(&self) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
         Box::pin(async move {
             let mut store = self.store.write().await;
             store.clear();

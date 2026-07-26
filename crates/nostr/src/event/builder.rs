@@ -7,6 +7,8 @@
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+use core::future::Future;
+use core::pin::Pin;
 
 use serde_json::{Value, json};
 
@@ -14,7 +16,6 @@ use crate::error::{Error, ErrorKind};
 use crate::nips::nip58::Nip58Tag;
 use crate::nips::nip62::VanishTarget;
 use crate::prelude::*;
-use crate::util::BoxedFuture;
 
 /// Template that can be converted into a generic [`EventBuilder`].
 pub trait EventBuilderTemplate: Sized {
@@ -50,7 +51,7 @@ where
 /// Template that can asynchronously be converted into a generic [`EventBuilder`].
 pub trait EventBuilderTemplateAsync {
     /// Convert this typed builder into the generic event builder.
-    fn build_async<'a>(self) -> BoxedFuture<'a, EventBuilder>
+    fn build_async<'a>(self) -> Pin<Box<dyn Future<Output = EventBuilder> + Send + 'a>>
     where
         Self: 'a;
 }
@@ -60,7 +61,7 @@ where
     B: EventBuilderTemplate + Send,
 {
     #[inline]
-    fn build_async<'a>(self) -> BoxedFuture<'a, EventBuilder>
+    fn build_async<'a>(self) -> Pin<Box<dyn Future<Output = EventBuilder> + Send + 'a>>
     where
         Self: 'a,
     {
@@ -73,7 +74,10 @@ where
     B: EventBuilderTemplateAsync + Send,
 {
     #[inline]
-    fn finalize_unsigned_async<'a>(self, public_key: PublicKey) -> BoxedFuture<'a, UnsignedEvent>
+    fn finalize_unsigned_async<'a>(
+        self,
+        public_key: PublicKey,
+    ) -> Pin<Box<dyn Future<Output = UnsignedEvent> + Send + 'a>>
     where
         Self: 'a,
     {
@@ -91,7 +95,10 @@ where
 {
     type Error = Error;
 
-    fn finalize_async<'a>(self, signer: &'a S) -> BoxedFuture<'a, Result<Event, Error>>
+    fn finalize_async<'a>(
+        self,
+        signer: &'a S,
+    ) -> Pin<Box<dyn Future<Output = Result<Event, Error>> + Send + 'a>>
     where
         Self: 'a,
         S: 'a,
@@ -1279,7 +1286,10 @@ impl FinalizeUnsignedEvent for EventBuilder {
 
 impl FinalizeUnsignedEventAsync for EventBuilder {
     #[inline]
-    fn finalize_unsigned_async<'a>(self, public_key: PublicKey) -> BoxedFuture<'a, UnsignedEvent>
+    fn finalize_unsigned_async<'a>(
+        self,
+        public_key: PublicKey,
+    ) -> Pin<Box<dyn Future<Output = UnsignedEvent> + Send + 'a>>
     where
         Self: 'a,
     {
@@ -1306,7 +1316,10 @@ where
 {
     type Error = Error;
 
-    fn finalize_async<'a>(self, signer: &'a S) -> BoxedFuture<'a, Result<Event, Self::Error>>
+    fn finalize_async<'a>(
+        self,
+        signer: &'a S,
+    ) -> Pin<Box<dyn Future<Output = Result<Event, Self::Error>> + Send + 'a>>
     where
         Self: 'a,
         S: 'a,

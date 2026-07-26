@@ -457,6 +457,8 @@ impl Relay {
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
+    use std::future::Future;
+    use std::pin::Pin;
     use std::sync::Arc;
 
     use async_utility::time;
@@ -475,7 +477,7 @@ mod tests {
         fn admit_connection<'a>(
             &'a self,
             relay_url: &'a RelayUrl,
-        ) -> BoxedFuture<'a, Result<AdmitStatus, Error>> {
+        ) -> Pin<Box<dyn Future<Output = Result<AdmitStatus, Error>> + Send + 'a>> {
             Box::pin(async move {
                 if self.banned_relays.contains(relay_url) {
                     Ok(AdmitStatus::rejected("banned"))

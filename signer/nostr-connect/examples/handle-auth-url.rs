@@ -2,6 +2,8 @@
 // Copyright (c) 2023-2025 Rust Nostr Developers
 // Distributed under the MIT software license
 
+use std::future::Future;
+use std::pin::Pin;
 use std::time::Duration;
 
 use nostr_connect::prelude::*;
@@ -13,7 +15,7 @@ impl AuthUrlHandler for MyAuthUrlHandler {
     fn on_auth_url(
         &self,
         auth_url: Url,
-    ) -> BoxedFuture<'_, Result<(), nostr_connect::error::Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
         Box::pin(async move {
             println!("Opening auth url: {auth_url}");
             webbrowser::open(auth_url.as_str()).unwrap();

@@ -4,12 +4,9 @@
 
 //! Util
 
-use alloc::boxed::Box;
 #[cfg(feature = "rand")]
 use alloc::string::String;
 use core::convert::Infallible;
-use core::future::Future;
-use core::pin::Pin;
 #[cfg(feature = "std")]
 use std::sync::LazyLock;
 
@@ -30,14 +27,6 @@ mod json;
 pub(crate) use self::json::{impl_json_methods, parse_json, parse_json_from_value};
 use crate::error::Error;
 use crate::key::{PublicKey, SecretKey};
-
-/// A boxed future
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-pub type BoxedFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
-
-/// A boxed future
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-pub type BoxedFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
 #[cfg(feature = "rand")]
 fn random_bytes<R, const N: usize>(rng: &mut R) -> [u8; N]

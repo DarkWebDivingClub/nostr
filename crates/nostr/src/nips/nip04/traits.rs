@@ -2,12 +2,14 @@
 // Copyright (c) 2023-2025 Rust Nostr Developers
 // Distributed under the MIT software license
 
+use alloc::boxed::Box;
 use alloc::string::String;
 use core::any::Any;
 use core::fmt::Debug;
+use core::future::Future;
+use core::pin::Pin;
 
 use crate::key::PublicKey;
-use crate::util::BoxedFuture;
 
 /// Synchronous NIP-04
 pub trait Nip04: Any + Debug + Send + Sync {
@@ -39,12 +41,12 @@ pub trait AsyncNip04: Any + Debug + Send + Sync {
         &'a self,
         public_key: &'a PublicKey,
         content: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>>;
 
     /// Decrypts asynchronously a NIP-04 payload.
     fn nip04_decrypt_async<'a>(
         &'a self,
         public_key: &'a PublicKey,
         encrypted_content: &'a str,
-    ) -> BoxedFuture<'a, Result<String, Self::Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<String, Self::Error>> + Send + 'a>>;
 }

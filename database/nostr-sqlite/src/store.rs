@@ -1,9 +1,11 @@
 //! Nostr SQLite database
 
 use std::cmp::Ordering;
+use std::future::Future;
 use std::path::Path;
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::PathBuf;
+use std::pin::Pin;
 
 use nostr_database::error::Error;
 use nostr_database::prelude::*;
@@ -522,7 +524,7 @@ impl NostrDatabase for NostrSqlite {
     fn save_event<'a>(
         &'a self,
         event: &'a Event,
-    ) -> BoxedFuture<'a, Result<SaveEventStatus, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<SaveEventStatus, Error>> + Send + 'a>> {
         Box::pin(async move {
             let event = event.clone();
             Ok(self
@@ -535,7 +537,7 @@ impl NostrDatabase for NostrSqlite {
     fn check_id<'a>(
         &'a self,
         event_id: &'a EventId,
-    ) -> BoxedFuture<'a, Result<DatabaseEventStatus, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<DatabaseEventStatus, Error>> + Send + 'a>> {
         Box::pin(async move {
             let event_id = *event_id;
             Ok(self
@@ -558,7 +560,7 @@ impl NostrDatabase for NostrSqlite {
     fn event_by_id<'a>(
         &'a self,
         event_id: &'a EventId,
-    ) -> BoxedFuture<'a, Result<Option<Event>, Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Option<Event>, Error>> + Send + 'a>> {
         Box::pin(async move {
             let event_id = *event_id;
             Ok(self
@@ -568,7 +570,10 @@ impl NostrDatabase for NostrSqlite {
         })
     }
 
-    fn count(&self, filter: Filter) -> BoxedFuture<'_, Result<usize, Error>> {
+    fn count(
+        &self,
+        filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<usize, Error>> + Send + '_>> {
         Box::pin(async move {
             let filter = with_limit(filter, EVENTS_QUERY_LIMIT);
             Ok(self
@@ -584,7 +589,10 @@ impl NostrDatabase for NostrSqlite {
         })
     }
 
-    fn query(&self, filter: Filter) -> BoxedFuture<'_, Result<Events, Error>> {
+    fn query(
+        &self,
+        filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<Events, Error>> + Send + '_>> {
         Box::pin(async move {
             let filter = with_limit(filter, EVENTS_QUERY_LIMIT);
             Ok(self
@@ -609,7 +617,10 @@ impl NostrDatabase for NostrSqlite {
 
     // TODO: impl negentropy_items deserializing only ids and timestamps
 
-    fn delete(&self, filter: Filter) -> BoxedFuture<'_, Result<(), Error>> {
+    fn delete(
+        &self,
+        filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
         Box::pin(async move {
             Ok(self
                 .pool
@@ -622,7 +633,7 @@ impl NostrDatabase for NostrSqlite {
         })
     }
 
-    fn wipe(&self) -> BoxedFuture<'_, Result<(), Error>> {
+    fn wipe(&self) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
         Box::pin(async move {
             Ok(self
                 .pool
