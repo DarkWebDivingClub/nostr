@@ -306,6 +306,14 @@ fn serialize_sig<S: Serializer>(sig: &Signature, s: S) -> Result<S::Ok, S::Error
     s.serialize_str(hex_str)
 }
 
+#[inline]
+fn deserialize_sig<'de, D: Deserializer<'de>>(d: D) -> Result<Signature, D::Error> {
+    let hex_str: String = String::deserialize(d)?;
+    let mut bytes: [u8; SCHNORR_SIGNATURE_SIZE] = [0u8; SCHNORR_SIGNATURE_SIZE];
+    faster_hex::hex_decode(hex_str.as_bytes(), &mut bytes).map_err(serde::de::Error::custom)?;
+    Signature::from_slice(&bytes).map_err(serde::de::Error::custom)
+}
+
 /// Struct used for de/serialization of [`Event`]
 #[derive(Serialize, Deserialize)]
 struct EventIntermediate<'a> {
@@ -315,7 +323,7 @@ struct EventIntermediate<'a> {
     pub kind: Kind,
     pub tags: Cow<'a, Tags>,
     pub content: Cow<'a, str>,
-    #[serde(serialize_with = "serialize_sig")]
+    #[serde(serialize_with = "serialize_sig", deserialize_with = "deserialize_sig")]
     pub sig: Signature,
 }
 
