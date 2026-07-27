@@ -17,7 +17,7 @@ mod tests {
     use std::future::Future;
     use std::pin::Pin;
 
-    use nostr::event::{EventBuilder, FinalizeEvent, Tag};
+    use nostr::event::{EventBuilder, FinalizeEvent, Kind, Tag};
     use nostr::filter::Filter;
     use nostr::key::Keys;
     use nostr_memory::MemoryDatabase;
@@ -85,5 +85,30 @@ mod tests {
                 .all(|e| { e.tags.hashtags().all(|hashtag| hashtag == UPDATE_TAG) }),
             "All tags should have the updated filter tag"
         );
+    }
+
+    #[tokio::test]
+    async fn kind_blacklist() {
+        let relay = LocalRelay::builder()
+            .database(MemoryDatabase::unbounded())
+            .blacklist_kinds(&[Kind::TextNote])
+            .build();
+        relay.run().await.unwrap();
+
+        let keys = Keys::generate();
+        let client = Client::default();
+
+        client
+            .add_relay(relay.url().await)
+            .and_connect()
+            .await
+            .unwrap();
+        let event = EventBuilder::text_note(":)").finalize(&keys).unwrap();
+        let output = client.send_event(&event).await.unwrap();
+
+        assert_eq!(
+            "blocked: kind `1` is not accepted by this relay",
+            output.failed.values().next().unwrap()
+        )
     }
 }

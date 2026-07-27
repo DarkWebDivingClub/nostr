@@ -3,6 +3,7 @@
 // Distributed under the MIT software license
 
 use std::borrow::Cow;
+use std::collections::HashSet;
 use std::fmt;
 use std::future::Future;
 use std::net::{IpAddr, SocketAddr};
@@ -277,6 +278,8 @@ pub struct LocalRelayBuilder {
     pub(crate) auth_dm: bool,
     /// Min POW difficulty
     pub(crate) min_pow: Option<u8>,
+    /// Kinds blacklist
+    pub(crate) kinds_blacklist: HashSet<Kind>,
     /// Write policy
     pub(crate) write_policy: Option<Arc<dyn WritePolicy>>,
     /// Query policy
@@ -287,6 +290,16 @@ pub struct LocalRelayBuilder {
 
 impl Default for LocalRelayBuilder {
     fn default() -> Self {
+        // The list of kinds originates from a commit message by Alex Gleason:
+        // <https://gitlab.com/soapbox-pub/ditto-relay/-/commit/ddce82c040e78cc37d3a56b8a7f0448daddf3df2>
+        const BLACKLISTED_KINDS: [Kind; 5] = [
+            Kind::Seal,           // Only valid inside a gift-wrap event; meaningless on its own.
+            Kind::ZapRequest,     // Sent directly to the LNURL callback server, never to relays.
+            Kind::Authentication, // Carried exclusively inside `["AUTH", ...]` frames.
+            Kind::BlossomAuth, // An HTTP Authorization header artifact, not an independent event.
+            Kind::HttpAuth,    // An HTTP Authorization header artifact, not an independent event.
+        ];
+
         Self {
             addr: None,
             port: None,
@@ -300,6 +313,7 @@ impl Default for LocalRelayBuilder {
             default_filter_limit: 500,
             auth_dm: false,
             min_pow: None,
+            kinds_blacklist: HashSet::from(BLACKLISTED_KINDS),
             write_policy: None,
             query_policy: None,
             test: LocalRelayTestOptions::default(),
@@ -398,6 +412,13 @@ impl LocalRelayBuilder {
         if difficulty > 0 {
             self.min_pow = Some(difficulty);
         }
+        self
+    }
+
+    /// Reject events matching the given kinds
+    #[inline]
+    pub fn blacklist_kinds(mut self, kinds: &[Kind]) -> Self {
+        self.kinds_blacklist.extend(kinds);
         self
     }
 

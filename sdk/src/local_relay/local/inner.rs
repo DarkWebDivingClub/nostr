@@ -3,7 +3,7 @@
 // Distributed under the MIT software license
 
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::num::NonZeroUsize;
 use std::sync::Arc;
@@ -50,6 +50,7 @@ pub(super) struct InnerLocalRelay {
     default_filter_limit: usize,
     auth_dm: bool,
     min_pow: Option<u8>, // TODO: use AtomicU8 to allow to change it?
+    kinds_blacklist: HashSet<Kind>,
     write_policy: Option<Arc<dyn WritePolicy>>,
     query_policy: Option<Arc<dyn QueryPolicy>>,
     nip42: Option<LocalRelayBuilderNip42>,
@@ -93,6 +94,7 @@ impl InnerLocalRelay {
             default_filter_limit: builder.default_filter_limit,
             auth_dm: builder.auth_dm,
             min_pow: builder.min_pow,
+            kinds_blacklist: builder.kinds_blacklist,
             write_policy: builder.write_policy,
             query_policy: builder.query_policy,
             nip42: builder.nip42,
@@ -380,6 +382,23 @@ impl InnerLocalRelay {
                             message: Cow::Owned(format!(
                                 "{}: slow down",
                                 MachineReadablePrefix::RateLimited
+                            )),
+                        },
+                    )
+                    .await;
+                }
+
+                // Reject the event if it's a blacklisted kind
+                if self.kinds_blacklist.contains(&event.kind) {
+                    return send_msg(
+                        ws_tx,
+                        RelayMessage::Ok {
+                            event_id: event.id,
+                            status: false,
+                            message: Cow::Owned(format!(
+                                "{}: kind `{}` is not accepted by this relay",
+                                MachineReadablePrefix::Blocked,
+                                event.kind.as_u16()
                             )),
                         },
                     )

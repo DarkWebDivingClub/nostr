@@ -97,6 +97,7 @@
 - Add `AdmitPolicy::admit_relay` (https://github.com/nostrdevkit/nostr/pull/1339)
 - Add `Proxy` with global, onion-only and custom relay proxy policies (https://github.com/nostrdevkit/nostr/pull/1351)
 - Add `Authenticator` and `SignerAuthenticator` for NIP-42 relay authentication (https://github.com/nostrdevkit/nostr/pull/1340)
+- local_relay: support event kind blacklisting via `LocalRelayBuilder::blacklist_kinds` (https://github.com/nostrdevkit/nostr/pull/1401)
 
 ### Fixed
 
