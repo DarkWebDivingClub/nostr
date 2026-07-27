@@ -40,7 +40,7 @@ rust-version = "1.85.0"
 
 [workspace.dependencies]
 async-utility = "0.3"
-async-wsocket = { version = "0.15", default-features = false }
+async-wsocket = { git = "https://github.com/shadowylab/async-wsocket", rev = "16818f3100544bde3fe8338cd80306f3d320426b", default-features = false }
 atomic-destructor = { version = "0.3", default-features = false }
 base64 = { version = "0.22", default-features = false }
 btreecap = "0.1"
