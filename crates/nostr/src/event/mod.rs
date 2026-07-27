@@ -309,26 +309,26 @@ fn serialize_sig<S: Serializer>(sig: &Signature, s: S) -> Result<S::Ok, S::Error
 /// Struct used for de/serialization of [`Event`]
 #[derive(Serialize, Deserialize)]
 struct EventIntermediate<'a> {
-    pub id: Cow<'a, EventId>,
-    pub pubkey: Cow<'a, PublicKey>,
+    pub id: EventId,
+    pub pubkey: PublicKey,
     pub created_at: Cow<'a, Timestamp>,
-    pub kind: Cow<'a, Kind>,
+    pub kind: Kind,
     pub tags: Cow<'a, Tags>,
     pub content: Cow<'a, str>,
     #[serde(serialize_with = "serialize_sig")]
-    pub sig: Cow<'a, Signature>,
+    pub sig: Signature,
 }
 
 impl<'a> From<&'a Event> for EventIntermediate<'a> {
     fn from(e: &'a Event) -> Self {
         Self {
-            id: Cow::Borrowed(&e.id),
-            pubkey: Cow::Borrowed(&e.pubkey),
+            id: e.id,
+            pubkey: e.pubkey,
             created_at: Cow::Borrowed(&e.created_at),
-            kind: Cow::Borrowed(&e.kind),
+            kind: e.kind,
             tags: Cow::Borrowed(&e.tags),
             content: Cow::Borrowed(&e.content),
-            sig: Cow::Borrowed(&e.sig),
+            sig: e.sig,
         }
     }
 }
@@ -351,13 +351,13 @@ impl<'de> Deserialize<'de> for Event {
         let inter: EventIntermediate<'_> = EventIntermediate::deserialize(deserializer)?;
 
         Ok(Self {
-            id: inter.id.into_owned(),
-            pubkey: inter.pubkey.into_owned(),
+            id: inter.id,
+            pubkey: inter.pubkey,
             created_at: inter.created_at.into_owned(),
-            kind: inter.kind.into_owned(),
+            kind: inter.kind,
             tags: inter.tags.into_owned(),
             content: inter.content.into_owned(),
-            sig: inter.sig.into_owned(),
+            sig: inter.sig,
         })
     }
 }
