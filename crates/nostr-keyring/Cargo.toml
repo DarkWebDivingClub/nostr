@@ -1,6 +1,6 @@
 [package]
 name = "nostr-keyring"
-version = "0.45.0-alpha.6"
+version = "0.45.0-alpha.7"
 edition.workspace = true
 description = "Keyring for nostr"
 authors.workspace = true
