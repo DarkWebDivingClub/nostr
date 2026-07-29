@@ -22,7 +22,7 @@ use rand::rngs::SysRng;
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, Rng};
 use secp256k1::schnorr::Signature;
-use secp256k1::{self, Keypair, Message, Secp256k1, Signing, XOnlyPublicKey};
+use secp256k1::{self, Keypair, Secp256k1, Signing, XOnlyPublicKey};
 
 mod public_key;
 mod secret_key;
@@ -172,25 +172,29 @@ impl Keys {
         &self.secret_key
     }
 
-    /// Creates a schnorr signature of the [`Message`].
+    /// Creates a schnorr signature of the message.
     ///
     /// This method uses a random number generator that retrieves randomness from the operating system (see [`SysRng`]).
     #[inline]
     #[cfg(all(feature = "std", feature = "os-rng"))]
-    pub fn sign_schnorr(&self, message: &Message) -> Signature {
+    pub fn sign_schnorr<T>(&self, message: T) -> Signature
+    where
+        T: AsRef<[u8]>,
+    {
         self.sign_schnorr_with_rng(&SECP256K1, message, &mut UnwrapErr(SysRng))
     }
 
-    /// Creates a schnorr signature of the [`Message`] using a custom random number generation source.
+    /// Creates a schnorr signature of the message using a custom random number generation source.
     #[cfg(feature = "rand")]
-    pub fn sign_schnorr_with_rng<C, R>(
+    pub fn sign_schnorr_with_rng<C, T, R>(
         &self,
         secp: &Secp256k1<C>,
-        message: &Message,
+        message: T,
         rng: &mut R,
     ) -> Signature
     where
         C: Signing,
+        T: AsRef<[u8]>,
         R: Rng + CryptoRng,
     {
         let aux: [u8; 32] = util::random_32_bytes(rng);
@@ -198,16 +202,17 @@ impl Keys {
     }
 
     /// Creates a schnorr signature using the given auxiliary random data.
-    pub fn sign_schnorr_with_aux_rand<C>(
+    pub fn sign_schnorr_with_aux_rand<C, T>(
         &self,
         secp: &Secp256k1<C>,
-        message: &Message,
+        message: T,
         aux: &[u8; 32],
     ) -> Signature
     where
         C: Signing,
+        T: AsRef<[u8]>,
     {
-        secp.sign_schnorr_with_aux_rand(message, &self.keypair, aux)
+        secp.sign_schnorr_with_aux_rand(message.as_ref(), &self.keypair, aux)
     }
 }
 
@@ -247,8 +252,7 @@ impl SignEvent for Keys {
 
     fn sign_event(&self, unsigned: UnsignedEvent) -> Result<Event, Self::Error> {
         let id: EventId = unsigned.id.unwrap_or_else(|| unsigned.compute_id());
-        let message: Message = Message::from_digest(id.to_bytes());
-        let sig: Signature = self.sign_schnorr(&message);
+        let sig: Signature = self.sign_schnorr(id.as_bytes());
         unsigned.add_signature(sig)
     }
 }

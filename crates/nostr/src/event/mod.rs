@@ -18,7 +18,7 @@ use core::pin::Pin;
 
 use secp256k1::constants::SCHNORR_SIGNATURE_SIZE;
 use secp256k1::schnorr::Signature;
-use secp256k1::{Message, Secp256k1, Verification};
+use secp256k1::{Secp256k1, Verification};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 mod builder;
@@ -211,10 +211,9 @@ impl Event {
     where
         C: Verification,
     {
-        let message: Message = Message::from_digest(self.id.to_bytes());
         match self.pubkey.xonly() {
             Ok(public_key) => secp
-                .verify_schnorr(&self.sig, &message, &public_key)
+                .verify_schnorr(&self.sig, self.id.as_bytes(), &public_key)
                 .is_ok(),
             Err(..) => false, // TODO: return error?
         }
@@ -300,7 +299,7 @@ impl TryFrom<&Event> for Metadata {
 
 #[inline]
 fn serialize_sig<S: Serializer>(sig: &Signature, s: S) -> Result<S::Ok, S::Error> {
-    let bytes: [u8; SCHNORR_SIGNATURE_SIZE] = sig.serialize();
+    let bytes: [u8; SCHNORR_SIGNATURE_SIZE] = sig.to_byte_array();
     let mut hex_buf = [0u8; SCHNORR_SIGNATURE_SIZE * 2];
     let hex_str = faster_hex::hex_encode(&bytes, &mut hex_buf).expect("Buffer size is correct");
     s.serialize_str(hex_str)
@@ -311,7 +310,7 @@ fn deserialize_sig<'de, D: Deserializer<'de>>(d: D) -> Result<Signature, D::Erro
     let hex_str: String = String::deserialize(d)?;
     let mut bytes: [u8; SCHNORR_SIGNATURE_SIZE] = [0u8; SCHNORR_SIGNATURE_SIZE];
     faster_hex::hex_decode(hex_str.as_bytes(), &mut bytes).map_err(serde::de::Error::custom)?;
-    Signature::from_slice(&bytes).map_err(serde::de::Error::custom)
+    Ok(Signature::from_byte_array(bytes))
 }
 
 /// Struct used for de/serialization of [`Event`]
