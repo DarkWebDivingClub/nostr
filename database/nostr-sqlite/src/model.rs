@@ -1,6 +1,5 @@
 use nostr::event::Event;
-use nostr::secp256k1::schnorr::Signature;
-use nostr::{EventId, Kind, PublicKey, SingleLetterTag, Tags, Timestamp};
+use nostr::{EventId, Kind, PublicKey, Signature, SingleLetterTag, Tags, Timestamp};
 use rusqlite::Row;
 
 use crate::error::StoreError;

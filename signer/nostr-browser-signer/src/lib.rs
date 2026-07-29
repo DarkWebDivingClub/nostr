@@ -22,7 +22,6 @@ use std::task::{Context, Poll};
 
 use js_sys::{Array, Function, JsString, Object, Promise, Reflect};
 use nostr::prelude::*;
-use nostr::secp256k1::schnorr::Signature;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::Window;
@@ -197,12 +196,7 @@ impl BrowserSigner {
             .get_value_by_key(&event_obj, "sig")?
             .as_string()
             .ok_or_else(Error::type_mismatch)?;
-        let sig: Signature = Signature::from_str(&sig).map_err(|e| {
-            Error::from(nostr::error::Error::new(
-                nostr::error::ErrorKind::Malformed,
-                e,
-            ))
-        })?;
+        let sig: Signature = Signature::from_str(&sig)?;
 
         // Add signature
         Ok(unsigned.add_signature(sig)?)

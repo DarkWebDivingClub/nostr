@@ -9,8 +9,7 @@ use std::str::FromStr;
 
 use nostr::error::{Error, ErrorKind};
 use nostr::key::PublicKey;
-use nostr::secp256k1::schnorr::Signature;
-use nostr::{Event, EventId, Kind, SingleLetterTag, Tag, Tags, Timestamp};
+use nostr::{Event, EventId, Kind, Signature, SingleLetterTag, Tag, Tags, Timestamp};
 use nostr_database::flatbuffers::{self, FlatBufferDecodeBorrowed, MissingField, event_fbs};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

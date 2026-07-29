@@ -10,9 +10,9 @@ use core::future::Future;
 use core::num::NonZeroU8;
 use core::pin::Pin;
 
-use secp256k1::schnorr::Signature;
 use secp256k1::{Secp256k1, Verification};
 
+use super::signature::Signature;
 use super::{AsyncSignEvent, FinalizeEvent, FinalizeEventAsync, SignEvent};
 use crate::error::{Error, ErrorKind};
 use crate::nips::nip13::{AsyncPowAdapter, PowAdapter};

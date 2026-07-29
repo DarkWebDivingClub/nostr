@@ -21,7 +21,6 @@ use rand::rand_core::UnwrapErr;
 use rand::rngs::SysRng;
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, Rng};
-use secp256k1::schnorr::Signature;
 use secp256k1::{self, Keypair, Secp256k1, Signing, XOnlyPublicKey};
 
 mod public_key;
@@ -30,6 +29,7 @@ mod secret_key;
 pub use self::public_key::*;
 pub use self::secret_key::*;
 use crate::error::Error;
+use crate::event::Signature;
 #[cfg(all(feature = "std", feature = "os-rng"))]
 use crate::event::{AsyncSignEvent, Event, EventId, SignEvent, UnsignedEvent};
 #[cfg(all(feature = "std", feature = "os-rng", feature = "nip04"))]
@@ -185,6 +185,7 @@ impl Keys {
     }
 
     /// Creates a schnorr signature of the message using a custom random number generation source.
+    #[inline]
     #[cfg(feature = "rand")]
     pub fn sign_schnorr_with_rng<C, T, R>(
         &self,
@@ -202,6 +203,7 @@ impl Keys {
     }
 
     /// Creates a schnorr signature using the given auxiliary random data.
+    #[inline]
     pub fn sign_schnorr_with_aux_rand<C, T>(
         &self,
         secp: &Secp256k1<C>,
@@ -212,7 +214,8 @@ impl Keys {
         C: Signing,
         T: AsRef<[u8]>,
     {
-        secp.sign_schnorr_with_aux_rand(message.as_ref(), &self.keypair, aux)
+        let sig = secp.sign_schnorr_with_aux_rand(message.as_ref(), &self.keypair, aux);
+        Signature::from_secp256k1(sig)
     }
 }
 

@@ -16,20 +16,20 @@ use core::future::Future;
 use core::hash::{Hash, Hasher};
 use core::pin::Pin;
 
-use secp256k1::constants::SCHNORR_SIGNATURE_SIZE;
-use secp256k1::schnorr::Signature;
 use secp256k1::{Secp256k1, Verification};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 mod builder;
 mod id;
 mod kind;
+mod signature;
 mod tag;
 mod unsigned;
 
 pub use self::builder::*;
 pub use self::id::*;
 pub use self::kind::*;
+pub use self::signature::*;
 pub use self::tag::*;
 pub use self::unsigned::*;
 use crate::error::{Error, ErrorKind};
@@ -213,7 +213,7 @@ impl Event {
     {
         match self.pubkey.xonly() {
             Ok(public_key) => secp
-                .verify_schnorr(&self.sig, self.id.as_bytes(), &public_key)
+                .verify_schnorr(self.sig.as_secp256k1(), self.id.as_bytes(), &public_key)
                 .is_ok(),
             Err(..) => false, // TODO: return error?
         }
@@ -297,22 +297,6 @@ impl TryFrom<&Event> for Metadata {
     }
 }
 
-#[inline]
-fn serialize_sig<S: Serializer>(sig: &Signature, s: S) -> Result<S::Ok, S::Error> {
-    let bytes: [u8; SCHNORR_SIGNATURE_SIZE] = sig.to_byte_array();
-    let mut hex_buf = [0u8; SCHNORR_SIGNATURE_SIZE * 2];
-    let hex_str = faster_hex::hex_encode(&bytes, &mut hex_buf).expect("Buffer size is correct");
-    s.serialize_str(hex_str)
-}
-
-#[inline]
-fn deserialize_sig<'de, D: Deserializer<'de>>(d: D) -> Result<Signature, D::Error> {
-    let hex_str: String = String::deserialize(d)?;
-    let mut bytes: [u8; SCHNORR_SIGNATURE_SIZE] = [0u8; SCHNORR_SIGNATURE_SIZE];
-    faster_hex::hex_decode(hex_str.as_bytes(), &mut bytes).map_err(serde::de::Error::custom)?;
-    Ok(Signature::from_byte_array(bytes))
-}
-
 /// Struct used for de/serialization of [`Event`]
 #[derive(Serialize, Deserialize)]
 struct EventIntermediate<'a> {
@@ -322,7 +306,6 @@ struct EventIntermediate<'a> {
     pub kind: Kind,
     pub tags: Cow<'a, Tags>,
     pub content: Cow<'a, str>,
-    #[serde(serialize_with = "serialize_sig", deserialize_with = "deserialize_sig")]
     pub sig: Signature,
 }
 

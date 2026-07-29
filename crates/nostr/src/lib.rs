@@ -53,7 +53,7 @@ pub mod types;
 mod util;
 
 #[doc(hidden)]
-pub use self::event::{Event, EventBuilder, EventId, Kind, UnsignedEvent};
+pub use self::event::{Event, EventBuilder, EventId, Kind, Signature, UnsignedEvent};
 #[doc(hidden)]
 pub use self::event::{Tag, Tags};
 #[doc(hidden)]

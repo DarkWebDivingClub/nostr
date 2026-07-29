@@ -14,7 +14,6 @@
 pub use bip39::Mnemonic;
 #[cfg(feature = "rand")]
 pub use rand;
-pub use secp256k1::schnorr::Signature;
 pub use serde_json::Value;
 
 pub use crate::error::{self, Error, ErrorKind};

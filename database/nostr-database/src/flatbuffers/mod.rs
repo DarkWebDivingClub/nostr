@@ -9,8 +9,6 @@ use std::fmt;
 use flatbuffers::InvalidFlatbuffer;
 pub use flatbuffers::{FlatBufferBuilder, ForwardsUOffset, Vector};
 use nostr::prelude::*;
-use nostr::secp256k1;
-use nostr::secp256k1::schnorr::Signature;
 
 #[allow(
     unused_imports,
@@ -59,8 +57,6 @@ pub enum Error {
     Protocol(nostr::error::Error),
     /// FlatBuffer
     FlatBuffer(InvalidFlatbuffer),
-    /// Secp256k1 error
-    Secp256k1(secp256k1::Error),
     /// Field not found
     FieldNotFound(MissingField),
 }
@@ -72,7 +68,6 @@ impl fmt::Display for Error {
         match self {
             Self::Protocol(e) => e.fmt(f),
             Self::FlatBuffer(e) => write!(f, "{e}"),
-            Self::Secp256k1(e) => write!(f, "{e}"),
             Self::FieldNotFound(field) => write!(f, "'{field}' field not found"),
         }
     }
@@ -87,12 +82,6 @@ impl From<nostr::error::Error> for Error {
 impl From<InvalidFlatbuffer> for Error {
     fn from(e: InvalidFlatbuffer) -> Self {
         Self::FlatBuffer(e)
-    }
-}
-
-impl From<secp256k1::Error> for Error {
-    fn from(e: secp256k1::Error) -> Self {
-        Self::Secp256k1(e)
     }
 }
 
@@ -177,7 +166,7 @@ impl FlatBufferDecode for Event {
             ev.content()
                 .ok_or(Error::FieldNotFound(MissingField::Content))?
                 .to_owned(),
-            Signature::from_slice(&ev.sig().ok_or(Error::FieldNotFound(MissingField::Sig))?.0)?,
+            Signature::from_byte_array(ev.sig().ok_or(Error::FieldNotFound(MissingField::Sig))?.0),
         ))
     }
 }

@@ -136,7 +136,7 @@ impl NostrSqlite {
                 event.kind.as_u16() as i64,
                 &event.content,
                 tags,
-                event.sig.as_ref().as_slice(),
+                event.sig.as_bytes(),
             ],
         )?;
 

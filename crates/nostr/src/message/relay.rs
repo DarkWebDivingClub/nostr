@@ -494,10 +494,8 @@ struct Count {
 mod tests {
     use core::str::FromStr;
 
-    use secp256k1::schnorr::Signature;
-
     use super::*;
-    use crate::{Kind, PublicKey, Timestamp};
+    use crate::{Kind, PublicKey, Signature, Timestamp};
 
     #[test]
     fn test_handle_valid_notice() {

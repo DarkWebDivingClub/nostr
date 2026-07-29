@@ -393,10 +393,8 @@ impl<'de> Deserialize<'de> for Tag {
 mod tests {
     use core::str::FromStr;
 
-    use secp256k1::schnorr::Signature;
-
     use super::*;
-    use crate::{Event, Kind, Timestamp};
+    use crate::{Event, Kind, Signature, Timestamp};
 
     #[test]
     fn test_parse_empty_tag() {

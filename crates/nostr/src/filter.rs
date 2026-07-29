@@ -1042,10 +1042,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use secp256k1::schnorr::Signature;
-
     use super::*;
-    use crate::Tag;
+    use crate::{Signature, Tag};
 
     #[test]
     fn test_kind_concatenation() {
