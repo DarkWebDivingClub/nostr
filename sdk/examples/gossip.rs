@@ -32,7 +32,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pubkey =
         PublicKey::parse("npub1drvpzev3syqt0kjrls50050uzf25gehpz9vgdw08hvex7e0vgfeq0eseet")?;
 
-    let event = EventBuilder::text_note(
+    let event = EventBuilder::new(
+        Kind::TextNote,
         "Hello world nostr:npub1drvpzev3syqt0kjrls50050uzf25gehpz9vgdw08hvex7e0vgfeq0eseet",
     )
     .tag(Tag::public_key(pubkey))

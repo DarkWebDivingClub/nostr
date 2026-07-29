@@ -16,11 +16,99 @@ use super::util::{
     take_event_id, unknown_tag,
 };
 use crate::error::{Error, ErrorKind};
-use crate::event::{EventId, Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{
+    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+};
 use crate::key::PublicKey;
 use crate::types::url::RelayUrl;
 
 const EVENT: &str = "e";
+
+/// Text note reply builder.
+#[derive(Debug, Clone)]
+pub struct TextNoteReplyBuilder<'a> {
+    content: String,
+    reply_to: &'a Event,
+    root: Option<&'a Event>,
+    relay_hint: Option<RelayUrl>,
+}
+
+impl<'a> TextNoteReplyBuilder<'a> {
+    /// Create a text note reply.
+    pub fn new<S>(content: S, reply_to: &'a Event) -> Self
+    where
+        S: Into<String>,
+    {
+        Self {
+            content: content.into(),
+            reply_to,
+            root: None,
+            relay_hint: None,
+        }
+    }
+
+    /// Set the root event.
+    #[inline]
+    pub fn root(mut self, root: &'a Event) -> Self {
+        self.root = Some(root);
+        self
+    }
+
+    /// Set the relay hint.
+    #[inline]
+    pub fn relay_hint(mut self, relay_hint: RelayUrl) -> Self {
+        self.relay_hint = Some(relay_hint);
+        self
+    }
+}
+
+impl IntoEventBuilder for TextNoteReplyBuilder<'_> {
+    fn into_event_builder(self) -> EventBuilder {
+        let mut tags: Vec<Tag> = Vec::with_capacity(4);
+
+        match self.root {
+            Some(root) => {
+                if root.id != self.reply_to.id {
+                    tags.push(
+                        Nip10Tag::Event {
+                            id: self.reply_to.id,
+                            relay_hint: self.relay_hint.clone(),
+                            marker: Some(Marker::Reply),
+                            public_key: Some(self.reply_to.pubkey),
+                        }
+                        .to_tag(),
+                    );
+                    tags.push(Tag::public_key(self.reply_to.pubkey));
+                }
+
+                tags.push(
+                    Nip10Tag::Event {
+                        id: root.id,
+                        relay_hint: self.relay_hint,
+                        marker: Some(Marker::Root),
+                        public_key: Some(root.pubkey),
+                    }
+                    .to_tag(),
+                );
+                tags.push(Tag::public_key(root.pubkey));
+            }
+            None => {
+                tags.push(
+                    Nip10Tag::Event {
+                        id: self.reply_to.id,
+                        relay_hint: self.relay_hint,
+                        marker: Some(Marker::Reply),
+                        public_key: Some(self.reply_to.pubkey),
+                    }
+                    .to_tag(),
+                );
+                tags.push(Tag::public_key(self.reply_to.pubkey));
+            }
+        }
+
+        EventBuilder::new(Kind::TextNote, self.content).tags(tags)
+    }
+}
 
 /// Marker
 ///
@@ -205,6 +293,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(all(feature = "std", feature = "os-rng"))]
+    use crate::Keys;
+    #[cfg(all(feature = "std", feature = "os-rng"))]
+    use crate::event::FinalizeEvent;
     use crate::key::PublicKey;
 
     #[test]
@@ -323,6 +415,37 @@ mod tests {
                 marker: None,
                 public_key: None,
             }
+        );
+    }
+
+    #[test]
+    #[cfg(all(feature = "std", feature = "os-rng"))]
+    fn text_note_reply_builder() {
+        let root_keys = Keys::generate();
+        let root = EventBuilder::new(Kind::TextNote, "root")
+            .finalize(&root_keys)
+            .unwrap();
+
+        let reply_keys = Keys::generate();
+        let reply = TextNoteReplyBuilder::new("reply", &root)
+            .finalize(&reply_keys)
+            .unwrap();
+
+        assert_eq!(reply.tags.public_keys().collect::<Vec<_>>(), [root.pubkey]);
+        assert_eq!(reply.tags.event_ids().collect::<Vec<_>>(), [root.id]);
+
+        let nested_reply = TextNoteReplyBuilder::new("nested reply", &reply)
+            .root(&root)
+            .finalize(&Keys::generate())
+            .unwrap();
+
+        assert_eq!(
+            nested_reply.tags.public_keys().collect::<Vec<_>>(),
+            [reply.pubkey, root.pubkey]
+        );
+        assert_eq!(
+            nested_reply.tags.event_ids().collect::<Vec<_>>(),
+            [reply.id, root.id]
         );
     }
 }

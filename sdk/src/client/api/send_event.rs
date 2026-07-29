@@ -474,7 +474,7 @@ mod tests {
         client.connect().await;
 
         let keys = Keys::generate();
-        let event = EventBuilder::text_note("Broadcast test")
+        let event = EventBuilder::new(Kind::TextNote, "Broadcast test")
             .finalize(&keys)
             .unwrap();
 
@@ -502,7 +502,7 @@ mod tests {
         client.connect().await;
 
         let keys = Keys::generate();
-        let event = EventBuilder::text_note("Targeted test")
+        let event = EventBuilder::new(Kind::TextNote, "Targeted test")
             .finalize(&keys)
             .unwrap();
 
@@ -543,7 +543,7 @@ mod tests {
         client.connect().await;
 
         let keys = Keys::generate();
-        let event = EventBuilder::text_note("Force to all test")
+        let event = EventBuilder::new(Kind::TextNote, "Force to all test")
             .finalize(&keys)
             .unwrap();
 
@@ -574,7 +574,7 @@ mod tests {
 
         // Setup User A keys and their Relay List (NIP-65) pointing to the Outbox Relay
         let keys_a = Keys::generate();
-        let relay_list = EventBuilder::relay_list([(outbox_url.clone(), None)])
+        let relay_list = RelayList::new([(outbox_url.clone(), None)])
             .finalize(&keys_a)
             .unwrap();
         let res = discovery_mock.add_event(relay_list).await.unwrap();
@@ -623,7 +623,7 @@ mod tests {
         // - Identify 'outbox_url' as the target
         // - Automatically connect to 'outbox_url'
         // - Send the event to the outbox and public relay
-        let event = EventBuilder::text_note("Gossip test")
+        let event = EventBuilder::new(Kind::TextNote, "Gossip test")
             .finalize(&keys_a)
             .unwrap();
 
@@ -656,7 +656,7 @@ mod tests {
         client.connect().await;
 
         let keys = Keys::generate();
-        let event = EventBuilder::text_note("Broadcast test")
+        let event = EventBuilder::new(Kind::TextNote, "Broadcast test")
             .finalize(&keys)
             .unwrap();
 
@@ -681,7 +681,7 @@ mod tests {
 
         // Setup Bob keys and NIP-17 list pointing to the Inbox Relay
         let bob_keys = Keys::generate();
-        let relay_list = EventBuilder::nip17_relay_list([inbox_url.clone()])
+        let relay_list = InboxRelayList::new([inbox_url.clone()])
             .finalize(&bob_keys)
             .unwrap();
         let res = discovery_mock.add_event(relay_list).await.unwrap();

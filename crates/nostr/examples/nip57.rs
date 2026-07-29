@@ -12,7 +12,7 @@ fn main() -> Result<(), Error> {
     let relays = [RelayUrl::parse("wss://relay.damus.io")?];
     let data = ZapRequestData::new(public_key, relays).message("Zap!");
 
-    let public_zap: Event = EventBuilder::public_zap_request(data.clone()).finalize(&keys)?;
+    let public_zap: Event = data.clone().finalize(&keys)?;
     println!("Public zap request: {}", public_zap.as_json());
 
     Ok(())

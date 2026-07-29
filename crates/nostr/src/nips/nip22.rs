@@ -12,7 +12,7 @@ use alloc::vec::Vec;
 use core::str::FromStr;
 
 use crate::error::Error;
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
 use crate::nips::nip01::{self, Coordinate};
 use crate::nips::nip73::{self, ExternalContentId, Nip73Kind};
 use crate::nips::util::{missing_tag_kind, missing_value, unknown_tag};
@@ -180,6 +180,50 @@ pub enum CommentTarget<'a> {
         /// Web hint
         hint: Option<Cow<'a, Url>>,
     },
+}
+
+/// Comment event builder.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommentBuilder<'a> {
+    content: String,
+    comment_to: CommentTarget<'a>,
+    root: Option<CommentTarget<'a>>,
+}
+
+impl<'a> CommentBuilder<'a> {
+    /// Create a comment.
+    pub fn new<S, T>(content: S, comment_to: T) -> Self
+    where
+        S: Into<String>,
+        T: Into<CommentTarget<'a>>,
+    {
+        Self {
+            content: content.into(),
+            comment_to: comment_to.into(),
+            root: None,
+        }
+    }
+
+    /// Set the root comment target.
+    pub fn root<T>(mut self, root: T) -> Self
+    where
+        T: Into<CommentTarget<'a>>,
+    {
+        self.root = Some(root.into());
+        self
+    }
+}
+
+impl IntoEventBuilder for CommentBuilder<'_> {
+    fn into_event_builder(self) -> EventBuilder {
+        EventBuilder::new(Kind::Comment, self.content)
+            .tags(
+                self.root
+                    .map(|target| target.as_vec(true))
+                    .unwrap_or_default(),
+            )
+            .tags(self.comment_to.as_vec(false))
+    }
 }
 
 impl<'a> CommentTarget<'a> {

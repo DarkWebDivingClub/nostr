@@ -907,7 +907,7 @@ mod tests {
         let db = NostrSqliteBuilder::default().build().await.unwrap();
         let keys = Keys::generate();
 
-        let event = EventBuilder::text_note("content")
+        let event = EventBuilder::new(Kind::TextNote, "content")
             .tag(Tag::parse(["title", "alpha-token"]).unwrap())
             .tag(Tag::parse(["description", "beta-token"]).unwrap())
             .tag(Tag::parse(["subject", "gamma-token"]).unwrap())

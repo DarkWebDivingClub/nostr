@@ -14,9 +14,9 @@ use super::util::{
     missing_tag_kind, take_event_id, take_public_key, take_relay_url, take_string, unknown_tag,
 };
 use crate::error::Error;
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
 use crate::types::url::{RelayUrl, Url};
-use crate::{EventId, PublicKey};
+use crate::{EventId, Kind, PublicKey};
 
 const WORD: &str = "word";
 const PUBLIC_KEY: &str = "p";
@@ -128,6 +128,13 @@ impl From<MuteList> for Vec<Tag> {
     }
 }
 
+impl IntoEventBuilder for MuteList {
+    fn into_event_builder(self) -> EventBuilder {
+        let tags: Vec<Tag> = self.into();
+        EventBuilder::new(Kind::MuteList, "").tags(tags)
+    }
+}
+
 /// Uncategorized, "global" list of things a user wants to save
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Bookmarks {
@@ -153,6 +160,13 @@ impl From<Bookmarks> for Vec<Tag> {
     }
 }
 
+impl IntoEventBuilder for Bookmarks {
+    fn into_event_builder(self) -> EventBuilder {
+        let tags: Vec<Tag> = self.into();
+        EventBuilder::new(Kind::Bookmarks, "").tags(tags)
+    }
+}
+
 /// Topics a user may be interested in and pointers
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Interests {
@@ -175,6 +189,13 @@ impl From<Interests> for Vec<Tag> {
         tags.extend(coordinate.into_iter().map(Tag::from));
 
         tags
+    }
+}
+
+impl IntoEventBuilder for Interests {
+    fn into_event_builder(self) -> EventBuilder {
+        let tags: Vec<Tag> = self.into();
+        EventBuilder::new(Kind::Interests, "").tags(tags)
     }
 }
 
@@ -205,6 +226,13 @@ impl From<Emojis> for Vec<Tag> {
     }
 }
 
+impl IntoEventBuilder for Emojis {
+    fn into_event_builder(self) -> EventBuilder {
+        let tags: Vec<Tag> = self.into();
+        EventBuilder::new(Kind::Emojis, "").tags(tags)
+    }
+}
+
 /// Groups of articles picked by users as interesting and/or belonging to the same category
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ArticlesCuration {
@@ -227,6 +255,341 @@ impl From<ArticlesCuration> for Vec<Tag> {
         tags.extend(event_ids.into_iter().map(Tag::event));
 
         tags
+    }
+}
+
+/// Pinned notes list.
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PinnedNotes {
+    event_ids: Vec<EventId>,
+}
+
+impl PinnedNotes {
+    /// Create a pinned notes list.
+    pub fn new<I>(event_ids: I) -> Self
+    where
+        I: IntoIterator<Item = EventId>,
+    {
+        Self {
+            event_ids: event_ids.into_iter().collect(),
+        }
+    }
+}
+
+impl IntoEventBuilder for PinnedNotes {
+    fn into_event_builder(self) -> EventBuilder {
+        EventBuilder::new(Kind::PinList, "").tags(self.event_ids.into_iter().map(Tag::event))
+    }
+}
+
+/// Communities list.
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Communities {
+    coordinates: Vec<Coordinate>,
+}
+
+impl Communities {
+    /// Create a communities list.
+    pub fn new<I>(coordinates: I) -> Self
+    where
+        I: IntoIterator<Item = Coordinate>,
+    {
+        Self {
+            coordinates: coordinates.into_iter().collect(),
+        }
+    }
+}
+
+impl IntoEventBuilder for Communities {
+    fn into_event_builder(self) -> EventBuilder {
+        EventBuilder::new(Kind::Communities, "").tags(self.coordinates.into_iter().map(Tag::from))
+    }
+}
+
+/// Public chats list.
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PublicChats {
+    event_ids: Vec<EventId>,
+}
+
+impl PublicChats {
+    /// Create a public chats list.
+    pub fn new<I>(event_ids: I) -> Self
+    where
+        I: IntoIterator<Item = EventId>,
+    {
+        Self {
+            event_ids: event_ids.into_iter().collect(),
+        }
+    }
+}
+
+impl IntoEventBuilder for PublicChats {
+    fn into_event_builder(self) -> EventBuilder {
+        EventBuilder::new(Kind::PublicChats, "").tags(self.event_ids.into_iter().map(Tag::event))
+    }
+}
+
+/// Blocked relays list.
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BlockedRelays {
+    relays: Vec<RelayUrl>,
+}
+
+impl BlockedRelays {
+    /// Create a blocked relays list.
+    pub fn new<I>(relays: I) -> Self
+    where
+        I: IntoIterator<Item = RelayUrl>,
+    {
+        Self {
+            relays: relays.into_iter().collect(),
+        }
+    }
+}
+
+impl IntoEventBuilder for BlockedRelays {
+    fn into_event_builder(self) -> EventBuilder {
+        EventBuilder::new(Kind::BlockedRelays, "")
+            .tags(self.relays.into_iter().map(Nip51Tag::Relay).map(Into::into))
+    }
+}
+
+/// Search relays list.
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SearchRelays {
+    relays: Vec<RelayUrl>,
+}
+
+impl SearchRelays {
+    /// Create a search relays list.
+    pub fn new<I>(relays: I) -> Self
+    where
+        I: IntoIterator<Item = RelayUrl>,
+    {
+        Self {
+            relays: relays.into_iter().collect(),
+        }
+    }
+}
+
+impl IntoEventBuilder for SearchRelays {
+    fn into_event_builder(self) -> EventBuilder {
+        EventBuilder::new(Kind::SearchRelays, "")
+            .tags(self.relays.into_iter().map(Nip51Tag::Relay).map(Into::into))
+    }
+}
+
+/// Follow set.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FollowSet {
+    identifier: String,
+    public_keys: Vec<PublicKey>,
+}
+
+impl FollowSet {
+    /// Create a follow set.
+    pub fn new<ID, I>(identifier: ID, public_keys: I) -> Self
+    where
+        ID: Into<String>,
+        I: IntoIterator<Item = PublicKey>,
+    {
+        Self {
+            identifier: identifier.into(),
+            public_keys: public_keys.into_iter().collect(),
+        }
+    }
+}
+
+impl IntoEventBuilder for FollowSet {
+    fn into_event_builder(self) -> EventBuilder {
+        let tags = core::iter::once(Tag::identifier(self.identifier))
+            .chain(self.public_keys.into_iter().map(Tag::public_key));
+        EventBuilder::new(Kind::FollowSet, "").tags(tags)
+    }
+}
+
+/// Relay set.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RelaySet {
+    identifier: String,
+    relays: Vec<RelayUrl>,
+}
+
+impl RelaySet {
+    /// Create a relay set.
+    pub fn new<ID, I>(identifier: ID, relays: I) -> Self
+    where
+        ID: Into<String>,
+        I: IntoIterator<Item = RelayUrl>,
+    {
+        Self {
+            identifier: identifier.into(),
+            relays: relays.into_iter().collect(),
+        }
+    }
+}
+
+impl IntoEventBuilder for RelaySet {
+    fn into_event_builder(self) -> EventBuilder {
+        let tags = core::iter::once(Tag::identifier(self.identifier))
+            .chain(self.relays.into_iter().map(Nip51Tag::Relay).map(Into::into));
+        EventBuilder::new(Kind::RelaySet, "").tags(tags)
+    }
+}
+
+/// Bookmark set.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BookmarkSet {
+    identifier: String,
+    bookmarks: Bookmarks,
+}
+
+impl BookmarkSet {
+    /// Create a bookmark set.
+    pub fn new<S>(identifier: S, bookmarks: Bookmarks) -> Self
+    where
+        S: Into<String>,
+    {
+        Self {
+            identifier: identifier.into(),
+            bookmarks,
+        }
+    }
+}
+
+impl IntoEventBuilder for BookmarkSet {
+    fn into_event_builder(self) -> EventBuilder {
+        let mut tags: Vec<Tag> = self.bookmarks.into();
+        tags.push(Tag::identifier(self.identifier));
+        EventBuilder::new(Kind::BookmarkSet, "").tags(tags)
+    }
+}
+
+/// Articles curation set.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ArticlesCurationSet {
+    identifier: String,
+    articles: ArticlesCuration,
+}
+
+impl ArticlesCurationSet {
+    /// Create an articles curation set.
+    pub fn new<S>(identifier: S, articles: ArticlesCuration) -> Self
+    where
+        S: Into<String>,
+    {
+        Self {
+            identifier: identifier.into(),
+            articles,
+        }
+    }
+}
+
+impl IntoEventBuilder for ArticlesCurationSet {
+    fn into_event_builder(self) -> EventBuilder {
+        let mut tags: Vec<Tag> = self.articles.into();
+        tags.push(Tag::identifier(self.identifier));
+        EventBuilder::new(Kind::ArticlesCurationSet, "").tags(tags)
+    }
+}
+
+/// Videos curation set.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct VideosCurationSet {
+    identifier: String,
+    videos: Vec<Coordinate>,
+}
+
+impl VideosCurationSet {
+    /// Create a videos curation set.
+    pub fn new<S, I>(identifier: S, videos: I) -> Self
+    where
+        S: Into<String>,
+        I: IntoIterator<Item = Coordinate>,
+    {
+        Self {
+            identifier: identifier.into(),
+            videos: videos.into_iter().collect(),
+        }
+    }
+}
+
+impl IntoEventBuilder for VideosCurationSet {
+    fn into_event_builder(self) -> EventBuilder {
+        let tags = core::iter::once(Tag::identifier(self.identifier)).chain(
+            self.videos
+                .into_iter()
+                .map(|video| Tag::coordinate(video, None)),
+        );
+        EventBuilder::new(Kind::VideosCurationSet, "").tags(tags)
+    }
+}
+
+/// Interest set.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InterestSet {
+    identifier: String,
+    hashtags: Vec<String>,
+}
+
+impl InterestSet {
+    /// Create an interest set.
+    pub fn new<ID, I, S>(identifier: ID, hashtags: I) -> Self
+    where
+        ID: Into<String>,
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        Self {
+            identifier: identifier.into(),
+            hashtags: hashtags.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+impl IntoEventBuilder for InterestSet {
+    fn into_event_builder(self) -> EventBuilder {
+        let tags = core::iter::once(Tag::identifier(self.identifier))
+            .chain(self.hashtags.into_iter().map(Tag::hashtag));
+        EventBuilder::new(Kind::InterestSet, "").tags(tags)
+    }
+}
+
+/// Emoji set.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct EmojiSet {
+    identifier: String,
+    emojis: Vec<(String, Url)>,
+}
+
+impl EmojiSet {
+    /// Create an emoji set.
+    pub fn new<S, I>(identifier: S, emojis: I) -> Self
+    where
+        S: Into<String>,
+        I: IntoIterator<Item = (String, Url)>,
+    {
+        Self {
+            identifier: identifier.into(),
+            emojis: emojis.into_iter().collect(),
+        }
+    }
+}
+
+impl IntoEventBuilder for EmojiSet {
+    fn into_event_builder(self) -> EventBuilder {
+        let tags = core::iter::once(Tag::identifier(self.identifier)).chain(
+            self.emojis.into_iter().map(|(shortcode, image_url)| {
+                Nip30Tag::Emoji {
+                    shortcode,
+                    image_url,
+                    emoji_set: None,
+                }
+                .to_tag()
+            }),
+        );
+        EventBuilder::new(Kind::EmojiSet, "").tags(tags)
     }
 }
 
@@ -292,5 +655,23 @@ mod tests {
             Nip51Tag::Relay(RelayUrl::parse("wss://relay.damus.io").unwrap())
         );
         assert_eq!(parsed.to_tag(), Tag::parse(tag).unwrap());
+    }
+
+    #[test]
+    fn list_events() {
+        let pinned = PinnedNotes::new([EventId::all_zeros()]).into_event_builder();
+        assert_eq!(pinned.kind, Kind::PinList);
+        assert_eq!(pinned.tags.len(), 1);
+
+        let public_key =
+            PublicKey::from_hex("04c915daefee38317fa734444acee390a8269fe5810b2241e5e6dd343dfbecc9")
+                .unwrap();
+        let follow_set = FollowSet::new("friends", [public_key]).into_event_builder();
+        assert_eq!(follow_set.kind, Kind::FollowSet);
+        assert_eq!(follow_set.tags.identifier(), Some(String::from("friends")));
+        assert_eq!(
+            follow_set.tags.public_keys().collect::<Vec<_>>(),
+            [public_key]
+        );
     }
 }

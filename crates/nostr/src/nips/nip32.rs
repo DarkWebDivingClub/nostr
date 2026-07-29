@@ -11,7 +11,43 @@ use alloc::vec;
 
 use super::util::{missing_tag_kind, take_string, unknown_tag};
 use crate::error::Error;
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{
+    EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+};
+
+/// Label event.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Label {
+    namespace: String,
+    value: String,
+}
+
+impl Label {
+    /// Create a label event.
+    pub fn new<S1, S2>(namespace: S1, value: S2) -> Self
+    where
+        S1: Into<String>,
+        S2: Into<String>,
+    {
+        Self {
+            namespace: namespace.into(),
+            value: value.into(),
+        }
+    }
+}
+
+impl IntoEventBuilder for Label {
+    fn into_event_builder(self) -> EventBuilder {
+        EventBuilder::new(Kind::Label, "").tags([
+            Nip32Tag::LabelNamespace(self.namespace.clone()).to_tag(),
+            Nip32Tag::Label {
+                value: self.value,
+                namespace: self.namespace,
+            }
+            .to_tag(),
+        ])
+    }
+}
 
 /// Standardized NIP-32 tags
 ///
@@ -92,5 +128,20 @@ mod tests {
             }
         );
         assert_eq!(parsed.to_tag(), Tag::parse(tag).unwrap());
+    }
+
+    #[test]
+    fn label_event() {
+        let builder = Label::new("namespace", "value").into_event_builder();
+
+        assert_eq!(builder.kind, Kind::Label);
+        assert_eq!(builder.tags.len(), 2);
+        assert_eq!(
+            Nip32Tag::try_from(&builder.tags[1]).unwrap(),
+            Nip32Tag::Label {
+                value: String::from("value"),
+                namespace: String::from("namespace"),
+            }
+        );
     }
 }

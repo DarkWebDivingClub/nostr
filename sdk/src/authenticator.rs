@@ -61,7 +61,7 @@ where
         challenge: &'a str,
     ) -> BoxedFuture<'a, Result<Event, Error>> {
         Box::pin(async move {
-            Ok(EventBuilder::auth(challenge, relay_url.clone())
+            Ok(ClientAuthentication::new(challenge, relay_url.clone())
                 .finalize_async(&self.signer)
                 .await?)
         })

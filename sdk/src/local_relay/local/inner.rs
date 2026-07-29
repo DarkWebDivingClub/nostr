@@ -961,7 +961,7 @@ impl InnerLocalRelay {
             let keys = Keys::generate();
 
             for _ in 0..500 {
-                events.insert(EventBuilder::text_note("Test").finalize(&keys)?);
+                events.insert(EventBuilder::new(Kind::TextNote, "Test").finalize(&keys)?);
             }
 
             events

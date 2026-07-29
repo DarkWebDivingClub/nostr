@@ -445,7 +445,7 @@ mod tests {
 
         // Compose Gift Wrap event
         let rumor: UnsignedEvent =
-            EventBuilder::text_note("Test").finalize_unsigned(sender_keys.public_key());
+            EventBuilder::new(Kind::TextNote, "Test").finalize_unsigned(sender_keys.public_key());
         let event: Event = GiftWrapBuilder::new(receiver_keys.public_key(), rumor.clone())
             .finalize(&sender_keys)
             .unwrap();
@@ -456,7 +456,9 @@ mod tests {
         assert!(unwrapped.rumor.tags.is_empty());
         assert!(extract_rumor(&sender_keys, &event).is_err());
 
-        let event: Event = EventBuilder::text_note("").finalize(&sender_keys).unwrap();
+        let event: Event = EventBuilder::new(Kind::TextNote, "")
+            .finalize(&sender_keys)
+            .unwrap();
         assert_eq!(
             extract_rumor(&receiver_keys, &event).unwrap_err().kind(),
             not_gift_wrap().kind()
@@ -473,7 +475,7 @@ mod tests {
                 .unwrap();
 
         let rumor: UnsignedEvent =
-            EventBuilder::text_note("Test").finalize_unsigned(sender_keys.public_key());
+            EventBuilder::new(Kind::TextNote, "Test").finalize_unsigned(sender_keys.public_key());
         let event: Event = GiftWrapBuilder::new(receiver_keys.public_key(), rumor)
             .finalize(&sender_keys)
             .unwrap();
@@ -494,7 +496,7 @@ mod tests {
                 .unwrap();
 
         let rumor: UnsignedEvent =
-            EventBuilder::text_note("Test").finalize_unsigned(sender_keys.public_key());
+            EventBuilder::new(Kind::TextNote, "Test").finalize_unsigned(sender_keys.public_key());
         let seal = GiftWrapSealBuilder::new(rumor, receiver_keys.public_key())
             .finalize(&sender_keys)
             .unwrap();
@@ -513,7 +515,7 @@ mod tests {
                 .unwrap();
 
         let rumor: UnsignedEvent =
-            EventBuilder::text_note("Test").finalize_unsigned(sender_keys.public_key());
+            EventBuilder::new(Kind::TextNote, "Test").finalize_unsigned(sender_keys.public_key());
         let seal = GiftWrapSealBuilder::new(rumor, receiver_keys.public_key())
             .finalize_async(&sender_keys)
             .await
@@ -537,8 +539,8 @@ mod tests {
 
         // Construct a rumor that lies about its pubkey but is still wrapped/signed
         // by `sender_keys`. This mimics a spoofing attempt the recipient must reject.
-        let rumor: UnsignedEvent =
-            EventBuilder::text_note("spoofed").finalize_unsigned(impersonated_keys.public_key());
+        let rumor: UnsignedEvent = EventBuilder::new(Kind::TextNote, "spoofed")
+            .finalize_unsigned(impersonated_keys.public_key());
 
         let gift_wrap: Event = GiftWrapBuilder::new(receiver_keys.public_key(), rumor)
             .finalize(&sender_keys)
@@ -563,7 +565,7 @@ mod tests {
 
         let duration: Duration = Duration::from_secs(7 * 24 * 3600);
         let rumor: UnsignedEvent =
-            EventBuilder::text_note("Test").finalize_unsigned(sender_keys.public_key());
+            EventBuilder::new(Kind::TextNote, "Test").finalize_unsigned(sender_keys.public_key());
         let event: Event = GiftWrapBuilder::new(receiver_keys.public_key(), rumor)
             .expiration(duration)
             .finalize(&sender_keys)
@@ -590,7 +592,7 @@ mod tests {
                 .unwrap();
 
         let rumor: UnsignedEvent =
-            EventBuilder::text_note("Test").finalize_unsigned(sender_keys.public_key());
+            EventBuilder::new(Kind::TextNote, "Test").finalize_unsigned(sender_keys.public_key());
         let event: Event = GiftWrapBuilder::new(receiver_keys.public_key(), rumor)
             .finalize(&sender_keys)
             .unwrap();
@@ -609,7 +611,7 @@ mod tests {
 
         let duration: Duration = Duration::from_secs(7 * 24 * 3600);
         let rumor: UnsignedEvent =
-            EventBuilder::text_note("Test").finalize_unsigned(sender_keys.public_key());
+            EventBuilder::new(Kind::TextNote, "Test").finalize_unsigned(sender_keys.public_key());
         let event: Event = GiftWrapBuilder::new(receiver_keys.public_key(), rumor)
             .expiration(duration)
             .finalize_async(&sender_keys)

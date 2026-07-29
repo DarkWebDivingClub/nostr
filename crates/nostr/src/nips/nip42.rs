@@ -10,12 +10,41 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 
 use crate::error::Error;
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
 use crate::nips::util::{missing_tag_kind, take_relay_url, take_string, unknown_tag};
 use crate::{Event, Kind, RelayUrl};
 
 const CHALLENGE: &str = "challenge";
 const RELAY: &str = "relay";
+
+/// Client authentication event.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ClientAuthentication {
+    challenge: String,
+    relay: RelayUrl,
+}
+
+impl ClientAuthentication {
+    /// Create a client authentication event.
+    pub fn new<S>(challenge: S, relay: RelayUrl) -> Self
+    where
+        S: Into<String>,
+    {
+        Self {
+            challenge: challenge.into(),
+            relay,
+        }
+    }
+}
+
+impl IntoEventBuilder for ClientAuthentication {
+    fn into_event_builder(self) -> EventBuilder {
+        EventBuilder::new(Kind::Authentication, "").tags([
+            Nip42Tag::Challenge(self.challenge).into(),
+            Nip42Tag::Relay(self.relay).into(),
+        ])
+    }
+}
 
 /// Standardized NIP-42 tags
 ///
@@ -134,7 +163,7 @@ mod tests {
         let relay_url = RelayUrl::parse("wss://relay.damus.io").unwrap();
         let challenge = "1234567890";
 
-        let event = EventBuilder::auth(challenge, relay_url.clone())
+        let event = ClientAuthentication::new(challenge, relay_url.clone())
             .finalize(&keys)
             .unwrap();
 
@@ -148,19 +177,22 @@ mod tests {
         let challenge = "1234567890";
 
         // Wrong challenge
-        let event = EventBuilder::auth("abcd", relay_url.clone())
+        let event = ClientAuthentication::new("abcd", relay_url.clone())
             .finalize(&keys)
             .unwrap();
         assert!(!is_valid_auth_event(&event, &relay_url, challenge));
 
         // Wrong relay url
-        let event = EventBuilder::auth(challenge, RelayUrl::parse("wss://example.com").unwrap())
-            .finalize(&keys)
-            .unwrap();
+        let event =
+            ClientAuthentication::new(challenge, RelayUrl::parse("wss://example.com").unwrap())
+                .finalize(&keys)
+                .unwrap();
         assert!(!is_valid_auth_event(&event, &relay_url, challenge));
 
         // Wrong kind
-        let event = EventBuilder::text_note("abcd").finalize(&keys).unwrap();
+        let event = EventBuilder::new(Kind::TextNote, "abcd")
+            .finalize(&keys)
+            .unwrap();
         assert!(!is_valid_auth_event(&event, &relay_url, challenge));
     }
 }

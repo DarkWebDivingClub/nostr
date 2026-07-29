@@ -11,7 +11,9 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::error::Error;
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{
+    EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+};
 use crate::nips::util::{missing_tag_kind, missing_value, unknown_tag};
 use crate::types::url::RelayUrl;
 
@@ -46,6 +48,49 @@ impl VanishTarget {
     /// Vanish from all relays
     pub fn all_relays() -> Self {
         Self::AllRelays
+    }
+}
+
+/// Request to vanish event.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct VanishRequest {
+    target: VanishTarget,
+    reason: String,
+}
+
+impl VanishRequest {
+    /// Create a request without a reason.
+    #[inline]
+    pub fn new(target: VanishTarget) -> Self {
+        Self {
+            target,
+            reason: String::new(),
+        }
+    }
+
+    /// Set the reason.
+    #[inline]
+    pub fn reason<S>(mut self, reason: S) -> Self
+    where
+        S: Into<String>,
+    {
+        self.reason = reason.into();
+        self
+    }
+}
+
+impl IntoEventBuilder for VanishRequest {
+    fn into_event_builder(self) -> EventBuilder {
+        let tags: Vec<Tag> = match self.target {
+            VanishTarget::AllRelays => vec![Nip62Tag::AllRelays.to_tag()],
+            VanishTarget::Relays(relays) => relays
+                .into_iter()
+                .map(Nip62Tag::Relay)
+                .map(Into::into)
+                .collect(),
+        };
+
+        EventBuilder::new(Kind::RequestToVanish, self.reason).tags(tags)
     }
 }
 
@@ -158,13 +203,10 @@ mod tests {
         let relay_a = RelayUrl::parse("wss://relay.a.com").unwrap();
         let relay_b = RelayUrl::parse("wss://relay.b.com").unwrap();
 
-        let all_relays = EventBuilder::request_vanish(VanishTarget::all_relays())
-            .finalize_unsigned(
-                PublicKey::from_hex(
-                    "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
-                )
+        let all_relays = VanishRequest::new(VanishTarget::all_relays()).finalize_unsigned(
+            PublicKey::from_hex("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")
                 .unwrap(),
-            );
+        );
 
         assert!(is_valid_vanish_request_for_relay(
             all_relays.tags.as_slice(),
@@ -175,7 +217,7 @@ mod tests {
             Some(&relay_b)
         ));
 
-        let single_relay = EventBuilder::request_vanish(VanishTarget::relay(relay_a.clone()))
+        let single_relay = VanishRequest::new(VanishTarget::relay(relay_a.clone()))
             .finalize_unsigned(
                 PublicKey::from_hex(
                     "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
@@ -192,7 +234,7 @@ mod tests {
             Some(&relay_b)
         ));
 
-        let other_kind = EventBuilder::text_note("hello").finalize_unsigned(
+        let other_kind = EventBuilder::new(Kind::TextNote, "hello").finalize_unsigned(
             PublicKey::from_hex("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")
                 .unwrap(),
         );

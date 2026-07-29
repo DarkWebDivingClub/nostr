@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Public key: {}", public_key);
 
     // Sign event
-    let event = EventBuilder::text_note("Testing browser signer proxy")
+    let event = EventBuilder::new(Kind::TextNote, "Testing browser signer proxy")
         .finalize_async(&proxy)
         .await?;
     println!("Event: {}", event.as_json());

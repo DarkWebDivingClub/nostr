@@ -15,7 +15,7 @@ use super::nip44;
 use crate::error::{Error, ErrorKind};
 use crate::event::{Event, EventId};
 #[cfg(all(feature = "std", feature = "os-rng"))]
-use crate::event::{EventBuilder, Kind, Tag};
+use crate::event::{EventBuilder, IntoEventBuilder, Kind, Tag};
 use crate::key::{PublicKey, SecretKey};
 use crate::types::time::Timestamp;
 use crate::types::url::Url;
@@ -140,18 +140,16 @@ impl WalletEvent {
         nip44::encrypt(secret_key, public_key, json, nip44::Version::V2)
     }
 
-    /// Convert to [`EventBuilder`].
+    /// Encrypt and prepare the wallet event.
     #[cfg(all(feature = "std", feature = "os-rng"))]
-    pub fn to_event_builder(
+    pub fn prepare(
         &self,
         secret_key: &SecretKey,
         public_key: &PublicKey,
-    ) -> Result<EventBuilder, Error> {
-        // Build event content
-        let content: String = self.to_encrypted_content(secret_key, public_key)?;
-
-        // Construct event builder
-        Ok(EventBuilder::new(Kind::CashuWallet, content))
+    ) -> Result<PreparedWalletEvent, Error> {
+        Ok(PreparedWalletEvent {
+            content: self.to_encrypted_content(secret_key, public_key)?,
+        })
     }
 }
 
@@ -204,18 +202,16 @@ impl TokenEvent {
         nip44::encrypt(secret_key, public_key, json, nip44::Version::V2)
     }
 
-    /// Convert to [`EventBuilder`].
+    /// Encrypt and prepare the unspent token event.
     #[cfg(all(feature = "std", feature = "os-rng"))]
-    pub fn to_event_builder(
+    pub fn prepare(
         &self,
         secret_key: &SecretKey,
         public_key: &PublicKey,
-    ) -> Result<EventBuilder, Error> {
-        // Build event content
-        let content: String = self.to_encrypted_content(secret_key, public_key)?;
-
-        // Construct event builder
-        Ok(EventBuilder::new(Kind::CashuWalletUnspentProof, content))
+    ) -> Result<PreparedTokenEvent, Error> {
+        Ok(PreparedTokenEvent {
+            content: self.to_encrypted_content(secret_key, public_key)?,
+        })
     }
 }
 
@@ -407,28 +403,17 @@ impl SpendingHistory {
         nip44::encrypt(secret_key, public_key, json, nip44::Version::V2)
     }
 
-    /// Convert to event builder
+    /// Encrypt and prepare the spending history event.
     #[cfg(all(feature = "std", feature = "os-rng"))]
-    pub fn to_event_builder(
+    pub fn prepare(
         &self,
         secret_key: &SecretKey,
         public_key: &PublicKey,
-    ) -> Result<EventBuilder, Error> {
-        let content: String = self.to_encrypted_content(secret_key, public_key)?;
-
-        let mut tags: Vec<Tag> = Vec::with_capacity(self.redeemed.len());
-
-        // Add redeemed event tags (unencrypted)
-        for event_id in self.redeemed.iter() {
-            tags.push(Tag::parse([
-                "e",
-                &event_id.to_hex(),
-                "",
-                EVENT_MARKER_REDEEMED,
-            ])?);
-        }
-
-        Ok(EventBuilder::new(Kind::CashuWalletSpendingHistory, content).tags(tags))
+    ) -> Result<PreparedSpendingHistoryEvent, Error> {
+        Ok(PreparedSpendingHistoryEvent {
+            content: self.to_encrypted_content(secret_key, public_key)?,
+            redeemed: self.redeemed.clone(),
+        })
     }
 }
 
@@ -499,25 +484,90 @@ impl QuoteEvent {
         nip44::encrypt(secret_key, public_key, &self.quote_id, nip44::Version::V2)
     }
 
-    /// Convert to event builder
+    /// Encrypt and prepare the quote event.
     #[cfg(all(feature = "std", feature = "os-rng"))]
-    pub fn to_event_builder(
+    pub fn prepare(
         &self,
         secret_key: &SecretKey,
         public_key: &PublicKey,
-    ) -> Result<EventBuilder, Error> {
-        let content: String = self.to_encrypted_content(secret_key, public_key)?;
+    ) -> Result<PreparedQuoteEvent, Error> {
+        Ok(PreparedQuoteEvent {
+            content: self.to_encrypted_content(secret_key, public_key)?,
+            mint: self.mint.clone(),
+        })
+    }
+}
 
-        let mut tags: Vec<Tag> = Vec::with_capacity(2);
+/// Prepared wallet event.
+#[cfg(all(feature = "std", feature = "os-rng"))]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PreparedWalletEvent {
+    content: String,
+}
 
-        // Add mint tag
-        tags.push(Tag::custom(MINT, [self.mint.as_str()]));
+#[cfg(all(feature = "std", feature = "os-rng"))]
+impl IntoEventBuilder for PreparedWalletEvent {
+    fn into_event_builder(self) -> EventBuilder {
+        EventBuilder::new(Kind::CashuWallet, self.content)
+    }
+}
 
-        // Add NIP-40 expiration tag (current time + 2 weeks)
-        let expiration: Timestamp = Timestamp::now() + 14 * 24 * 60 * 60; // 2 weeks in seconds
-        tags.push(Tag::expiration(expiration));
+/// Prepared unspent token event.
+#[cfg(all(feature = "std", feature = "os-rng"))]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PreparedTokenEvent {
+    content: String,
+}
 
-        Ok(EventBuilder::new(Kind::CashuWalletQuote, content).tags(tags))
+#[cfg(all(feature = "std", feature = "os-rng"))]
+impl IntoEventBuilder for PreparedTokenEvent {
+    fn into_event_builder(self) -> EventBuilder {
+        EventBuilder::new(Kind::CashuWalletUnspentProof, self.content)
+    }
+}
+
+/// Prepared spending history event.
+#[cfg(all(feature = "std", feature = "os-rng"))]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PreparedSpendingHistoryEvent {
+    content: String,
+    redeemed: Vec<EventId>,
+}
+
+#[cfg(all(feature = "std", feature = "os-rng"))]
+impl IntoEventBuilder for PreparedSpendingHistoryEvent {
+    fn into_event_builder(self) -> EventBuilder {
+        let tags = self.redeemed.into_iter().map(|event_id| {
+            Tag::custom(
+                "e",
+                [
+                    event_id.to_hex(),
+                    String::new(),
+                    String::from(EVENT_MARKER_REDEEMED),
+                ],
+            )
+        });
+        EventBuilder::new(Kind::CashuWalletSpendingHistory, self.content).tags(tags)
+    }
+}
+
+/// Prepared wallet quote event.
+#[cfg(all(feature = "std", feature = "os-rng"))]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PreparedQuoteEvent {
+    content: String,
+    mint: Url,
+}
+
+#[cfg(all(feature = "std", feature = "os-rng"))]
+impl IntoEventBuilder for PreparedQuoteEvent {
+    fn into_event_builder(self) -> EventBuilder {
+        let expiration = Timestamp::now() + 14 * 24 * 60 * 60;
+        let tags = [
+            Tag::custom(MINT, [self.mint.as_str()]),
+            Tag::expiration(expiration),
+        ];
+        EventBuilder::new(Kind::CashuWalletQuote, self.content).tags(tags)
     }
 }
 
@@ -526,6 +576,10 @@ mod tests {
     use alloc::string::ToString;
 
     use super::*;
+    #[cfg(all(feature = "std", feature = "os-rng"))]
+    use crate::Keys;
+    #[cfg(all(feature = "std", feature = "os-rng"))]
+    use crate::event::FinalizeEvent;
 
     #[test]
     fn test_transaction_direction() {
@@ -619,5 +673,26 @@ mod tests {
         assert_eq!(quote.quote_id, "test_quote_id");
         assert_eq!(quote.mint, mint_url);
         assert!(quote.expiration.is_none());
+    }
+
+    #[test]
+    #[cfg(all(feature = "std", feature = "os-rng"))]
+    fn prepared_wallet_builder_round_trip() {
+        let keys = Keys::generate();
+        let public_key = keys.public_key();
+        let wallet = WalletEvent::new(
+            "test_privkey",
+            vec![Url::parse("https://mint.example.com").unwrap()],
+        );
+
+        let event = wallet
+            .prepare(keys.secret_key(), &public_key)
+            .unwrap()
+            .finalize(&keys)
+            .unwrap();
+        let decoded =
+            WalletEvent::from_wallet_event(keys.secret_key(), &public_key, &event).unwrap();
+
+        assert_eq!(decoded, wallet);
     }
 }

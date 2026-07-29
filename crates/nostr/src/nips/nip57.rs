@@ -16,8 +16,8 @@ use super::util::{
     take_relay_url, take_string, unknown_tag,
 };
 use crate::error::Error;
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
-use crate::{EventId, PublicKey, RelayUrl};
+use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
+use crate::{Event, EventId, Kind, PublicKey, RelayUrl};
 
 const AMOUNT: &str = "amount";
 const BOLT11: &str = "bolt11";
@@ -209,6 +209,59 @@ pub struct ZapRequestData {
     pub event_coordinate: Option<Coordinate>,
 }
 
+/// Zap receipt event.
+#[derive(Debug, Clone)]
+pub struct ZapReceipt<'a> {
+    bolt11: String,
+    preimage: Option<String>,
+    zap_request: &'a Event,
+}
+
+impl<'a> ZapReceipt<'a> {
+    /// Create a zap receipt.
+    pub fn new<S>(bolt11: S, zap_request: &'a Event) -> Self
+    where
+        S: Into<String>,
+    {
+        Self {
+            bolt11: bolt11.into(),
+            preimage: None,
+            zap_request,
+        }
+    }
+
+    /// Set the payment preimage.
+    pub fn preimage<S>(mut self, preimage: S) -> Self
+    where
+        S: Into<String>,
+    {
+        self.preimage = Some(preimage.into());
+        self
+    }
+}
+
+impl IntoEventBuilder for ZapReceipt<'_> {
+    fn into_event_builder(self) -> EventBuilder {
+        let mut tags: Vec<Tag> = vec![
+            Nip57Tag::Bolt11(self.bolt11).to_tag(),
+            Nip57Tag::Description(self.zap_request.as_json()).to_tag(),
+        ];
+
+        if let Some(preimage) = self.preimage {
+            tags.push(Nip57Tag::Preimage(preimage).to_tag());
+        }
+
+        for kind in ["e", "a", "p"] {
+            if let Some(tag) = self.zap_request.tags.iter().find(|tag| tag.kind() == kind) {
+                tags.push(tag.clone());
+            }
+        }
+
+        tags.push(Nip57Tag::Sender(self.zap_request.pubkey).to_tag());
+        EventBuilder::new(Kind::ZapReceipt, "").tags(tags)
+    }
+}
+
 impl ZapRequestData {
     /// New Zap Request Data
     pub fn new<I>(public_key: PublicKey, relays: I) -> Self
@@ -273,6 +326,14 @@ impl ZapRequestData {
     }
 }
 
+impl IntoEventBuilder for ZapRequestData {
+    fn into_event_builder(self) -> EventBuilder {
+        let message: String = self.message.clone();
+        let tags: Vec<Tag> = self.into();
+        EventBuilder::new(Kind::ZapRequest, message).tags(tags)
+    }
+}
+
 impl From<ZapRequestData> for Vec<Tag> {
     fn from(data: ZapRequestData) -> Self {
         let ZapRequestData {
@@ -320,6 +381,10 @@ impl From<ZapRequestData> for Vec<Tag> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(all(feature = "std", feature = "os-rng"))]
+    use crate::Keys;
+    #[cfg(all(feature = "std", feature = "os-rng"))]
+    use crate::event::{FinalizeEvent, IntoEventBuilder};
 
     #[test]
     fn test_relays_tag() {
@@ -411,5 +476,31 @@ mod tests {
             ])
             .unwrap()
         );
+    }
+
+    #[test]
+    #[cfg(all(feature = "std", feature = "os-rng"))]
+    fn zap_receipt_builder_handles_optional_preimage() {
+        let keys = Keys::generate();
+        let request = ZapRequestData::new(
+            keys.public_key(),
+            [RelayUrl::parse("wss://relay.example.com").unwrap()],
+        )
+        .finalize(&keys)
+        .unwrap();
+
+        let with_preimage = ZapReceipt::new("bolt11", &request)
+            .preimage("preimage")
+            .into_event_builder();
+        let without_preimage = ZapReceipt::new("bolt11", &request).into_event_builder();
+
+        assert!(with_preimage.tags.iter().any(|tag| tag.kind() == PREIMAGE));
+        assert!(
+            !without_preimage
+                .tags
+                .iter()
+                .any(|tag| tag.kind() == PREIMAGE)
+        );
+        assert_eq!(with_preimage.tags.len(), without_preimage.tags.len() + 1);
     }
 }

@@ -14,14 +14,14 @@ use core::str::FromStr;
 
 use secp256k1::schnorr::Signature;
 
-use super::nip01::Coordinate;
+use super::nip01::{Coordinate, Nip01Tag};
 use super::util::{
     invalid_value, missing_tag_kind, missing_value, take_and_parse_from_str,
     take_and_parse_optional_from_str, take_and_parse_optional_relay_url, take_coordinate,
     take_event_id, take_optional_string, take_public_key, take_string, take_timestamp, unknown_tag,
 };
 use crate::error::{Error, ErrorKind};
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
 use crate::key::PublicKey;
 use crate::types::url::{RelayUrl, Url};
 use crate::{Event, EventId, ImageDimensions, Kind, Timestamp};
@@ -485,6 +485,51 @@ pub struct LiveEvent {
     pub hand: Option<bool>,
 }
 
+/// Live event message builder.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct LiveEventMessageBuilder {
+    live_event_id: String,
+    live_event_host: PublicKey,
+    content: String,
+    relay_hint: Option<RelayUrl>,
+}
+
+impl LiveEventMessageBuilder {
+    /// Create a live event message.
+    pub fn new<S1, S2>(live_event_id: S1, live_event_host: PublicKey, content: S2) -> Self
+    where
+        S1: Into<String>,
+        S2: Into<String>,
+    {
+        Self {
+            live_event_id: live_event_id.into(),
+            live_event_host,
+            content: content.into(),
+            relay_hint: None,
+        }
+    }
+
+    /// Set the relay hint.
+    pub fn relay_hint(mut self, relay_hint: RelayUrl) -> Self {
+        self.relay_hint = Some(relay_hint);
+        self
+    }
+}
+
+impl IntoEventBuilder for LiveEventMessageBuilder {
+    fn into_event_builder(self) -> EventBuilder {
+        let coordinate =
+            Coordinate::new(Kind::LiveEvent, self.live_event_host).identifier(self.live_event_id);
+        EventBuilder::new(Kind::LiveEventMessage, self.content).tag(
+            Nip01Tag::Coordinate {
+                coordinate,
+                relay_hint: self.relay_hint,
+            }
+            .to_tag(),
+        )
+    }
+}
+
 impl LiveEvent {
     /// Create a new LiveEvent
     pub fn new<S>(id: S) -> Self
@@ -590,6 +635,13 @@ impl LiveEvent {
             Nip53Tag::Space(space) => self.space = Some(space),
             Nip53Tag::Hand(hand) => self.hand = Some(hand),
         }
+    }
+}
+
+impl IntoEventBuilder for LiveEvent {
+    fn into_event_builder(self) -> EventBuilder {
+        let tags: Vec<Tag> = self.into();
+        EventBuilder::new(Kind::LiveEvent, "").tags(tags)
     }
 }
 

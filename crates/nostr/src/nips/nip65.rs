@@ -12,9 +12,9 @@ use core::fmt;
 use core::str::FromStr;
 
 use crate::error::{Error, ErrorKind};
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
 use crate::nips::util::{missing_tag_kind, take_relay_url, unknown_tag};
-use crate::{Event, RelayUrl};
+use crate::{Event, Kind, RelayUrl};
 
 const RELAY_METADATA: &str = "r";
 
@@ -25,6 +25,38 @@ pub enum RelayMetadata {
     Read,
     /// Write
     Write,
+}
+
+/// Relay list event.
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RelayList {
+    relays: Vec<(RelayUrl, Option<RelayMetadata>)>,
+}
+
+impl RelayList {
+    /// Create a relay list.
+    pub fn new<I>(relays: I) -> Self
+    where
+        I: IntoIterator<Item = (RelayUrl, Option<RelayMetadata>)>,
+    {
+        Self {
+            relays: relays.into_iter().collect(),
+        }
+    }
+}
+
+impl IntoEventBuilder for RelayList {
+    fn into_event_builder(self) -> EventBuilder {
+        let tags = self.relays.into_iter().map(|(relay_url, metadata)| {
+            Nip65Tag::RelayMetadata {
+                relay_url,
+                metadata,
+            }
+            .to_tag()
+        });
+
+        EventBuilder::new(Kind::RelayList, "").tags(tags)
+    }
 }
 
 impl RelayMetadata {

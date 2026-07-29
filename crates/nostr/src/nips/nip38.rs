@@ -10,7 +10,8 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt;
 
-use crate::{Tag, Timestamp};
+use crate::event::{EventBuilder, IntoEventBuilder};
+use crate::{Kind, Tag, Timestamp};
 
 /// NIP38 types
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -50,6 +51,33 @@ pub struct LiveStatus {
     pub expiration: Option<Timestamp>,
     /// Reference to the external resource (Optional)
     pub reference: Option<String>,
+}
+
+/// User status event.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct LiveStatusEvent {
+    status: LiveStatus,
+    content: String,
+}
+
+impl LiveStatusEvent {
+    /// Create a user status event.
+    pub fn new<S>(status: LiveStatus, content: S) -> Self
+    where
+        S: Into<String>,
+    {
+        Self {
+            status,
+            content: content.into(),
+        }
+    }
+}
+
+impl IntoEventBuilder for LiveStatusEvent {
+    fn into_event_builder(self) -> EventBuilder {
+        let tags: Vec<Tag> = self.status.into();
+        EventBuilder::new(Kind::UserStatus, self.content).tags(tags)
+    }
 }
 
 impl LiveStatus {

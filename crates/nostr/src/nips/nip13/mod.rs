@@ -594,7 +594,8 @@ pub mod tests {
             }
         }
 
-        let unsigned = EventBuilder::text_note(
+        let unsigned = EventBuilder::new(
+            Kind::TextNote,
             "Why must I find leading zero bits? Is there no beauty in the ones?",
         )
         .finalize_unsigned(PublicKey::from_slice(&[0; 32]).unwrap());
@@ -639,7 +640,8 @@ pub mod tests {
             }
         }
 
-        let unsigned = EventBuilder::text_note(
+        let unsigned = EventBuilder::new(
+            Kind::TextNote,
             "Why must I find leading zero bits? Is there no beauty in the ones?",
         )
         .finalize_unsigned(PublicKey::from_slice(&[0; 32]).unwrap());

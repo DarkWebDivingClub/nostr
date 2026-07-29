@@ -122,7 +122,7 @@ mod tests {
 
         // Send some events
         for i in 0..num_events {
-            let event = EventBuilder::text_note(i.to_string())
+            let event = EventBuilder::new(Kind::TextNote, i.to_string())
                 .finalize(&keys)
                 .unwrap();
             relay.send_event(&event).await.unwrap();
@@ -177,7 +177,9 @@ mod tests {
         let local = setup_nip42_read_local_relay().await;
 
         let keys = Keys::generate();
-        let event = EventBuilder::text_note("Test").finalize(&keys).unwrap();
+        let event = EventBuilder::new(Kind::TextNote, "Test")
+            .finalize(&keys)
+            .unwrap();
         local.add_event(event.clone()).await.unwrap();
 
         let url = local.url().await;
@@ -202,7 +204,9 @@ mod tests {
         let local = setup_nip42_read_local_relay().await;
 
         let keys = Keys::generate();
-        let expected = EventBuilder::text_note("Test").finalize(&keys).unwrap();
+        let expected = EventBuilder::new(Kind::TextNote, "Test")
+            .finalize(&keys)
+            .unwrap();
         local.add_event(expected.clone()).await.unwrap();
 
         let authenticator = SignerAuthenticator::new(keys);
@@ -292,7 +296,7 @@ mod tests {
                 tokio::time::sleep(Duration::from_secs(2)).await;
 
                 // Build and send event
-                let event = EventBuilder::text_note("Additional")
+                let event = EventBuilder::new(Kind::TextNote, "Additional")
                     .finalize(&keys)
                     .unwrap();
                 r.send_event(&event).await.unwrap();
@@ -323,7 +327,7 @@ mod tests {
             // Send more events
             for _ in 0..2 {
                 // Build and send event
-                let event = EventBuilder::text_note("Additional")
+                let event = EventBuilder::new(Kind::TextNote, "Additional")
                     .finalize(&keys)
                     .unwrap();
                 r.send_event(&event).await.unwrap();

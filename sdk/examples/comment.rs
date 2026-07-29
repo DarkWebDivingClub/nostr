@@ -27,8 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let keys = Keys::generate();
 
     let comment_to = events.first().unwrap();
-    let event = EventBuilder::comment("This is a reply", CommentTarget::from(comment_to), None)
-        .finalize(&keys)?;
+    let event = CommentBuilder::new("This is a reply", comment_to).finalize(&keys)?;
 
     let output = client.send_event(&event).await?;
     println!("Output: {:?}", output);

@@ -8,13 +8,44 @@
 
 use alloc::string::{String, ToString};
 use alloc::vec;
+use alloc::vec::Vec;
 
 use super::util::{missing_tag_kind, take_and_parse_from_str, unknown_tag};
+use crate::Kind;
 use crate::error::Error;
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
 use crate::types::url::Url;
 
 const SERVER: &str = "server";
+
+/// Blossom server list.
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BlossomServerList {
+    servers: Vec<Url>,
+}
+
+impl BlossomServerList {
+    /// Create a Blossom server list.
+    pub fn new<I>(servers: I) -> Self
+    where
+        I: IntoIterator<Item = Url>,
+    {
+        Self {
+            servers: servers.into_iter().collect(),
+        }
+    }
+}
+
+impl IntoEventBuilder for BlossomServerList {
+    fn into_event_builder(self) -> EventBuilder {
+        EventBuilder::new(Kind::BlossomServerList, "").tags(
+            self.servers
+                .into_iter()
+                .map(NipB7Tag::Server)
+                .map(Into::into),
+        )
+    }
+}
 
 /// Standardized NIP-B7 tags
 ///

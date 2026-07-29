@@ -11,7 +11,9 @@ use alloc::string::{String, ToString};
 use super::nip01::{Coordinate, Nip01Tag};
 use super::util::{missing_tag_kind, take_and_parse_from_str, unknown_tag};
 use crate::error::Error;
-use crate::event::{Tag, TagCodec, Tags, impl_tag_codec_conversions};
+use crate::event::{
+    EventBuilder, IntoEventBuilder, Tag, TagCodec, Tags, impl_tag_codec_conversions,
+};
 use crate::{Event, EventId, Kind, PublicKey, RelayUrl};
 
 /// Standardized NIP-25 tags
@@ -65,6 +67,33 @@ pub struct ReactionTarget {
     pub kind: Option<Kind>,
     /// Relay hint
     pub relay_hint: Option<RelayUrl>,
+}
+
+/// Reaction event builder.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ReactionBuilder {
+    target: ReactionTarget,
+    reaction: String,
+}
+
+impl ReactionBuilder {
+    /// Create a reaction.
+    pub fn new<T, S>(target: T, reaction: S) -> Self
+    where
+        T: Into<ReactionTarget>,
+        S: Into<String>,
+    {
+        Self {
+            target: target.into(),
+            reaction: reaction.into(),
+        }
+    }
+}
+
+impl IntoEventBuilder for ReactionBuilder {
+    fn into_event_builder(self) -> EventBuilder {
+        EventBuilder::new(Kind::Reaction, self.reaction).tags(self.target.into_tags())
+    }
 }
 
 impl ReactionTarget {

@@ -681,10 +681,10 @@ mod tests {
 
         // Build events to store in the local database
         let local_events = [
-            EventBuilder::text_note("Local 1")
+            EventBuilder::new(Kind::TextNote, "Local 1")
                 .finalize(&Keys::generate())
                 .unwrap(),
-            EventBuilder::text_note("Local 2")
+            EventBuilder::new(Kind::TextNote, "Local 2")
                 .finalize(&Keys::generate())
                 .unwrap(),
             EventBuilder::new(Kind::Custom(123), "Local 123")
@@ -712,10 +712,10 @@ mod tests {
         let relays_events = [
             // Event in common with the local database
             local_events[0].clone(),
-            EventBuilder::text_note("Test 2")
+            EventBuilder::new(Kind::TextNote, "Test 2")
                 .finalize(&Keys::generate())
                 .unwrap(),
-            EventBuilder::text_note("Test 3")
+            EventBuilder::new(Kind::TextNote, "Test 3")
                 .finalize(&Keys::generate())
                 .unwrap(),
             EventBuilder::new(Kind::Custom(123), "Test 4")

@@ -95,7 +95,8 @@ pub mod tests {
 
     #[test]
     fn single_adapter() {
-        let unsigned = EventBuilder::text_note(
+        let unsigned = EventBuilder::new(
+            Kind::TextNote,
             "Proof of Work: The only workout my CPU gets since I stopped gaming",
         )
         .finalize_unsigned(PublicKey::from_slice(&[0; 32]).unwrap());
@@ -117,7 +118,7 @@ pub mod tests {
     #[test]
     fn single_thread_mining_can_be_cancelled() {
         let cancel: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-        let unsigned = EventBuilder::text_note("single thread cancellation test")
+        let unsigned = EventBuilder::new(Kind::TextNote, "single thread cancellation test")
             .finalize_unsigned(PublicKey::from_slice(&[0; 32]).unwrap());
 
         let worker_cancel: Arc<AtomicBool> = cancel.clone();

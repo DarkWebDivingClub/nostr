@@ -979,7 +979,7 @@ mod tests {
         check_relay_is_sleeping(&relay);
 
         // Test wake up when sending an event
-        let event = EventBuilder::text_note("text wake-up")
+        let event = EventBuilder::new(Kind::TextNote, "text wake-up")
             .finalize(&Keys::generate())
             .unwrap();
         relay.send_event(&event).await.unwrap();

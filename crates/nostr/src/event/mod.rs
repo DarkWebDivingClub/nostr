@@ -436,7 +436,7 @@ mod tests {
     #[cfg(all(feature = "std", feature = "os-rng"))]
     fn test_event_expired() {
         let my_keys = Keys::generate();
-        let event = EventBuilder::text_note("my content")
+        let event = EventBuilder::new(Kind::TextNote, "my content")
             .tags([Tag::expiration(Timestamp::from(1600000000))])
             .finalize(&my_keys)
             .unwrap();
@@ -451,7 +451,7 @@ mod tests {
         let expiry_date: u64 = now.as_secs() * 2;
 
         let my_keys = Keys::generate();
-        let event = EventBuilder::text_note("my content")
+        let event = EventBuilder::new(Kind::TextNote, "my content")
             .tags([Tag::expiration(Timestamp::from(expiry_date))])
             .finalize(&my_keys)
             .unwrap();
@@ -463,7 +463,7 @@ mod tests {
     #[cfg(all(feature = "std", feature = "os-rng"))]
     fn test_event_without_expiration_tag() {
         let my_keys = Keys::generate();
-        let event = EventBuilder::text_note("my content")
+        let event = EventBuilder::new(Kind::TextNote, "my content")
             .finalize(&my_keys)
             .unwrap();
         assert!(!&event.is_expired());

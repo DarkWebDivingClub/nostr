@@ -21,7 +21,7 @@ use super::util::{
     missing_tag_kind, missing_value, take_and_parse_from_str, take_string, unknown_tag,
 };
 use crate::error::{Error, ErrorKind};
-use crate::event::{EventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
 use crate::types::url::Url;
 use crate::{EventId, Kind, PublicKey, RelayUrl, Timestamp};
 
@@ -47,11 +47,6 @@ const REFS_TAGS: &str = "refs/tags/";
 const SUBJECT: &str = "subject";
 const WEB: &str = "web";
 const RELAYS: &str = "relays";
-
-#[inline]
-fn unexpected_kind() -> Error {
-    Error::with_static_message(ErrorKind::Invalid, "unexpected kind")
-}
 
 /// Standardized NIP-34 tags
 ///
@@ -419,8 +414,8 @@ pub struct GitRepositoryAnnouncement {
     pub maintainers: Vec<PublicKey>,
 }
 
-impl GitRepositoryAnnouncement {
-    pub(crate) fn to_event_builder(self) -> EventBuilder {
+impl IntoEventBuilder for GitRepositoryAnnouncement {
+    fn into_event_builder(self) -> EventBuilder {
         let mut tags: Vec<Tag> = Vec::with_capacity(1);
 
         // Add repo ID
@@ -479,17 +474,9 @@ pub struct GitIssue {
     pub labels: Vec<String>,
 }
 
-impl GitIssue {
+impl IntoEventBuilder for GitIssue {
     /// Based on <https://github.com/nostr-protocol/nips/blob/ea36ec9ed7596e49bf7f217b05954c1fecacad88/34.md> revision.
-    pub(crate) fn to_event_builder(self) -> Result<EventBuilder, Error> {
-        // Check if repository address kind is wrong
-        if self.repository.kind != Kind::GitRepoAnnouncement {
-            return Err(unexpected_kind());
-        }
-
-        // Verify coordinate
-        self.repository.verify()?;
-
+    fn into_event_builder(self) -> EventBuilder {
         let owner_public_key: PublicKey = self.repository.public_key;
 
         let mut tags: Vec<Tag> = Vec::with_capacity(2);
@@ -509,7 +496,7 @@ impl GitIssue {
         tags.extend(self.labels.into_iter().map(Tag::hashtag));
 
         // Build
-        Ok(EventBuilder::new(Kind::GitIssue, self.content).tags(tags))
+        EventBuilder::new(Kind::GitIssue, self.content).tags(tags)
     }
 }
 
@@ -587,16 +574,8 @@ pub struct GitPatch {
     pub labels: Vec<String>,
 }
 
-impl GitPatch {
-    pub(crate) fn to_event_builder(self) -> Result<EventBuilder, Error> {
-        // Check if repository address kind is wrong
-        if self.repository.kind != Kind::GitRepoAnnouncement {
-            return Err(unexpected_kind());
-        }
-
-        // Verify coordinate
-        self.repository.verify()?;
-
+impl IntoEventBuilder for GitPatch {
+    fn into_event_builder(self) -> EventBuilder {
         let owner_public_key: PublicKey = self.repository.public_key;
 
         let mut tags: Vec<Tag> = Vec::with_capacity(3);
@@ -647,7 +626,7 @@ impl GitPatch {
         tags.extend(self.labels.into_iter().map(Tag::hashtag));
 
         // Build
-        Ok(EventBuilder::new(Kind::GitPatch, content).tags(tags))
+        EventBuilder::new(Kind::GitPatch, content).tags(tags)
     }
 }
 
@@ -674,16 +653,8 @@ pub struct GitPullRequest {
     pub merge_base: Option<Sha1Hash>,
 }
 
-impl GitPullRequest {
-    pub(crate) fn to_event_builder(self) -> Result<EventBuilder, Error> {
-        // Check if repository address kind is wrong
-        if self.repository.kind != Kind::GitRepoAnnouncement {
-            return Err(unexpected_kind());
-        }
-
-        // Verify coordinate
-        self.repository.verify()?;
-
+impl IntoEventBuilder for GitPullRequest {
+    fn into_event_builder(self) -> EventBuilder {
         let owner_public_key: PublicKey = self.repository.public_key;
 
         // Calculate capacity: 2 required + up to 6 optional + labels
@@ -728,7 +699,7 @@ impl GitPullRequest {
         }
 
         // Build
-        Ok(EventBuilder::new(Kind::GitPullRequest, self.content).tags(tags))
+        EventBuilder::new(Kind::GitPullRequest, self.content).tags(tags)
     }
 }
 
@@ -749,16 +720,8 @@ pub struct GitPullRequestUpdate {
     pub merge_base: Option<Sha1Hash>,
 }
 
-impl GitPullRequestUpdate {
-    pub(crate) fn to_event_builder(self) -> Result<EventBuilder, Error> {
-        // Check if repository address kind is wrong
-        if self.repository.kind != Kind::GitRepoAnnouncement {
-            return Err(unexpected_kind());
-        }
-
-        // Verify coordinate
-        self.repository.verify()?;
-
+impl IntoEventBuilder for GitPullRequestUpdate {
+    fn into_event_builder(self) -> EventBuilder {
         let owner_public_key: PublicKey = self.repository.public_key;
 
         // Calculate capacity: 5 required + 2 optional
@@ -803,7 +766,7 @@ impl GitPullRequestUpdate {
         }
 
         // Build
-        Ok(EventBuilder::new(Kind::GitPullRequestUpdate, "").tags(tags))
+        EventBuilder::new(Kind::GitPullRequestUpdate, "").tags(tags)
     }
 }
 
@@ -816,8 +779,8 @@ pub struct GitUserGraspList {
     pub grasp_servers: Vec<RelayUrl>,
 }
 
-impl GitUserGraspList {
-    pub(crate) fn to_event_builder(self) -> EventBuilder {
+impl IntoEventBuilder for GitUserGraspList {
+    fn into_event_builder(self) -> EventBuilder {
         let tags: Vec<Tag> = self
             .grasp_servers
             .into_iter()
@@ -856,7 +819,7 @@ mod tests {
         };
 
         let keys = Keys::generate();
-        let event: Event = repo.to_event_builder().finalize(&keys).unwrap();
+        let event: Event = repo.finalize(&keys).unwrap();
 
         assert_eq!(event.kind, Kind::GitRepoAnnouncement);
         assert!(event.content.is_empty());
@@ -916,7 +879,7 @@ mod tests {
         };
 
         let keys = Keys::generate();
-        let event: Event = repo.to_event_builder().unwrap().finalize(&keys).unwrap();
+        let event: Event = repo.finalize(&keys).unwrap();
 
         assert_eq!(event.kind, Kind::GitIssue);
         assert_eq!(event.content, "My issue content");
@@ -964,7 +927,7 @@ mod tests {
         };
 
         let keys = Keys::generate();
-        let event: Event = repo.to_event_builder().unwrap().finalize(&keys).unwrap();
+        let event: Event = repo.finalize(&keys).unwrap();
 
         assert_eq!(event.kind, Kind::GitPatch);
         assert_eq!(event.content, "<patch>");
@@ -1021,7 +984,7 @@ mod tests {
         };
 
         let keys = Keys::generate();
-        let event: Event = update.to_event_builder().unwrap().finalize(&keys).unwrap();
+        let event: Event = update.finalize(&keys).unwrap();
 
         assert_eq!(event.kind, Kind::GitPullRequestUpdate);
         assert!(event.content.is_empty());

@@ -27,12 +27,14 @@ use crate::error::{Error, ErrorKind};
 #[cfg(feature = "std")]
 use crate::event::Event;
 #[cfg(all(feature = "std", feature = "rand"))]
-use crate::event::{AsyncSignEvent, EventBuilder, FinalizeEventAsync};
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{AsyncSignEvent, FinalizeEventAsync};
+use crate::event::{
+    EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+};
 #[cfg(all(feature = "std", feature = "rand"))]
 use crate::key::AsyncGetPublicKey;
 #[cfg(feature = "std")]
-use crate::{Kind, PublicKey, Timestamp};
+use crate::{PublicKey, Timestamp};
 
 #[cfg(feature = "std")]
 const AUTH_HEADER_PREFIX: &str = "Nostr";
@@ -231,9 +233,16 @@ impl HttpData {
     where
         T: AsyncGetPublicKey + AsyncSignEvent,
     {
-        let event: Event = EventBuilder::http_auth(self).finalize_async(signer).await?;
+        let event: Event = self.finalize_async(signer).await?;
         let encoded: String = general_purpose::STANDARD.encode(event.as_json());
         Ok(format!("{AUTH_HEADER_PREFIX} {encoded}"))
+    }
+}
+
+impl IntoEventBuilder for HttpData {
+    fn into_event_builder(self) -> EventBuilder {
+        let tags: Vec<Tag> = self.into();
+        EventBuilder::new(Kind::HttpAuth, "").tags(tags)
     }
 }
 

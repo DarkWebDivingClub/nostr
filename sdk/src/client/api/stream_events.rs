@@ -156,7 +156,9 @@ mod tests {
         let local = setup_nip42_read_local_relay().await;
 
         let keys = Keys::generate();
-        let expected = EventBuilder::text_note("Test").finalize(&keys).unwrap();
+        let expected = EventBuilder::new(Kind::TextNote, "Test")
+            .finalize(&keys)
+            .unwrap();
         local.add_event(expected.clone()).await.unwrap();
 
         let client = setup_client(local.url().await).await;
@@ -186,7 +188,9 @@ mod tests {
         let local = setup_nip42_read_local_relay().await;
 
         let keys = Keys::generate();
-        let expected = EventBuilder::text_note("Test").finalize(&keys).unwrap();
+        let expected = EventBuilder::new(Kind::TextNote, "Test")
+            .finalize(&keys)
+            .unwrap();
         local.add_event(expected.clone()).await.unwrap();
 
         let authenticator = SignerAuthenticator::new(keys);

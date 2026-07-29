@@ -52,8 +52,8 @@ macro_rules! database_unit_tests {
             let keys_b = Keys::generate();
 
             let events = vec![
-                build_event(&keys_a, EventBuilder::text_note("Text Note A")),
-                build_event(&keys_b, EventBuilder::text_note("Text Note B")),
+                build_event(&keys_a, EventBuilder::new(Kind::TextNote, "Text Note A")),
+                build_event(&keys_b, EventBuilder::new(Kind::TextNote, "Text Note B")),
                 build_event(&keys_a, Metadata::new().name("account-a").display_name("Account A")),
                 build_event(&keys_b, Metadata::new().name("account-b").display_name("Account B")),
                 build_event(&keys_a, EventBuilder::new(Kind::Custom(33_333), "")
@@ -102,10 +102,10 @@ macro_rules! database_unit_tests {
             let to_vanish = Keys::generate();
             let helper = Keys::generate();
 
-            let event1 = EventBuilder::text_note("Hi 1")
+            let event1 = EventBuilder::new(Kind::TextNote, "Hi 1")
                 .finalize(&to_vanish)
                 .unwrap();
-            let event2 = EventBuilder::text_note("Hi 2")
+            let event2 = EventBuilder::new(Kind::TextNote, "Hi 2")
                 .finalize(&to_vanish)
                 .unwrap();
             let replaceable = ContactListBuilder::new([
@@ -114,7 +114,7 @@ macro_rules! database_unit_tests {
             ])
             .finalize(&to_vanish)
             .unwrap();
-            let addresable = EventBuilder::long_form_text_note("LONG")
+            let addresable = EventBuilder::new(Kind::LongFormTextNote, "LONG")
                 .tag(Tag::identifier("lorem-ipsum".to_string()))
                 .finalize(&to_vanish)
                 .unwrap();
@@ -347,10 +347,10 @@ macro_rules! database_unit_tests {
             let keys = Keys::generate();
 
             // Create events to delete
-            let event1 = EventBuilder::text_note("To be deleted 1")
+            let event1 = EventBuilder::new(Kind::TextNote, "To be deleted 1")
                 .finalize(&keys)
                 .expect("Failed to finalize");
-            let event2 = EventBuilder::text_note("To be deleted 2")
+            let event2 = EventBuilder::new(Kind::TextNote, "To be deleted 2")
                 .finalize(&keys)
                 .expect("Failed to finalize");
 
@@ -486,7 +486,7 @@ macro_rules! database_unit_tests {
 
             let _added_events: usize = add_random_events(&store).await;
 
-            let (_keys, expected_event) = add_event(&store, EventBuilder::text_note("Test")).await;
+            let (_keys, expected_event) = add_event(&store, EventBuilder::new(Kind::TextNote, "Test")).await;
 
             let event = get_existent_event_by_id(&store, &expected_event.id).await;
             assert_eq!(event, expected_event);
@@ -686,7 +686,7 @@ macro_rules! database_unit_tests {
             let keys = Keys::generate();
 
             // Create and save an event
-            let event = build_event(&keys, EventBuilder::text_note("Test event"));
+            let event = build_event(&keys, EventBuilder::new(Kind::TextNote, "Test event"));
 
             let status = store.save_event(&event).await.expect("Failed to save event");
             assert_eq!(status, SaveEventStatus::Success);
@@ -944,7 +944,7 @@ macro_rules! database_unit_tests {
             let to_vanish = dummy_nip62(&store).await;
 
             // Request to vanish
-            let request_to_vanish = EventBuilder::request_vanish(VanishTarget::AllRelays)
+            let request_to_vanish = VanishRequest::new(VanishTarget::AllRelays)
                 .finalize(&to_vanish)
                 .unwrap();
             store.save_event(&request_to_vanish).await.unwrap();
@@ -969,7 +969,7 @@ macro_rules! database_unit_tests {
                 0
             );
 
-            let new_event = EventBuilder::text_note("It was a mistake, please accept my event")
+            let new_event = EventBuilder::new(Kind::TextNote, "It was a mistake, please accept my event")
                 .finalize(&to_vanish)
                 .unwrap();
 
@@ -994,7 +994,7 @@ macro_rules! database_unit_tests {
             let to_vanish = dummy_nip62(&store).await;
 
             // Request to vanish
-            let request_to_vanish = EventBuilder::request_vanish(VanishTarget::relay(url))
+            let request_to_vanish = VanishRequest::new(VanishTarget::relay(url))
                 .finalize(&to_vanish)
                 .unwrap();
             store.save_event(&request_to_vanish).await.unwrap();
@@ -1019,7 +1019,7 @@ macro_rules! database_unit_tests {
                 0
             );
 
-            let new_event = EventBuilder::text_note("It was a mistake, please accept my event")
+            let new_event = EventBuilder::new(Kind::TextNote, "It was a mistake, please accept my event")
                 .finalize(&to_vanish)
                 .unwrap();
 

@@ -27,16 +27,43 @@ use super::util::{missing_tag_kind, take_relay_url, unknown_tag};
 use crate::error::Error;
 #[cfg(all(feature = "std", feature = "os-rng", feature = "nip59"))]
 use crate::event::{
-    AsyncSignEvent, EventBuilder, FinalizeEvent, FinalizeEventAsync, FinalizeUnsignedEvent, Kind,
-    SignEvent, UnsignedEvent,
+    AsyncSignEvent, FinalizeEvent, FinalizeEventAsync, FinalizeUnsignedEvent, SignEvent,
+    UnsignedEvent,
 };
-use crate::event::{Event, Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{
+    Event, EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+};
 use crate::key::PublicKey;
 #[cfg(all(feature = "std", feature = "os-rng", feature = "nip59"))]
 use crate::key::{AsyncGetPublicKey, GetPublicKey};
 use crate::types::url::RelayUrl;
 
 const RELAY: &str = "relay";
+
+/// Private direct message inbox relay list.
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InboxRelayList {
+    relays: Vec<RelayUrl>,
+}
+
+impl InboxRelayList {
+    /// Create an inbox relay list.
+    pub fn new<I>(relays: I) -> Self
+    where
+        I: IntoIterator<Item = RelayUrl>,
+    {
+        Self {
+            relays: relays.into_iter().collect(),
+        }
+    }
+}
+
+impl IntoEventBuilder for InboxRelayList {
+    fn into_event_builder(self) -> EventBuilder {
+        EventBuilder::new(Kind::InboxRelays, "")
+            .tags(self.relays.into_iter().map(Nip17Tag::Relay).map(Into::into))
+    }
+}
 
 /// Private Direct Message event builder.
 ///

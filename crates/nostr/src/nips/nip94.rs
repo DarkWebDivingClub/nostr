@@ -15,8 +15,8 @@ use hashes::sha256::Hash as Sha256Hash;
 
 use super::util::{missing_tag_kind, take_and_parse_from_str, take_string, unknown_tag};
 use crate::error::{Error, ErrorKind};
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
-use crate::{ImageDimensions, Url};
+use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
+use crate::{ImageDimensions, Kind, Url};
 
 const URL: &str = "url";
 const MIME_TYPE: &str = "m";
@@ -228,6 +228,33 @@ pub struct FileMetadata {
     pub fallback: Vec<Url>,
     /// Serving service type
     pub service: Option<String>,
+}
+
+/// File metadata event builder.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FileMetadataEventBuilder {
+    description: String,
+    metadata: FileMetadata,
+}
+
+impl FileMetadataEventBuilder {
+    /// Create a file metadata event.
+    pub fn new<S>(description: S, metadata: FileMetadata) -> Self
+    where
+        S: Into<String>,
+    {
+        Self {
+            description: description.into(),
+            metadata,
+        }
+    }
+}
+
+impl IntoEventBuilder for FileMetadataEventBuilder {
+    fn into_event_builder(self) -> EventBuilder {
+        let tags: Vec<Tag> = self.metadata.into();
+        EventBuilder::new(Kind::FileMetadata, self.description).tags(tags)
+    }
 }
 
 impl FileMetadata {

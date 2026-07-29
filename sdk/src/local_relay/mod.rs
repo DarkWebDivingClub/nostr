@@ -61,7 +61,7 @@ mod tests {
             .unwrap();
 
         // Event with our target tag
-        let event = EventBuilder::text_note(":)")
+        let event = EventBuilder::new(Kind::TextNote, ":)")
             .tag(Tag::hashtag(UPDATE_TAG))
             .finalize(&keys)
             .unwrap();
@@ -69,7 +69,7 @@ mod tests {
 
         // This event has a random tag and should be filtered out in the REQ.
         // It would only appear if the filter had not been updated correctly.
-        let event = EventBuilder::text_note(":)")
+        let event = EventBuilder::new(Kind::TextNote, ":)")
             .tag(Tag::hashtag("TEST"))
             .finalize(&keys)
             .unwrap();
@@ -103,7 +103,9 @@ mod tests {
             .and_connect()
             .await
             .unwrap();
-        let event = EventBuilder::text_note(":)").finalize(&keys).unwrap();
+        let event = EventBuilder::new(Kind::TextNote, ":)")
+            .finalize(&keys)
+            .unwrap();
         let output = client.send_event(&event).await.unwrap();
 
         assert_eq!(

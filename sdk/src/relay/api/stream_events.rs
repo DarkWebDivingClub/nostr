@@ -239,7 +239,9 @@ mod tests {
     #[tokio::test]
     async fn test_stream_with_subscription_verification_single_filter() {
         let keys = Keys::generate();
-        let event = EventBuilder::text_note("test").finalize(&keys).unwrap();
+        let event = EventBuilder::new(Kind::TextNote, "test")
+            .finalize(&keys)
+            .unwrap();
 
         let mock = MockRelay::run().await.unwrap();
         let url = mock.url().await;
@@ -272,7 +274,9 @@ mod tests {
     #[tokio::test]
     async fn test_stream_with_subscription_verification_multiple_filters() {
         let keys = Keys::generate();
-        let event = EventBuilder::text_note("test").finalize(&keys).unwrap();
+        let event = EventBuilder::new(Kind::TextNote, "test")
+            .finalize(&keys)
+            .unwrap();
 
         let mock = MockRelay::run().await.unwrap();
         let url = mock.url().await;
@@ -309,7 +313,9 @@ mod tests {
         let local = setup_nip42_read_local_relay().await;
 
         let keys = Keys::generate();
-        let event = EventBuilder::text_note("Test").finalize(&keys).unwrap();
+        let event = EventBuilder::new(Kind::TextNote, "Test")
+            .finalize(&keys)
+            .unwrap();
         local.add_event(event.clone()).await.unwrap();
 
         let url = local.url().await;
@@ -340,7 +346,9 @@ mod tests {
         let local = setup_nip42_read_local_relay().await;
 
         let keys = Keys::generate();
-        let expected = EventBuilder::text_note("Test").finalize(&keys).unwrap();
+        let expected = EventBuilder::new(Kind::TextNote, "Test")
+            .finalize(&keys)
+            .unwrap();
         local.add_event(expected.clone()).await.unwrap();
 
         let authenticator = SignerAuthenticator::new(keys);
@@ -367,7 +375,9 @@ mod tests {
         let local = setup_nip42_read_local_relay().await;
 
         let keys = Keys::generate();
-        let expected = EventBuilder::text_note("Test").finalize(&keys).unwrap();
+        let expected = EventBuilder::new(Kind::TextNote, "Test")
+            .finalize(&keys)
+            .unwrap();
         local.add_event(expected.clone()).await.unwrap();
 
         let authenticator = SignerAuthenticator::new(keys);
