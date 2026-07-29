@@ -88,7 +88,7 @@ async fn open_wasm_db() -> NostrSqlite {
 
 ## Donations
 
-`rust-nostr` is free and open-source. This means we do not earn any revenue by selling it. Instead, we rely on your financial support. If you actively use any of the `rust-nostr` libs/software/services, then please [donate](https://nostrdevkit.org/donate).
+Nostr Dev Kit is free and open-source. This means we do not earn any revenue by selling it. Instead, we rely on your financial support. If you actively use any of the libs/software/services, then please [donate](https://nostrdevkit.org/donate).
 
 ## License
 
