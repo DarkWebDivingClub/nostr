@@ -236,17 +236,6 @@ pub trait FinalizeUnsignedEvent: Sized {
     fn finalize_unsigned(self, public_key: PublicKey) -> UnsignedEvent;
 }
 
-/// Finalize a builder into an unsigned event asynchronously.
-pub trait FinalizeUnsignedEventAsync: Sized {
-    /// Build the unsigned event with the supplied public key.
-    fn finalize_unsigned_async<'a>(
-        self,
-        public_key: PublicKey,
-    ) -> Pin<Box<dyn Future<Output = UnsignedEvent> + Send + 'a>>
-    where
-        Self: 'a;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

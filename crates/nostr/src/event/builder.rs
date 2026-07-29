@@ -48,25 +48,6 @@ where
     }
 }
 
-impl<B> FinalizeUnsignedEventAsync for B
-where
-    B: IntoEventBuilder + Send,
-{
-    #[inline]
-    fn finalize_unsigned_async<'a>(
-        self,
-        public_key: PublicKey,
-    ) -> Pin<Box<dyn Future<Output = UnsignedEvent> + Send + 'a>>
-    where
-        Self: 'a,
-    {
-        Box::pin(async move {
-            let builder: EventBuilder = self.into_event_builder();
-            builder.finalize_unsigned_async(public_key).await
-        })
-    }
-}
-
 impl<B, S> FinalizeEventAsync<S> for B
 where
     B: IntoEventBuilder + Send,
@@ -1260,19 +1241,6 @@ impl FinalizeUnsignedEvent for EventBuilder {
             tags: self.tags,
             content: self.content,
         }
-    }
-}
-
-impl FinalizeUnsignedEventAsync for EventBuilder {
-    #[inline]
-    fn finalize_unsigned_async<'a>(
-        self,
-        public_key: PublicKey,
-    ) -> Pin<Box<dyn Future<Output = UnsignedEvent> + Send + 'a>>
-    where
-        Self: 'a,
-    {
-        Box::pin(async move { self.finalize_unsigned(public_key) })
     }
 }
 
