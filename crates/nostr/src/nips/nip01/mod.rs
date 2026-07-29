@@ -22,7 +22,7 @@ pub use self::tags::*;
 use super::nip19::{self, FromBech32, Nip19Coordinate, ToBech32};
 use super::nip21::{FromNostrUri, ToNostrUri};
 use crate::error::{Error, ErrorKind};
-use crate::event::{EventBuilderTemplate, Kind, Tag};
+use crate::event::{IntoEventBuilder, Kind, Tag};
 use crate::types::url::Url;
 use crate::util::impl_json_methods;
 use crate::{EventBuilder, Filter, PublicKey};
@@ -491,17 +491,17 @@ where
     deserializer.deserialize_map(GenericTagsVisitor)
 }
 
-impl EventBuilderTemplate for &Metadata {
+impl IntoEventBuilder for &Metadata {
     #[inline]
-    fn build(self) -> EventBuilder {
+    fn into_event_builder(self) -> EventBuilder {
         EventBuilder::new(Kind::Metadata, self.as_json())
     }
 }
 
-impl EventBuilderTemplate for Metadata {
+impl IntoEventBuilder for Metadata {
     #[inline]
-    fn build(self) -> EventBuilder {
-        (&self).build()
+    fn into_event_builder(self) -> EventBuilder {
+        (&self).into_event_builder()
     }
 }
 

@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use nostr::event::{EventBuilderTemplate, TagCodec};
+use nostr::event::{IntoEventBuilder, TagCodec};
 use nostr::hashes::sha256::Hash as Sha256Hash;
 use nostr::nips::nipb7::NipB7Tag;
 use nostr::{EventBuilder, Kind, Tag, Timestamp, Url};
@@ -81,11 +81,11 @@ impl BlossomAuthorizationVerb {
     }
 }
 
-impl EventBuilderTemplate for BlossomAuthorization {
+impl IntoEventBuilder for BlossomAuthorization {
     /// Blossom authorization event
     ///
     /// <https://github.com/hzrd149/blossom/blob/master/buds/01.md>
-    fn build(self) -> EventBuilder {
+    fn into_event_builder(self) -> EventBuilder {
         let mut tags: Vec<Tag> = Vec::new();
 
         match self.scope {

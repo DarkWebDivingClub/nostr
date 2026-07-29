@@ -15,7 +15,7 @@ use super::util::{
 };
 use crate::error::Error;
 use crate::event::{
-    EventBuilder, EventBuilderTemplate, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+    EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
 };
 use crate::key::PublicKey;
 use crate::types::url::RelayUrl;
@@ -162,8 +162,8 @@ impl ContactListBuilder {
     }
 }
 
-impl EventBuilderTemplate for ContactListBuilder {
-    fn build(self) -> EventBuilder {
+impl IntoEventBuilder for ContactListBuilder {
+    fn into_event_builder(self) -> EventBuilder {
         let tags = self.contacts.into_iter().map(|contact| {
             Nip02Tag::PublicKey {
                 public_key: contact.public_key,

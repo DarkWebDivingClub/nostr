@@ -14,7 +14,7 @@ use super::util::{missing_tag_kind, take_string, take_timestamp, unknown_tag};
 use crate::Timestamp;
 use crate::error::Error;
 use crate::event::{
-    EventBuilder, EventBuilderTemplate, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+    EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
 };
 
 const URL: &str = "d";
@@ -138,8 +138,8 @@ impl WebBookmark {
     }
 }
 
-impl EventBuilderTemplate for WebBookmark {
-    fn build(self) -> EventBuilder {
+impl IntoEventBuilder for WebBookmark {
+    fn into_event_builder(self) -> EventBuilder {
         let mut tags: Vec<Tag> = vec![NipB0Tag::Url(self.url).into()];
 
         let mut add_if_some = |tag: Option<NipB0Tag>| {

@@ -277,7 +277,7 @@ macro_rules! database_unit_tests {
             // Create first replaceable event (kind 0 - metadata)
             let metadata1 = Metadata::new().name("First");
             let event1 = metadata1
-                .build()
+                .into_event_builder()
                 .custom_created_at(Timestamp::from_secs(1000))
                 .finalize(&keys)
                 .expect("Failed to finalize");
@@ -287,7 +287,7 @@ macro_rules! database_unit_tests {
             // Create newer replaceable event with later timestamp
             let metadata2 = Metadata::new().name("Second");
             let event2 = metadata2
-                .build()
+                .into_event_builder()
                 .custom_created_at(Timestamp::from_secs(2000))
                 .finalize(&keys)
                 .expect("Failed to finalize");
@@ -505,7 +505,7 @@ macro_rules! database_unit_tests {
 
             let (keys, expected_event) = add_event(
                     &store,
-                    (&metadata).build().custom_created_at(now - Duration::from_secs(120)),
+                    (&metadata).into_event_builder().custom_created_at(now - Duration::from_secs(120)),
                 )
                 .await;
 
@@ -526,7 +526,7 @@ macro_rules! database_unit_tests {
             // Replace previous event
             let (new_expected_event, status) = add_event_with_keys(
                     &store,
-                    metadata.build().custom_created_at(now),
+                    metadata.into_event_builder().custom_created_at(now),
                     &keys,
                 )
                 .await;

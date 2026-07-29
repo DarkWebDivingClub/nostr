@@ -18,60 +18,39 @@ use crate::nips::nip62::VanishTarget;
 use crate::prelude::*;
 
 /// Template that can be converted into a generic [`EventBuilder`].
-pub trait EventBuilderTemplate: Sized {
+pub trait IntoEventBuilder: Sized {
     /// Convert into the generic event builder.
-    fn build(self) -> EventBuilder;
+    fn into_event_builder(self) -> EventBuilder;
 }
 
 impl<B> FinalizeUnsignedEvent for B
 where
-    B: EventBuilderTemplate,
+    B: IntoEventBuilder,
 {
     #[inline]
     fn finalize_unsigned(self, public_key: PublicKey) -> UnsignedEvent {
-        let builder: EventBuilder = self.build();
+        let builder: EventBuilder = self.into_event_builder();
         builder.finalize_unsigned(public_key)
     }
 }
 
 impl<B, S> FinalizeEvent<S> for B
 where
-    B: EventBuilderTemplate,
+    B: IntoEventBuilder,
     S: GetPublicKey + SignEvent + ?Sized,
 {
     /// Error type
     type Error = Error;
 
     fn finalize(self, signer: &S) -> Result<Event, Self::Error> {
-        let builder: EventBuilder = self.build();
+        let builder: EventBuilder = self.into_event_builder();
         builder.finalize(signer)
-    }
-}
-
-/// Template that can asynchronously be converted into a generic [`EventBuilder`].
-pub trait EventBuilderTemplateAsync {
-    /// Convert this typed builder into the generic event builder.
-    fn build_async<'a>(self) -> Pin<Box<dyn Future<Output = EventBuilder> + Send + 'a>>
-    where
-        Self: 'a;
-}
-
-impl<B> EventBuilderTemplateAsync for B
-where
-    B: EventBuilderTemplate + Send,
-{
-    #[inline]
-    fn build_async<'a>(self) -> Pin<Box<dyn Future<Output = EventBuilder> + Send + 'a>>
-    where
-        Self: 'a,
-    {
-        Box::pin(async move { EventBuilderTemplate::build(self) })
     }
 }
 
 impl<B> FinalizeUnsignedEventAsync for B
 where
-    B: EventBuilderTemplateAsync + Send,
+    B: IntoEventBuilder + Send,
 {
     #[inline]
     fn finalize_unsigned_async<'a>(
@@ -82,7 +61,7 @@ where
         Self: 'a,
     {
         Box::pin(async move {
-            let builder: EventBuilder = self.build_async().await;
+            let builder: EventBuilder = self.into_event_builder();
             builder.finalize_unsigned_async(public_key).await
         })
     }
@@ -90,7 +69,7 @@ where
 
 impl<B, S> FinalizeEventAsync<S> for B
 where
-    B: EventBuilderTemplateAsync + Send,
+    B: IntoEventBuilder + Send,
     S: AsyncGetPublicKey + AsyncSignEvent + ?Sized,
 {
     type Error = Error;
@@ -104,7 +83,7 @@ where
         S: 'a,
     {
         Box::pin(async move {
-            let builder: EventBuilder = self.build_async().await;
+            let builder: EventBuilder = self.into_event_builder();
             builder.finalize_async(signer).await
         })
     }
@@ -179,7 +158,7 @@ impl EventBuilder {
         note = "Use `Metadata::finalize` or `Metadata::finalize_async` instead"
     )]
     pub fn metadata(metadata: &Metadata) -> Self {
-        metadata.build()
+        metadata.into_event_builder()
     }
 
     /// Relay list metadata
@@ -382,7 +361,7 @@ impl EventBuilder {
         note = "Use `EventDeletionRequest::finalize` or `EventDeletionRequest::finalize_async` instead"
     )]
     pub fn delete(request: EventDeletionRequest) -> Self {
-        request.build()
+        request.into_event_builder()
     }
 
     /// Request to vanish

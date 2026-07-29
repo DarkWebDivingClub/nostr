@@ -10,7 +10,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use super::nip01::Coordinate;
-use crate::event::{EventBuilder, EventBuilderTemplate, EventId, Kind, Tag};
+use crate::event::{EventBuilder, EventId, IntoEventBuilder, Kind, Tag};
 
 /// Event deletion request
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -75,8 +75,8 @@ impl EventDeletionRequest {
     }
 }
 
-impl EventBuilderTemplate for EventDeletionRequest {
-    fn build(self) -> EventBuilder {
+impl IntoEventBuilder for EventDeletionRequest {
+    fn into_event_builder(self) -> EventBuilder {
         let mut tags: Vec<Tag> = Vec::with_capacity(self.ids.len() + self.coordinates.len());
 
         for id in self.ids.into_iter() {

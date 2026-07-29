@@ -13,7 +13,7 @@ use alloc::vec::Vec;
 use super::util::{missing_tag_kind, take_string, unknown_tag};
 use crate::error::Error;
 use crate::event::{
-    EventBuilder, EventBuilderTemplate, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+    EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
 };
 
 const LANGUAGE: &str = "l";
@@ -225,8 +225,8 @@ impl CodeSnippet {
     }
 }
 
-impl EventBuilderTemplate for CodeSnippet {
-    fn build(self) -> EventBuilder {
+impl IntoEventBuilder for CodeSnippet {
+    fn into_event_builder(self) -> EventBuilder {
         let mut tags: Vec<Tag> = Vec::new();
 
         let mut add_if_some = |tag: Option<NipC0Tag>| {

@@ -14,7 +14,7 @@ use alloc::vec::Vec;
 
 use hashes::sha1::Hash as Sha1Hash;
 
-use crate::event::EventBuilderTemplate;
+use crate::event::IntoEventBuilder;
 use crate::types::url::Url;
 use crate::{EventBuilder, Kind, Tag};
 
@@ -46,8 +46,8 @@ pub struct Torrent {
     pub hashtags: Vec<String>,
 }
 
-impl EventBuilderTemplate for Torrent {
-    fn build(self) -> EventBuilder {
+impl IntoEventBuilder for Torrent {
+    fn into_event_builder(self) -> EventBuilder {
         let mut tags: Vec<Tag> = Vec::with_capacity(
             2 + self.files.len()
                 + self.trackers.len()

@@ -17,8 +17,7 @@ use super::util::{
 };
 use crate::error::{Error, ErrorKind};
 use crate::event::{
-    Event, EventBuilder, EventBuilderTemplate, EventId, Kind, Tag, TagCodec,
-    impl_tag_codec_conversions,
+    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
 };
 use crate::{RelayUrl, Timestamp};
 
@@ -204,8 +203,8 @@ impl Poll {
     }
 }
 
-impl EventBuilderTemplate for Poll {
-    fn build(self) -> EventBuilder {
+impl IntoEventBuilder for Poll {
+    fn into_event_builder(self) -> EventBuilder {
         let mut tags: Vec<Tag> = Vec::with_capacity(1 + self.options.len() + self.relays.len());
 
         tags.push(Nip88Tag::PollType(self.r#type).to_tag());
@@ -244,8 +243,8 @@ pub enum PollResponse {
         responses: Vec<String>,
     },
 }
-impl EventBuilderTemplate for PollResponse {
-    fn build(self) -> EventBuilder {
+impl IntoEventBuilder for PollResponse {
+    fn into_event_builder(self) -> EventBuilder {
         let tags: Vec<Tag> = match self {
             Self::SingleChoice { poll_id, response } => {
                 vec![
