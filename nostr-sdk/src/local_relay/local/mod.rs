@@ -150,9 +150,61 @@ impl LocalRelay {
 mod tests {
     use std::time::Duration;
 
+    use async_wsocket::{ConnectionMode, Message, Url, WebSocket};
+    use futures::{SinkExt, StreamExt};
+    use nostr::message::RelayMessage;
     use tokio::time;
 
     use super::*;
+
+    #[tokio::test]
+    async fn test_malformed_client_message_does_not_close_connection() {
+        let relay = LocalRelay::new();
+        relay.run().await.unwrap();
+
+        let url = Url::parse(relay.url().await.as_str()).unwrap();
+        let mut socket = WebSocket::connect(&url, &ConnectionMode::direct())
+            .await
+            .unwrap();
+
+        socket
+            .send(Message::Text(
+                r#"["REQ","short-author",{"authors":["deadbeef"]}]"#.to_owned(),
+            ))
+            .await
+            .unwrap();
+        socket
+            .send(Message::Text(r#"["REQ","valid",{}]"#.to_owned()))
+            .await
+            .unwrap();
+
+        time::timeout(Duration::from_secs(1), async {
+            let mut received_notice = false;
+
+            loop {
+                let message = socket
+                    .next()
+                    .await
+                    .expect("WebSocket connection terminated")
+                    .unwrap();
+
+                if let Message::Text(json) = message {
+                    match RelayMessage::from_json(json.as_bytes()).unwrap() {
+                        RelayMessage::Notice(..) => received_notice = true,
+                        RelayMessage::EndOfStoredEvents(subscription_id)
+                            if subscription_id.as_str() == "valid" =>
+                        {
+                            assert!(received_notice);
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        })
+        .await
+        .expect("timed out waiting for EOSE");
+    }
 
     #[tokio::test]
     async fn test_shutdown() {

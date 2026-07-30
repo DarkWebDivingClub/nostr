@@ -309,8 +309,22 @@ impl InnerLocalRelay {
                             match msg {
                                 Message::Text(json) => {
                                     tracing::trace!("Received {json}");
-                                    self.handle_client_msg(&mut session, &mut tx, ClientMessage::from_json(json.as_bytes())?, &addr)
-                                        .await?;
+                                    match ClientMessage::from_json(json.as_bytes()) {
+                                        Ok(msg) => {
+                                            self.handle_client_msg(&mut session, &mut tx, msg, &addr)
+                                                .await?;
+                                        }
+                                        Err(e) => {
+                                            tracing::debug!("Can't parse client message: {e}");
+                                            send_msg(
+                                                &mut tx,
+                                                RelayMessage::Notice(Cow::Borrowed(
+                                                    "invalid client message",
+                                                )),
+                                            )
+                                            .await?;
+                                        }
+                                    }
                                 }
                                 Message::Binary(..) => {
                                     let msg =
