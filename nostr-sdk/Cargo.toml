@@ -46,7 +46,7 @@ universal-time = { workspace = true, features = ["std"] }
 base64 = { workspace = true, features = ["std"] }
 hyper = { version = "1.9", features = ["server", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
-nostr = { path = "../crates/nostr", default-features = false, features = ["all-nips"] }
+nostr = { path = "../nostr", default-features = false, features = ["all-nips"] }
 nostr-connect = { path = "../signer/nostr-connect", default-features = false }
 nostr-lmdb = { path = "../database/nostr-lmdb", default-features = false }
 nostr-ndb = { path = "../database/nostr-ndb", default-features = false }

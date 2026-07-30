@@ -4,7 +4,7 @@
 
 The project is split up into several crates:
 
-- [**nostr**](./crates/nostr): Rust implementation of Nostr protocol
+- [**nostr**](./nostr): Rust implementation of Nostr protocol
 - Signers
     - [**nostr-browser-signer**](./signer/nostr-browser-signer): Nostr Browser signer implementation (NIP-07)
     - [**nostr-browser-signer-proxy**](./signer/nostr-browser-signer-proxy): Proxy for using the Nostr Browser signer (NIP-07) in native applications
@@ -17,11 +17,10 @@ The project is split up into several crates:
 - [**nostr-gossip**](./gossip/nostr-gossip): Gossip traits
     - [**nostr-gossip-memory**](./gossip/nostr-gossip-memory): In-memory gossip database
     - [**nostr-gossip-sqlite**](./gossip/nostr-gossip-sqlite): SQLite storage for gossip
-- Remote File Storage implementations:
-    - [**nostr-blossom**](./rfs/nostr-blossom): A library for interacting with the Blossom protocol
-- [**nostr-keyring**](./crates/nostr-keyring): Nostr Keyring
-- [**nostr-sdk**](./sdk): A full-featured SDK for building high-performance and reliable nostr applications
-- [**nwc**](./crates/nwc): Nostr Wallet Connect (NWC) client (NIP-47)
+- [**nostr-blossom**](./nostr-blossom): A library for interacting with the Blossom protocol
+- [**nostr-keyring**](./nostr-keyring): Nostr Keyring
+- [**nostr-sdk**](./nostr-sdk): A full-featured SDK for building high-performance and reliable nostr applications
+- [**nwc**](./nwc): Nostr Wallet Connect (NWC) client (NIP-47)
 
 ## Supported NIPs
 
