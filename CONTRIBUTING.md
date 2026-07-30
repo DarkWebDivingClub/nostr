@@ -2,7 +2,7 @@
 
 ## Organization guidelines
 
-This project follows the rust-nostr organization guidelines: https://github.com/nostrdevkit/guidelines
+This project follows the organization guidelines: https://github.com/nostrdevkit/guidelines
 
 ## Additional repository guidelines
 
@@ -38,7 +38,7 @@ nostr: add NIP32 support
 
 Added kinds, tags and EventBuilder constructors to support NIP32.
 
-Closes https://<domain>.com/rust-nostr/nostr/issue/1234
+Closes https://<domain>.com/nostrdevkit/nostr/issue/1234
 ```
 
 ```
@@ -46,13 +46,13 @@ pool: fix connection issues
 
 Long description...
 
-Fixes https://<domain>.com/rust-nostr/nostr/issue/5612
+Fixes https://<domain>.com/nostrdevkit/nostr/issue/5612
 ```
 
 ```
 nwc: add `pay_multiple_invoices` support
 
-Closes https://<domain>.com/rust-nostr/nostr/issue/2222
+Closes https://<domain>.com/nostrdevkit/nostr/issue/2222
 ```
 
 ### Coding Conventions
