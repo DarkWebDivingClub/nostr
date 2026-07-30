@@ -9,13 +9,6 @@
 #![allow(ambiguous_glob_reexports)]
 #![doc(hidden)]
 
-// External crates
-#[cfg(feature = "nip06")]
-pub use bip39::Mnemonic;
-#[cfg(feature = "rand")]
-pub use rand;
-pub use serde_json::Value;
-
 pub use crate::error::{self, Error, ErrorKind};
 pub use crate::event::{self, *};
 pub use crate::filter::{self, *};

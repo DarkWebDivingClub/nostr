@@ -13,7 +13,7 @@ use alloc::vec::Vec;
 use core::fmt;
 use core::str::FromStr;
 
-use hashes::sha1::Hash as Sha1Hash;
+use bitcoin_hashes::sha1::Hash as Sha1Hash;
 
 use super::nip01::Coordinate;
 use super::nip22::Nip22Tag;

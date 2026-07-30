@@ -6,7 +6,7 @@
 
 use std::error;
 
-use nostr::{RelayUrl, serde_json};
+use nostr::RelayUrl;
 
 opaquerr::define_kind! {
     /// SDK error kind.
@@ -51,7 +51,6 @@ opaquerr::define_error! {
         std::io::Error => ErrorKind::IO,
         nostr_database::error::Error => ErrorKind::Database,
         nostr_gossip::error::Error => ErrorKind::Gossip,
-        serde_json::Error => ErrorKind::Protocol,
         faster_hex::Error => ErrorKind::Protocol,
         negentropy::Error => ErrorKind::Protocol,
         #[cfg(any(feature = "local-relay", test))]

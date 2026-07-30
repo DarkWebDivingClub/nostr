@@ -4,7 +4,6 @@ use std::fmt;
 use std::num::TryFromIntError;
 
 use async_utility::tokio::task::JoinError;
-use nostr::secp256k1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum MigrationError {
@@ -38,7 +37,6 @@ pub(crate) enum StoreError {
     Migration(MigrationError),
     Thread(JoinError),
     Json(serde_json::Error),
-    Secp256k1(secp256k1::Error),
 }
 
 impl std::error::Error for StoreError {}
@@ -52,7 +50,6 @@ impl fmt::Display for StoreError {
             Self::Migration(e) => write!(f, "Migration error: {e}"),
             Self::Thread(e) => write!(f, "{e}"),
             Self::Json(e) => write!(f, "{e}"),
-            Self::Secp256k1(e) => write!(f, "{e}"),
         }
     }
 }
@@ -90,12 +87,6 @@ impl From<JoinError> for StoreError {
 impl From<serde_json::Error> for StoreError {
     fn from(e: serde_json::Error) -> Self {
         Self::Json(e)
-    }
-}
-
-impl From<secp256k1::Error> for StoreError {
-    fn from(e: secp256k1::Error) -> Self {
-        Self::Secp256k1(e)
     }
 }
 

@@ -9,12 +9,12 @@ use std::time::Duration;
 use async_utility::{task, time};
 use async_wsocket::Message;
 use futures::{self, SinkExt, StreamExt};
-#[cfg(not(target_arch = "wasm32"))]
-use nostr::rand::Rng;
-use nostr::rand::RngExt;
-use nostr::rand::rand_core::UnwrapErr;
-use nostr::rand::rngs::SysRng;
 use nostr_database::prelude::*;
+#[cfg(not(target_arch = "wasm32"))]
+use rand::Rng;
+use rand::RngExt;
+use rand::rand_core::UnwrapErr;
+use rand::rngs::SysRng;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::sync::{Mutex, MutexGuard, Notify, RwLock, RwLockWriteGuard, broadcast, oneshot};
 use universal_time::Instant;

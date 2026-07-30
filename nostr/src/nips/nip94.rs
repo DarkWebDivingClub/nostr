@@ -11,7 +11,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::str::FromStr;
 
-use hashes::sha256::Hash as Sha256Hash;
+use bitcoin_hashes::sha256::Hash as Sha256Hash;
 
 use super::util::{missing_tag_kind, take_and_parse_from_str, take_string, unknown_tag};
 use crate::error::{Error, ErrorKind};

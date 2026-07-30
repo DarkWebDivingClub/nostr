@@ -12,7 +12,7 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 
-use hashes::sha1::Hash as Sha1Hash;
+use bitcoin_hashes::sha1::Hash as Sha1Hash;
 
 use crate::event::IntoEventBuilder;
 use crate::types::url::Url;

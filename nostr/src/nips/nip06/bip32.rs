@@ -8,7 +8,7 @@
 use alloc::vec::Vec;
 use core::fmt;
 
-use hashes::{Hash, HashEngine, Hmac, HmacEngine, hash160, sha512};
+use bitcoin_hashes::{Hash, HashEngine, Hmac, HmacEngine, hash160, sha512};
 use secp256k1::{self, PublicKey, Secp256k1, SecretKey, Signing};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -37,6 +37,7 @@ nostr-database.workspace = true
 nostr-gossip.workspace = true
 nostr-memory = { workspace = true, optional = true }
 opaquerr = { workspace = true, features = ["alloc"] }
+rand = { workspace = true, features = ["std", "sys_rng"] }
 tokio = { workspace = true, features = ["macros", "sync"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
 tracing = { workspace = true, features = ["std"] }
@@ -44,6 +45,7 @@ universal-time = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 base64 = { workspace = true, features = ["std"] }
+bitcoin_hashes.workspace = true
 hyper = { version = "1.9", features = ["server", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
 nostr = { path = "../nostr", default-features = false, features = ["all-nips"] }

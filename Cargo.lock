@@ -1808,6 +1808,7 @@ name = "nostr-blossom"
 version = "0.45.0-alpha.7"
 dependencies = [
  "base64",
+ "bitcoin_hashes",
  "clap",
  "nostr",
  "opaquerr",
@@ -1978,6 +1979,7 @@ dependencies = [
  "async-utility",
  "async-wsocket",
  "base64",
+ "bitcoin_hashes",
  "faster-hex",
  "futures",
  "hyper",
@@ -1993,6 +1995,7 @@ dependencies = [
  "nostr-memory",
  "nostr-ndb",
  "opaquerr",
+ "rand 0.10.1",
  "tokio",
  "tokio-stream",
  "tracing",

@@ -1,7 +1,7 @@
 use std::fs;
 
+use bitcoin_hashes::sha256::Hash as Sha256Hash;
 use clap::Parser;
-use nostr::hashes::sha256::Hash as Sha256Hash;
 use nostr::prelude::*;
 use nostr_blossom::prelude::*;
 

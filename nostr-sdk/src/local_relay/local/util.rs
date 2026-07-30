@@ -4,9 +4,9 @@
 
 use std::net::{IpAddr, SocketAddr};
 
-use nostr::rand::RngExt;
-use nostr::rand::rand_core::UnwrapErr;
-use nostr::rand::rngs::SysRng;
+use rand::RngExt;
+use rand::rand_core::UnwrapErr;
+use rand::rngs::SysRng;
 use tokio::net::TcpListener;
 
 pub async fn find_available_port(ip: IpAddr) -> u16 {

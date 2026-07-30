@@ -2,8 +2,8 @@
 
 use std::fmt;
 
+use bitcoin_hashes::sha256::Hash as Sha256Hash;
 use nostr::event::{IntoEventBuilder, TagCodec};
-use nostr::hashes::sha256::Hash as Sha256Hash;
 use nostr::nips::nipb7::NipB7Tag;
 use nostr::{EventBuilder, Kind, Tag, Timestamp, Url};
 

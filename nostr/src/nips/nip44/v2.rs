@@ -11,11 +11,11 @@ use alloc::vec::Vec;
 use core::fmt;
 use core::ops::{Deref, Range};
 
+use bitcoin_hashes::hmac::{Hmac, HmacEngine};
+use bitcoin_hashes::sha256::Hash as Sha256Hash;
+use bitcoin_hashes::{Hash, HashEngine};
 use chacha20::ChaCha20;
 use chacha20::cipher::{KeyIvInit, StreamCipher};
-use hashes::hmac::{Hmac, HmacEngine};
-use hashes::sha256::Hash as Sha256Hash;
-use hashes::{Hash, HashEngine};
 
 use crate::error::{Error, ErrorKind};
 use crate::util::{self, hkdf};

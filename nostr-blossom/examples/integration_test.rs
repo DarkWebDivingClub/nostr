@@ -2,8 +2,8 @@ use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
 
+use bitcoin_hashes::{Hash, sha256};
 use clap::Parser;
-use nostr::hashes::{Hash, sha256};
 use nostr::prelude::*;
 use nostr_blossom::prelude::*;
 

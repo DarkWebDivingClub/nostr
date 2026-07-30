@@ -18,8 +18,8 @@ use core::str::FromStr;
 #[cfg(feature = "std")]
 use base64::engine::{Engine, general_purpose};
 #[cfg(feature = "std")]
-use hashes::Hash;
-use hashes::sha256::Hash as Sha256Hash;
+use bitcoin_hashes::Hash;
+use bitcoin_hashes::sha256::Hash as Sha256Hash;
 
 use super::util::{missing_tag_kind, take_and_parse_from_str, unknown_tag};
 use crate::Url;

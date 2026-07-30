@@ -175,7 +175,7 @@ pub mod tests {
     #[cfg(feature = "std")]
     use core::time::Duration;
 
-    use hashes::sha256::Hash as Sha256Hash;
+    use bitcoin_hashes::sha256::Hash as Sha256Hash;
 
     use super::*;
     use crate::prelude::*;

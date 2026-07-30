@@ -6,9 +6,9 @@
 
 use alloc::vec::Vec;
 
-use hashes::hmac::{Hmac, HmacEngine};
-use hashes::sha256::Hash as Sha256Hash;
-use hashes::{Hash, HashEngine};
+use bitcoin_hashes::hmac::{Hmac, HmacEngine};
+use bitcoin_hashes::sha256::Hash as Sha256Hash;
+use bitcoin_hashes::{Hash, HashEngine};
 
 /// HKDF extract
 #[inline]

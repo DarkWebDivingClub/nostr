@@ -6,7 +6,6 @@
 use std::{fmt, io};
 
 use async_utility::tokio::task::JoinError;
-use nostr::secp256k1;
 use nostr_database::flatbuffers;
 use tokio::sync::oneshot;
 
@@ -44,7 +43,6 @@ pub(crate) enum StoreError {
     Heed(heed::Error),
     FlatBuffers(flatbuffers::Error),
     Thread(JoinError),
-    Secp256k1(secp256k1::Error),
     OneshotRecv(oneshot::error::RecvError),
     Migration(MigrationError),
     FlumeSend,
@@ -63,7 +61,6 @@ impl fmt::Display for StoreError {
             Self::Heed(e) => write!(f, "{e}"),
             Self::FlatBuffers(e) => write!(f, "{e}"),
             Self::Thread(e) => write!(f, "{e}"),
-            Self::Secp256k1(e) => write!(f, "{e}"),
             Self::OneshotRecv(e) => write!(f, "{e}"),
             Self::Migration(e) => write!(f, "Migration error: {e}"),
             Self::FlumeSend => write!(f, "flume channel send error"),
@@ -101,12 +98,6 @@ impl From<flatbuffers::Error> for StoreError {
 impl From<JoinError> for StoreError {
     fn from(e: JoinError) -> Self {
         Self::Thread(e)
-    }
-}
-
-impl From<secp256k1::Error> for StoreError {
-    fn from(e: secp256k1::Error) -> Self {
-        Self::Secp256k1(e)
     }
 }
 
