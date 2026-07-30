@@ -2,12 +2,12 @@ use std::borrow::Cow;
 use std::cmp;
 use std::collections::{HashMap, HashSet};
 use std::future::IntoFuture;
-use std::time::Instant;
 
 use async_utility::time;
 use negentropy::{Id, Negentropy, NegentropyStorageVector};
 use nostr::{ClientMessage, EventId, Filter, RelayMessage, SubscriptionId, Timestamp};
 use tokio::sync::broadcast;
+use universal_time::Instant;
 
 use crate::error::Error;
 use crate::future::BoxedFuture;
