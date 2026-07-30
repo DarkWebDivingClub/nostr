@@ -12,10 +12,11 @@ use alloc::vec::Vec;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Value, json};
 
-use super::invalid_message_format;
+use super::{SubscriptionId, invalid_message_format};
 use crate::error::Error;
+use crate::event::Event;
+use crate::filter::Filter;
 use crate::util::{impl_json_methods, parse_json, parse_json_from_value};
-use crate::{Event, Filter, SubscriptionId};
 
 /// Messages sent by clients, received by relays
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -367,7 +368,8 @@ mod tests {
     use core::str::FromStr;
 
     use super::*;
-    use crate::{Kind, PublicKey};
+    use crate::event::Kind;
+    use crate::key::PublicKey;
 
     #[test]
     fn test_client_message_req() {

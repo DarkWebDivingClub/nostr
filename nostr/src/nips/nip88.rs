@@ -19,7 +19,7 @@ use crate::error::{Error, ErrorKind};
 use crate::event::{
     Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
 };
-use crate::{RelayUrl, Timestamp};
+use crate::types::{RelayUrl, Timestamp};
 
 const ENDS_AT: &str = "endsAt";
 const POLL_TYPE: &str = "polltype";

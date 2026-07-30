@@ -14,10 +14,10 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Value, json};
 
-use super::invalid_message_format;
+use super::{SubscriptionId, invalid_message_format};
 use crate::error::Error;
+use crate::event::{Event, EventId};
 use crate::util::{impl_json_methods, parse_json_from_value};
-use crate::{Event, EventId, SubscriptionId};
 
 /// A string that must be exactly one word.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -495,7 +495,9 @@ mod tests {
     use core::str::FromStr;
 
     use super::*;
-    use crate::{Kind, PublicKey, Signature, Timestamp};
+    use crate::event::{Kind, Signature};
+    use crate::key::PublicKey;
+    use crate::types::Timestamp;
 
     #[test]
     fn test_handle_valid_notice() {

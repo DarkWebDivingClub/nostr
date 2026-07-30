@@ -13,7 +13,7 @@ use super::AsyncPowAdapter;
 use super::PowAdapter;
 #[cfg(feature = "std")]
 use super::blocking_wrapper::BlockingPowFuture;
-use crate::{Tag, UnsignedEvent};
+use crate::event::{Tag, UnsignedEvent};
 
 /// A single-threaded PoW miner implementation
 #[derive(Debug)]
@@ -91,6 +91,7 @@ pub mod tests {
     use std::time::Duration;
 
     use super::*;
+    use crate::nips::nip13::get_leading_zero_bits;
     use crate::prelude::*;
 
     #[test]

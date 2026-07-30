@@ -7,7 +7,8 @@
 use core::cmp::Ordering;
 use core::hash::{Hash, Hasher};
 
-use nostr::{Metadata, PublicKey};
+use nostr::key::PublicKey;
+use nostr::nips::nip01::Metadata;
 
 /// Profile
 #[derive(Debug, Clone)]

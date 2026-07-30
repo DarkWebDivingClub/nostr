@@ -3,9 +3,9 @@
 use std::fmt;
 
 use bitcoin_hashes::sha256::Hash as Sha256Hash;
-use nostr::event::{IntoEventBuilder, TagCodec};
+use nostr::event::{EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec};
 use nostr::nips::nipb7::NipB7Tag;
-use nostr::{EventBuilder, Kind, Tag, Timestamp, Url};
+use nostr::types::{Timestamp, Url};
 
 /// Represents the authorization data for accessing a Blossom server.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

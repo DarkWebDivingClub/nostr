@@ -26,13 +26,15 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use super::nip44::{AsyncNip44, Nip44};
 use super::util::{invalid_uri, unexpected_result, unsupported_method};
 use crate::error::{Error, ErrorKind};
-use crate::event::{AsyncSignEvent, FinalizeEvent, FinalizeEventAsync, SignEvent, UnsignedEvent};
-use crate::key::{AsyncGetPublicKey, GetPublicKey};
+use crate::event::{
+    AsyncSignEvent, Event, EventBuilder, FinalizeEvent, FinalizeEventAsync, Kind, SignEvent, Tag,
+    UnsignedEvent,
+};
+use crate::key::{AsyncGetPublicKey, GetPublicKey, PublicKey};
 use crate::types::url::{RelayUrl, Url};
 #[cfg(all(feature = "std", feature = "os-rng"))]
 use crate::util;
 use crate::util::{impl_json_methods, parse_json};
-use crate::{Event, EventBuilder, Kind, PublicKey, Tag};
 
 /// NIP46 URI Scheme
 pub const NOSTR_CONNECT_URI_SCHEME: &str = "nostrconnect";

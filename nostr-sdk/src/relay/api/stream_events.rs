@@ -4,7 +4,9 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 
 use futures::{Stream, StreamExt};
-use nostr::{Event, Filter, SubscriptionId};
+use nostr::event::Event;
+use nostr::filter::Filter;
+use nostr::message::SubscriptionId;
 use tokio::sync::{mpsc, oneshot};
 
 use super::subscribe::subscribe_auto_closing;
@@ -185,10 +187,10 @@ mod tests {
     use std::time::Duration;
 
     use futures::StreamExt;
-    use nostr::event::{EventBuilder, FinalizeEvent};
+    use nostr::event::{EventBuilder, FinalizeEvent, Kind};
+    use nostr::filter::Filter;
     use nostr::key::Keys;
-    use nostr::message::MachineReadablePrefix;
-    use nostr::{Filter, Kind, SubscriptionId};
+    use nostr::message::{MachineReadablePrefix, SubscriptionId};
 
     use crate::authenticator::SignerAuthenticator;
     use crate::local_relay::*;

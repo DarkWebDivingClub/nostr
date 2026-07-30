@@ -6,7 +6,9 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use nostr::{Event, Filter, RelayUrl, RelayUrlArg};
+use nostr::event::Event;
+use nostr::filter::Filter;
+use nostr::types::{RelayUrl, RelayUrlArg};
 use nostr_database::SaveEventStatus;
 use tokio::io::{AsyncRead, AsyncWrite};
 

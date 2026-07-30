@@ -17,9 +17,9 @@ mod bip32;
 
 use self::bip32::{ChildNumber, Xpriv};
 use crate::error::{Error, ErrorKind};
+use crate::key::{Keys, SecretKey};
 #[cfg(feature = "std")]
 use crate::util::SECP256K1;
-use crate::{Keys, SecretKey};
 
 const PURPOSE: u32 = 44;
 const COIN: u32 = 1237;

@@ -294,9 +294,9 @@ where
 mod tests {
     use super::*;
     #[cfg(all(feature = "std", feature = "os-rng"))]
-    use crate::Keys;
-    #[cfg(all(feature = "std", feature = "os-rng"))]
     use crate::event::FinalizeEvent;
+    #[cfg(all(feature = "std", feature = "os-rng"))]
+    use crate::key::Keys;
     use crate::key::PublicKey;
 
     #[test]

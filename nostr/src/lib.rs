@@ -37,20 +37,3 @@ pub mod parser;
 pub mod prelude;
 pub mod types;
 mod util;
-
-#[doc(hidden)]
-pub use self::event::{Event, EventBuilder, EventId, Kind, Signature, UnsignedEvent};
-#[doc(hidden)]
-pub use self::event::{Tag, Tags};
-#[doc(hidden)]
-pub use self::filter::{Alphabet, Filter, SingleLetterTag};
-#[doc(hidden)]
-pub use self::key::{Keys, PublicKey, SecretKey};
-#[doc(hidden)]
-pub use self::message::{ClientMessage, RelayMessage, SubscriptionId};
-#[doc(hidden)]
-pub use self::nips::nip01::Metadata;
-#[doc(hidden)]
-pub use self::nips::nip19::{FromBech32, ToBech32};
-#[doc(hidden)]
-pub use self::types::{ImageDimensions, RelayUrl, RelayUrlArg, Timestamp, Url};

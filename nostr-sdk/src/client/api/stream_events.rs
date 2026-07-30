@@ -4,8 +4,10 @@ use std::pin::Pin;
 use std::time::Duration;
 
 use futures::{Stream, StreamExt};
+use nostr::event::Event;
+use nostr::filter::Filter;
+use nostr::message::SubscriptionId;
 use nostr::types::url::RelayUrl;
-use nostr::{Event, Filter, SubscriptionId};
 
 use super::req_target::ReqTarget;
 use super::util::build_targets;
@@ -102,9 +104,10 @@ mod tests {
     use std::time::Duration;
 
     use futures::StreamExt;
-    use nostr::event::FinalizeEvent;
-    use nostr::message::MachineReadablePrefix;
-    use nostr::{EventBuilder, Filter, Keys, Kind, SubscriptionId};
+    use nostr::event::{EventBuilder, FinalizeEvent, Kind};
+    use nostr::filter::Filter;
+    use nostr::key::Keys;
+    use nostr::message::{MachineReadablePrefix, SubscriptionId};
 
     use super::*;
     use crate::authenticator::SignerAuthenticator;

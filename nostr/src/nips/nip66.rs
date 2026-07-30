@@ -13,9 +13,8 @@ use core::str::FromStr;
 use core::time::Duration;
 
 use super::util::{missing_tag_kind, missing_value, take_string, unknown_tag};
-use crate::Kind;
 use crate::error::Error;
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{Kind, Tag, TagCodec, impl_tag_codec_conversions};
 use crate::util::UnwrapInfallible;
 
 const RTT_OPEN: &str = "rtt-open";

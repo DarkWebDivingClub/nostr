@@ -14,9 +14,8 @@ use alloc::vec::Vec;
 
 use bitcoin_hashes::sha1::Hash as Sha1Hash;
 
-use crate::event::IntoEventBuilder;
+use crate::event::{EventBuilder, IntoEventBuilder, Kind, Tag};
 use crate::types::url::Url;
-use crate::{EventBuilder, Kind, Tag};
 
 /// Represents a file within a torrent.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

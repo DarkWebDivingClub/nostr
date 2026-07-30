@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use nostr::{Alphabet, Filter, Kind, SingleLetterTag};
+use nostr::event::Kind;
+use nostr::filter::{Alphabet, Filter, SingleLetterTag};
 use nostr_gossip::NostrGossip;
 
 mod refresher;

@@ -8,9 +8,10 @@
 
 use alloc::string::{String, ToString};
 
+use url::Url;
+
 use super::nip22::CommentTarget;
-use crate::event::{EventBuilder, IntoEventBuilder};
-use crate::{Kind, Url};
+use crate::event::{EventBuilder, IntoEventBuilder, Kind};
 
 /// Voice message reply builder.
 #[derive(Debug, Clone)]

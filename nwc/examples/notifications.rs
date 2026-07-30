@@ -5,7 +5,9 @@
 use std::env;
 use std::str::FromStr;
 
-use nostr::nips::nip47::{NotificationType, PaymentNotification};
+use nostr::nips::nip47::{
+    HoldInvoiceAcceptedNotification, NostrWalletConnectUri, NotificationType, PaymentNotification,
+};
 use nwc::prelude::*;
 
 #[tokio::main]

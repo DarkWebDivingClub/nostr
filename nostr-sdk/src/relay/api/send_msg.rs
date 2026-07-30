@@ -1,7 +1,7 @@
 use std::future::IntoFuture;
 use std::time::Duration;
 
-use nostr::ClientMessage;
+use nostr::message::ClientMessage;
 
 use crate::error::Error;
 use crate::future::BoxedFuture;
@@ -57,7 +57,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use nostr::{Filter, RelayUrl, SubscriptionId};
+    use nostr::filter::Filter;
+    use nostr::message::SubscriptionId;
+    use nostr::types::RelayUrl;
 
     use super::*;
     use crate::error::ErrorKind;

@@ -33,13 +33,14 @@ pub use self::signature::*;
 pub use self::tag::*;
 pub use self::unsigned::*;
 use crate::error::{Error, ErrorKind};
-use crate::nips::nip01::Coordinate;
+use crate::key::PublicKey;
+use crate::nips::nip01::{Coordinate, Metadata};
 use crate::nips::nip19::{Nip19Event, ToBech32};
 use crate::nips::nip21::ToNostrUri;
+use crate::types::Timestamp;
 #[cfg(feature = "std")]
 use crate::util::SECP256K1;
 use crate::util::impl_json_methods;
-use crate::{Metadata, PublicKey, Timestamp};
 
 const ID: &str = "id";
 const PUBKEY: &str = "pubkey";
@@ -407,7 +408,7 @@ where
 mod tests {
     use super::*;
     #[cfg(all(feature = "std", feature = "os-rng"))]
-    use crate::Keys;
+    use crate::key::Keys;
 
     #[test]
     fn test_tags_deser_without_recommended_relay() {

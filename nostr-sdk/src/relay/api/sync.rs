@@ -5,7 +5,10 @@ use std::future::IntoFuture;
 
 use async_utility::time;
 use negentropy::{Id, Negentropy, NegentropyStorageVector};
-use nostr::{ClientMessage, EventId, Filter, RelayMessage, SubscriptionId, Timestamp};
+use nostr::event::EventId;
+use nostr::filter::Filter;
+use nostr::message::{ClientMessage, RelayMessage, SubscriptionId};
+use nostr::types::Timestamp;
 use tokio::sync::broadcast;
 use universal_time::Instant;
 

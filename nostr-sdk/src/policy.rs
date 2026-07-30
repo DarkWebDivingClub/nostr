@@ -6,7 +6,9 @@
 
 use std::fmt;
 
-use nostr::{Event, RelayUrl, SubscriptionId};
+use nostr::event::Event;
+use nostr::message::SubscriptionId;
+use nostr::types::RelayUrl;
 
 use crate::error::Error;
 use crate::future::BoxedFuture;

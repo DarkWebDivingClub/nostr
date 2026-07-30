@@ -21,10 +21,12 @@ use super::util::{
     take_event_id, take_optional_string, take_public_key, take_string, take_timestamp, unknown_tag,
 };
 use crate::error::{Error, ErrorKind};
-use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{
+    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+};
 use crate::key::PublicKey;
 use crate::types::url::{RelayUrl, Url};
-use crate::{Event, EventId, ImageDimensions, Kind, Timestamp};
+use crate::types::{ImageDimensions, Timestamp};
 
 const TITLE: &str = "title";
 const SUMMARY: &str = "summary";

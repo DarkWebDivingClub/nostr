@@ -1,4 +1,6 @@
-use nostr::{Event, RelayMessage, RelayUrl, SubscriptionId};
+use nostr::event::Event;
+use nostr::message::{RelayMessage, SubscriptionId};
+use nostr::types::RelayUrl;
 
 /// Nostr client notification
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

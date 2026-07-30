@@ -2,7 +2,8 @@ use std::collections::HashSet;
 use std::future::IntoFuture;
 use std::time::Duration;
 
-use nostr::{ClientMessage, RelayUrl, RelayUrlArg};
+use nostr::message::ClientMessage;
+use nostr::types::{RelayUrl, RelayUrlArg};
 
 use super::output::Output;
 use crate::client::{Client, Error};

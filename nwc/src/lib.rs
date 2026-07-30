@@ -17,7 +17,12 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::time::Duration;
 
 use futures_core::Stream;
-use nostr::nips::nip47::{Notification, Request, Response};
+use nostr::event::TagCodec;
+use nostr::nips::nip47::{
+    ListTransactionsRequest, LookupInvoiceRequest, MakeInvoiceRequest, Nip47Ciphers, Nip47Tag,
+    NostrWalletConnectUri, Notification, PayInvoiceRequest, PayKeysendRequest, Request, Response,
+};
+use nostr::types::RelayUrlArg;
 use nostr_sdk::prelude::*;
 
 mod api;
@@ -422,6 +427,7 @@ impl NostrWalletConnect {
 
 #[cfg(test)]
 mod tests {
+    use nostr::nips::nip47::{self, GetBalanceResponse, Method};
     use nostr_sdk::local_relay::MockRelay;
 
     use super::*;

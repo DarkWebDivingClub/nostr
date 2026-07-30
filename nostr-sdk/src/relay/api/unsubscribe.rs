@@ -1,6 +1,6 @@
 use std::future::IntoFuture;
 
-use nostr::SubscriptionId;
+use nostr::message::SubscriptionId;
 
 use crate::error::Error;
 use crate::future::BoxedFuture;

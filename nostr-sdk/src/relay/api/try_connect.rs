@@ -82,7 +82,7 @@ impl<'relay> IntoFuture for TryConnect<'relay> {
 #[cfg(test)]
 mod tests {
     use async_utility::time;
-    use nostr::RelayUrl;
+    use nostr::types::RelayUrl;
 
     use super::*;
     use crate::error::ErrorKind;

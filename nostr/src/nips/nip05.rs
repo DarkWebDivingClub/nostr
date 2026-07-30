@@ -14,9 +14,10 @@ use core::str::Split;
 use serde_json::Value;
 
 use crate::error::{Error, ErrorKind};
+use crate::key::PublicKey;
+use crate::types::RelayUrl;
 use crate::types::url::Url;
 use crate::util::parse_json;
-use crate::{PublicKey, RelayUrl};
 
 /// NIP-05 address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

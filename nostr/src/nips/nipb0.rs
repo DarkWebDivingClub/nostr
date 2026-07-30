@@ -11,11 +11,11 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use super::util::{missing_tag_kind, take_string, take_timestamp, unknown_tag};
-use crate::Timestamp;
 use crate::error::Error;
 use crate::event::{
     EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
 };
+use crate::types::Timestamp;
 
 const URL: &str = "d";
 const PUBLISHED_AT: &str = "published_at";

@@ -18,8 +18,8 @@ use chacha20::ChaCha20;
 use chacha20::cipher::{KeyIvInit, StreamCipher};
 
 use crate::error::{Error, ErrorKind};
+use crate::key::{PublicKey, SecretKey};
 use crate::util::{self, hkdf};
-use crate::{PublicKey, SecretKey};
 
 const VERSION_SIZE: usize = 1;
 const NONCE_SIZE: usize = 32;
@@ -307,7 +307,7 @@ mod tests {
     use base64::engine::{Engine, general_purpose};
 
     use super::*;
-    use crate::Keys;
+    use crate::key::Keys;
     use crate::nips::nip44;
 
     const JSON_VECTORS: &str = include_str!("nip44.vectors.json");

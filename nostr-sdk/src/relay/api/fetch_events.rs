@@ -2,7 +2,8 @@ use std::future::IntoFuture;
 use std::time::Duration;
 
 use futures::StreamExt;
-use nostr::{Event, Filter};
+use nostr::event::Event;
+use nostr::filter::Filter;
 use nostr_database::Events;
 
 use crate::error::Error;
@@ -94,9 +95,10 @@ impl<'relay> IntoFuture for FetchEvents<'relay> {
 
 #[cfg(test)]
 mod tests {
-    use nostr::event::FinalizeEvent;
+    use nostr::event::{EventBuilder, FinalizeEvent, Kind};
+    use nostr::key::Keys;
     use nostr::message::MachineReadablePrefix;
-    use nostr::{EventBuilder, Keys, Kind, Metadata};
+    use nostr::nips::nip01::Metadata;
 
     use super::*;
     use crate::authenticator::SignerAuthenticator;

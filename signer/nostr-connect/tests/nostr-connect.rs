@@ -4,8 +4,7 @@
 
 use std::time::Duration;
 
-use nostr::Kind;
-use nostr::event::{EventBuilder, FinalizeEventAsync};
+use nostr::event::{EventBuilder, FinalizeEventAsync, Kind};
 use nostr::key::{Keys, PublicKey};
 use nostr::nips::nip46::{NostrConnectRequest, NostrConnectUri};
 use nostr::types::RelayUrl;

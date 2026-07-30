@@ -12,10 +12,10 @@ use alloc::vec;
 use super::util::{missing_tag_kind, take_string, unknown_tag};
 use crate::error::Error;
 use crate::event::{
-    Event, EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions,
+    Event, EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
 };
 use crate::nips::nip22::Nip22Tag;
-use crate::{Kind, RelayUrl};
+use crate::types::RelayUrl;
 
 const TITLE: &str = "title";
 
@@ -142,9 +142,9 @@ impl_tag_codec_conversions!(Nip7DTag);
 mod tests {
     use super::*;
     #[cfg(all(feature = "std", feature = "os-rng"))]
-    use crate::Keys;
-    #[cfg(all(feature = "std", feature = "os-rng"))]
     use crate::event::FinalizeEvent;
+    #[cfg(all(feature = "std", feature = "os-rng"))]
+    use crate::key::Keys;
 
     #[test]
     fn test_parse_title_tag() {

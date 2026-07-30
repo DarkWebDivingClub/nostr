@@ -4,7 +4,8 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
-use nostr::{Filter, SingleLetterTag, Timestamp};
+use nostr::filter::{Filter, SingleLetterTag};
+use nostr::types::Timestamp;
 
 use super::event::DatabaseEvent;
 

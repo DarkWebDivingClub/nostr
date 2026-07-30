@@ -185,7 +185,7 @@ mod tests {
     use core::str::FromStr;
 
     use super::*;
-    use crate::Keys;
+    use crate::key::Keys;
 
     #[test]
     fn test_nip44_encryption_decryption() {

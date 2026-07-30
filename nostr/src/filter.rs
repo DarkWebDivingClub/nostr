@@ -18,10 +18,11 @@ use serde::ser::{SerializeMap, Serializer};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, ErrorKind};
-use crate::event::TagsIndexes;
+use crate::event::{Event, EventId, Kind, Tag, TagsIndexes};
+use crate::key::PublicKey;
 use crate::nips::nip01::Coordinate;
+use crate::types::Timestamp;
 use crate::util::impl_json_methods;
-use crate::{Event, EventId, Kind, PublicKey, Tag, Timestamp};
 
 type GenericTags = BTreeMap<SingleLetterTag, BTreeSet<String>>;
 
@@ -1043,7 +1044,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Signature, Tag};
+    use crate::event::{Signature, Tag};
 
     #[test]
     fn test_kind_concatenation() {

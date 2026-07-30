@@ -786,7 +786,7 @@ mod tests {
     use alloc::vec::Vec;
 
     use super::*;
-    use crate::PublicKey;
+    use crate::key::PublicKey;
     use crate::nips::nip19::{FromBech32, Nip19Event, Nip19Profile};
 
     const PARSER: NostrParser = NostrParser::new();

@@ -10,9 +10,11 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 
 use crate::error::Error;
-use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{
+    Event, EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+};
 use crate::nips::util::{missing_tag_kind, take_relay_url, take_string, unknown_tag};
-use crate::{Event, Kind, RelayUrl};
+use crate::types::RelayUrl;
 
 const CHALLENGE: &str = "challenge";
 const RELAY: &str = "relay";
@@ -131,8 +133,8 @@ pub fn is_valid_auth_event(event: &Event, relay_url: &RelayUrl, challenge: &str)
 #[cfg(all(test, feature = "std", feature = "os-rng"))]
 mod tests {
     use super::*;
-    use crate::event::FinalizeEvent;
-    use crate::{EventBuilder, Keys};
+    use crate::event::{EventBuilder, FinalizeEvent};
+    use crate::key::Keys;
 
     #[test]
     fn test_standardized_challenge_tag() {

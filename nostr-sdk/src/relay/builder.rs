@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use nostr::RelayUrl;
+use nostr::types::RelayUrl;
 use nostr_database::{IntoNostrDatabase, NostrDatabase};
 
 use super::options::RelayOptions;

@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll, Waker};
 use std::thread;
 
-use crate::UnsignedEvent;
+use crate::event::UnsignedEvent;
 
 type Work = dyn FnOnce(Arc<AtomicBool>) -> Option<UnsignedEvent> + Send + 'static;
 

@@ -6,7 +6,7 @@
 
 use std::error;
 
-use nostr::RelayUrl;
+use nostr::types::RelayUrl;
 
 opaquerr::define_kind! {
     /// SDK error kind.

@@ -13,7 +13,13 @@ use std::time::Duration;
 
 use async_utility::time;
 use futures_core::stream::BoxStream;
-use nostr::nips::nip46::ResponseResult;
+use nostr::nips::nip04::AsyncNip04;
+use nostr::nips::nip44::{self, AsyncNip44};
+use nostr::nips::nip46::{
+    NostrConnectEventBuilder, NostrConnectMessage, NostrConnectMethod, NostrConnectRequest,
+    NostrConnectResponse, NostrConnectUri, ResponseResult,
+};
+use nostr::types::Url;
 use nostr_sdk::prelude::*;
 use tokio::sync::OnceCell;
 

@@ -11,12 +11,17 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::str::FromStr;
 
+use url::Url;
+
 use crate::error::Error;
-use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{
+    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+};
+use crate::key::PublicKey;
 use crate::nips::nip01::{self, Coordinate};
 use crate::nips::nip73::{self, ExternalContentId, Nip73Kind};
 use crate::nips::util::{missing_tag_kind, missing_value, unknown_tag};
-use crate::{Event, EventId, Kind, PublicKey, RelayUrl, Url};
+use crate::types::RelayUrl;
 
 /// Standardized NIP-22 tags
 ///
@@ -647,6 +652,7 @@ fn maybe_uppercase(mut tag: Tag, uppercase: bool) -> Tag {
 #[cfg(all(test, feature = "std", feature = "os-rng"))]
 mod tests {
     use super::*;
+    use crate::event::Tags;
     use crate::prelude::*;
 
     fn check_kind(tags: &[Tag], kind: Kind, uppercase: bool) {

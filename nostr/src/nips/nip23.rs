@@ -17,7 +17,7 @@ use crate::nips::util::{
     take_timestamp, unknown_tag,
 };
 use crate::types::url::Url;
-use crate::{ImageDimensions, Timestamp};
+use crate::types::{ImageDimensions, Timestamp};
 
 const TITLE: &str = "title";
 const IMAGE: &str = "image";

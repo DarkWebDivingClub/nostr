@@ -15,8 +15,8 @@ use super::util::{
     missing_tag_kind, take_and_parse_from_str, take_event_id, take_public_key, unknown_tag,
 };
 use crate::error::{Error, ErrorKind};
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
-use crate::{EventId, PublicKey};
+use crate::event::{EventId, Tag, TagCodec, impl_tag_codec_conversions};
+use crate::key::PublicKey;
 
 #[inline]
 fn unknown_report_type() -> Error {

@@ -24,11 +24,13 @@ pub use self::codec::*;
 pub use self::list::*;
 use super::id::EventId;
 use crate::error::{Error, ErrorKind};
+use crate::filter::SingleLetterTag;
+use crate::key::PublicKey;
 use crate::nips::nip01::{Coordinate, Nip01Tag};
 use crate::nips::nip13::Nip13Tag;
 use crate::nips::nip40::Nip40Tag;
 use crate::nips::nip70::Nip70Tag;
-use crate::{PublicKey, RelayUrl, SingleLetterTag, Timestamp};
+use crate::types::{RelayUrl, Timestamp};
 
 /// Tag
 #[derive(Clone)]
@@ -394,7 +396,8 @@ mod tests {
     use core::str::FromStr;
 
     use super::*;
-    use crate::{Event, Kind, Signature, Timestamp};
+    use crate::event::{Event, Kind, Signature};
+    use crate::types::Timestamp;
 
     #[test]
     fn test_parse_empty_tag() {

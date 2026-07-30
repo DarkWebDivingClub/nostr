@@ -2,6 +2,8 @@
 // Copyright (c) 2023-2025 Rust Nostr Developers
 // Distributed under the MIT software license
 
+use nostr::nips::nip19::Nip19Event;
+use nostr::nips::nipc0::CodeSnippet;
 use nostr_sdk::prelude::*;
 
 const EXAMPLE_SNIPPET: &str = include_str!("code_snippet.rs");

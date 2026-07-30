@@ -17,6 +17,8 @@ alloc-cortex-m = "0.4.1"
 cortex-m-rt = "0.7.5"
 cortex-m-semihosting = "0.5.0"
 nostr = { path = "../../../nostr", default-features = false, features = ["alloc", "rand", "nip06"] }
+rand = { version = "0.10.2", default-features = false }
+secp256k1 = { version = "0.30.0", default-features = false, features = ["alloc"] }
 
 [profile.release]
 opt-level = "z"

@@ -4,7 +4,7 @@ use std::fmt;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use nostr::RelayUrl;
+use nostr::types::RelayUrl;
 
 #[derive(Clone)]
 enum InnerProxy {

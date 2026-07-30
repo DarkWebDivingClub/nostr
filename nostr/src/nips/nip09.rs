@@ -94,6 +94,7 @@ impl IntoEventBuilder for EventDeletionRequest {
 #[cfg(all(test, feature = "std", feature = "os-rng"))]
 mod tests {
     use super::*;
+    use crate::event::Tags;
     use crate::prelude::*;
 
     #[test]

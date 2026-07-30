@@ -16,10 +16,12 @@ use super::util::{
     unknown_tag,
 };
 use crate::error::{Error, ErrorKind};
-use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
-use crate::types::RelayUrl;
+use crate::event::{
+    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+};
+use crate::key::PublicKey;
 use crate::types::url::Url;
-use crate::{Event, EventId, ImageDimensions, Kind, PublicKey};
+use crate::types::{ImageDimensions, RelayUrl};
 
 const IDENTIFIER: &str = "d";
 const NAME: &str = "name";
@@ -389,9 +391,9 @@ pub(crate) fn extract_awarded_public_key(
 mod tests {
     use super::*;
     #[cfg(all(feature = "std", feature = "os-rng"))]
-    use crate::Keys;
-    #[cfg(all(feature = "std", feature = "os-rng"))]
     use crate::event::{FinalizeEvent, IntoEventBuilder};
+    #[cfg(all(feature = "std", feature = "os-rng"))]
+    use crate::key::Keys;
 
     #[test]
     fn test_identifier_tag() {

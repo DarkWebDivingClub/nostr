@@ -4,6 +4,7 @@
 
 use std::time::Duration;
 
+use nostr::nips::nip59::GiftWrapBuilder;
 use nostr_browser_signer_proxy::prelude::*;
 use tokio::{signal, time};
 

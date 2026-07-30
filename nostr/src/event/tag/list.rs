@@ -25,10 +25,13 @@ use serde::ser::SerializeSeq;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::{Error, Tag};
+use crate::event::EventId;
+use crate::filter::SingleLetterTag;
+use crate::key::PublicKey;
 use crate::nips::nip01::{Coordinate, Nip01Tag};
 use crate::nips::nip40::Nip40Tag;
 use crate::nips::nip42::Nip42Tag;
-use crate::{EventId, PublicKey, SingleLetterTag, Timestamp};
+use crate::types::Timestamp;
 
 /// Tags Indexes
 pub type TagsIndexes = BTreeMap<SingleLetterTag, BTreeSet<String>>;
@@ -282,7 +285,7 @@ impl Tags {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// # use nostr::Tags;
+    /// # use nostr::event::Tags;
     /// let tags = [
     ///     vec!["t", "test"], // This will be discarded since an item with the same kind + content and longer len exists.
     ///     vec!["t", "test1"],
@@ -554,8 +557,9 @@ impl<'de> Deserialize<'de> for Tags {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::event::Event;
     use crate::event::tag::TagCodec;
-    use crate::{Event, RelayUrl};
+    use crate::types::RelayUrl;
 
     #[test]
     fn test_collect() {

@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use nostr::RelayUrl;
+use nostr::types::RelayUrl;
 
 use crate::authenticator::Authenticator;
 use crate::client::Client;

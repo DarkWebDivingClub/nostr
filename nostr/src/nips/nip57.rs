@@ -16,8 +16,11 @@ use super::util::{
     take_relay_url, take_string, unknown_tag,
 };
 use crate::error::Error;
-use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
-use crate::{Event, EventId, Kind, PublicKey, RelayUrl};
+use crate::event::{
+    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+};
+use crate::key::PublicKey;
+use crate::types::RelayUrl;
 
 const AMOUNT: &str = "amount";
 const BOLT11: &str = "bolt11";
@@ -382,9 +385,9 @@ impl From<ZapRequestData> for Vec<Tag> {
 mod tests {
     use super::*;
     #[cfg(all(feature = "std", feature = "os-rng"))]
-    use crate::Keys;
-    #[cfg(all(feature = "std", feature = "os-rng"))]
     use crate::event::{FinalizeEvent, IntoEventBuilder};
+    #[cfg(all(feature = "std", feature = "os-rng"))]
+    use crate::key::Keys;
 
     #[test]
     fn test_relays_tag() {

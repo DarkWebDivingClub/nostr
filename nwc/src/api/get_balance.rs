@@ -1,7 +1,7 @@
 use std::future::IntoFuture;
 use std::time::Duration;
 
-use nostr::prelude::*;
+use nostr::nips::nip47::{GetBalanceResponse, Request, Response};
 
 use crate::NostrWalletConnect;
 use crate::error::Error;

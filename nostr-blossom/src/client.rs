@@ -7,6 +7,7 @@ use base64::engine::general_purpose;
 use bitcoin_hashes::Hash;
 use bitcoin_hashes::sha256::Hash as Sha256Hash;
 use nostr::prelude::*;
+use nostr::types::Url;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue, RANGE};
 #[cfg(not(target_arch = "wasm32"))]
 use reqwest::redirect::Policy;

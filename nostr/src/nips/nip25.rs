@@ -12,9 +12,11 @@ use super::nip01::{Coordinate, Nip01Tag};
 use super::util::{missing_tag_kind, take_and_parse_from_str, unknown_tag};
 use crate::error::Error;
 use crate::event::{
-    EventBuilder, IntoEventBuilder, Tag, TagCodec, Tags, impl_tag_codec_conversions,
+    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, Tags,
+    impl_tag_codec_conversions,
 };
-use crate::{Event, EventId, Kind, PublicKey, RelayUrl};
+use crate::key::PublicKey;
+use crate::types::RelayUrl;
 
 /// Standardized NIP-25 tags
 ///

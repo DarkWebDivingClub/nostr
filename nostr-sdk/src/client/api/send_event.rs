@@ -3,7 +3,9 @@ use std::future::IntoFuture;
 use std::iter;
 use std::time::Duration;
 
-use nostr::{Event, EventId, Kind, PublicKey, RelayUrl, RelayUrlArg};
+use nostr::event::{Event, EventId, Kind};
+use nostr::key::PublicKey;
+use nostr::types::{RelayUrl, RelayUrlArg};
 use nostr_gossip::{BestRelaySelection, GossipListKind};
 
 use crate::client::gossip::Gossip;
@@ -440,6 +442,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use nostr::nips::nip17::InboxRelayList;
+    use nostr::nips::nip65::RelayList;
     use nostr::prelude::*;
     use nostr_gossip::GossipAllowedRelays;
     use nostr_gossip_memory::store::NostrGossipMemory;

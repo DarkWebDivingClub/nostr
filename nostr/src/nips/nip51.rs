@@ -14,9 +14,11 @@ use super::util::{
     missing_tag_kind, take_event_id, take_public_key, take_relay_url, take_string, unknown_tag,
 };
 use crate::error::Error;
-use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{
+    EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+};
+use crate::key::PublicKey;
 use crate::types::url::{RelayUrl, Url};
-use crate::{EventId, Kind, PublicKey};
 
 const WORD: &str = "word";
 const PUBLIC_KEY: &str = "p";

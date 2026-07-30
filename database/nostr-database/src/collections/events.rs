@@ -8,7 +8,8 @@ use std::hash::{Hash, Hasher};
 use std::num::NonZeroUsize;
 
 use btreecap::{BTreeCapSet, Capacity, OverCapacityPolicy};
-use nostr::{Event, Filter};
+use nostr::event::Event;
+use nostr::filter::Filter;
 
 // Lookup ID: EVENT_ORD_IMPL
 const POLICY: OverCapacityPolicy = OverCapacityPolicy::Last;
@@ -195,7 +196,7 @@ impl FromIterator<Event> for Events {
 
 #[cfg(test)]
 mod tests {
-    use nostr::Kind;
+    use nostr::event::Kind;
 
     use super::*;
 

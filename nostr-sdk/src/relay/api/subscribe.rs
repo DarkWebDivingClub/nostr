@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 use std::future::IntoFuture;
 
-use nostr::{ClientMessage, Filter, SubscriptionId};
+use nostr::filter::Filter;
+use nostr::message::{ClientMessage, SubscriptionId};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::error::Error;
@@ -155,8 +156,10 @@ mod tests {
 
     use async_utility::time;
     use futures::StreamExt;
-    use nostr::event::FinalizeEvent;
-    use nostr::{Event, EventBuilder, EventId, Filter, Keys, Kind, SubscriptionId};
+    use nostr::event::{Event, EventBuilder, EventId, FinalizeEvent, Kind};
+    use nostr::filter::Filter;
+    use nostr::key::Keys;
+    use nostr::message::SubscriptionId;
 
     use super::*;
     use crate::authenticator::SignerAuthenticator;

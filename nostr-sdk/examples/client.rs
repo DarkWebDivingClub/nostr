@@ -4,6 +4,7 @@
 
 use std::num::NonZeroU8;
 
+use nostr::nips::nip13::SingleThreadPow;
 use nostr_sdk::prelude::*;
 
 #[tokio::main]

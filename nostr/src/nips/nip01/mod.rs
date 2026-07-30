@@ -22,10 +22,11 @@ pub use self::tags::*;
 use super::nip19::{self, FromBech32, Nip19Coordinate, ToBech32};
 use super::nip21::{FromNostrUri, ToNostrUri};
 use crate::error::{Error, ErrorKind};
-use crate::event::{IntoEventBuilder, Kind, Tag};
+use crate::event::{EventBuilder, IntoEventBuilder, Kind, Tag};
+use crate::filter::Filter;
+use crate::key::PublicKey;
 use crate::types::url::Url;
 use crate::util::impl_json_methods;
-use crate::{EventBuilder, Filter, PublicKey};
 
 #[inline]
 fn invalid_coordinate() -> Error {
@@ -272,6 +273,8 @@ impl ToNostrUri for CoordinateBorrow<'_> {}
 ///
 /// ```rust,no_run
 /// # use nostr::prelude::*;
+/// # use nostr::nips::nip01::Metadata;
+/// # use nostr::types::Url;
 /// # #[cfg(all(feature = "std", feature = "os-rng"))]
 /// # fn run() -> Result<(), Box<dyn std::error::Error>> {
 /// let metadata = Metadata::new()

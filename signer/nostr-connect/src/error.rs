@@ -4,7 +4,7 @@
 
 //! Nostr Connect error
 
-use nostr::PublicKey;
+use nostr::key::PublicKey;
 use tokio::sync::SetError;
 
 opaquerr::define_kind! {

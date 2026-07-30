@@ -8,7 +8,8 @@ use super::super::util::{
 };
 use super::{Coordinate, Error};
 use crate::event::{EventId, Tag, TagCodec, impl_tag_codec_conversions};
-use crate::{PublicKey, RelayUrl};
+use crate::key::PublicKey;
+use crate::types::RelayUrl;
 
 /// Standardized NIP-01 tags
 ///

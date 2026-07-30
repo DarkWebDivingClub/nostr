@@ -21,9 +21,12 @@ use super::util::{
     missing_tag_kind, missing_value, take_and_parse_from_str, take_string, unknown_tag,
 };
 use crate::error::{Error, ErrorKind};
-use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{
+    EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+};
+use crate::key::PublicKey;
 use crate::types::url::Url;
-use crate::{EventId, Kind, PublicKey, RelayUrl, Timestamp};
+use crate::types::{RelayUrl, Timestamp};
 
 const EUC: &str = "euc";
 const APPLIED_AS_COMMITS: &str = "applied-as-commits";
@@ -796,8 +799,8 @@ mod tests {
     use core::str::FromStr;
 
     use super::*;
-    use crate::event::FinalizeEvent;
-    use crate::{Event, Keys, Tags};
+    use crate::event::{Event, FinalizeEvent, Tags};
+    use crate::key::Keys;
 
     #[test]
     fn test_git_repo_announcement() {

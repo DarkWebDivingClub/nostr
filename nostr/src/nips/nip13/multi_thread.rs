@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use super::blocking_wrapper::BlockingPowFuture;
 use super::{AsyncPowAdapter, PowAdapter, single_thread};
-use crate::{Tag, UnsignedEvent};
+use crate::event::{Tag, UnsignedEvent};
 
 /// A multithreaded Proof-of-Work miner.
 ///
@@ -134,6 +134,7 @@ pub mod tests {
     use std::time::Duration;
 
     use super::*;
+    use crate::nips::nip13::get_leading_zero_bits;
     use crate::prelude::*;
 
     #[test]

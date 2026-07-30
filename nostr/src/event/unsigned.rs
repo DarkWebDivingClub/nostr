@@ -13,13 +13,16 @@ use core::pin::Pin;
 use secp256k1::{Secp256k1, Verification};
 
 use super::signature::Signature;
-use super::{AsyncSignEvent, FinalizeEvent, FinalizeEventAsync, SignEvent};
+use super::{
+    AsyncSignEvent, Event, EventId, FinalizeEvent, FinalizeEventAsync, Kind, SignEvent, Tag, Tags,
+};
 use crate::error::{Error, ErrorKind};
+use crate::key::PublicKey;
 use crate::nips::nip13::{AsyncPowAdapter, PowAdapter};
+use crate::types::Timestamp;
 #[cfg(feature = "std")]
 use crate::util::SECP256K1;
 use crate::util::impl_json_methods;
-use crate::{Event, EventId, Kind, PublicKey, Tag, Tags, Timestamp};
 
 #[inline]
 fn invalid_event_id() -> Error {

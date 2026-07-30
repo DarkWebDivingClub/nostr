@@ -2,7 +2,8 @@
 // Copyright (c) 2023-2025 Rust Nostr Developers
 // Distributed under the MIT software license
 
-use nostr::prelude::*;
+use nostr::nips::nip11::RelayInformationDocument;
+use nostr::types::Url;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

@@ -1,7 +1,7 @@
 //! Implements data structures specific to BUD-02
 
 use bitcoin_hashes::sha256::Hash as Sha256Hash;
-use nostr::{Timestamp, Url};
+use nostr::types::{Timestamp, Url};
 use serde::{Deserialize, Serialize};
 
 /// A descriptor for the blob

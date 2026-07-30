@@ -4,8 +4,8 @@ use std::ops::Deref;
 use std::time::Duration;
 
 use async_utility::time;
-use nostr::message::MachineReadablePrefix;
-use nostr::{ClientMessage, Event, EventId};
+use nostr::event::{Event, EventId};
+use nostr::message::{ClientMessage, MachineReadablePrefix};
 use tokio::sync::broadcast;
 
 use crate::error::Error;

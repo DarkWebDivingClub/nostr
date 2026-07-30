@@ -11,6 +11,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
+use nostr::message::MachineReadablePrefix;
 use nostr_database::prelude::*;
 
 use super::local::LocalRelay;

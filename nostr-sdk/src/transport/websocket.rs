@@ -13,7 +13,7 @@ use std::task::{Context, Poll};
 use async_wsocket::{ConnectionMode, Message, WebSocket};
 use futures::stream::SplitSink;
 use futures::{Sink, SinkExt, Stream, StreamExt, TryStreamExt};
-use nostr::Url;
+use nostr::types::Url;
 
 use crate::error::Error;
 use crate::future::BoxedFuture;

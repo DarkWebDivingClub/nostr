@@ -10,8 +10,9 @@ use alloc::string::String;
 
 use super::nip19::{FromBech32, Nip19, Nip19Coordinate, Nip19Event, Nip19Profile, ToBech32};
 use crate::error::{Error, ErrorKind};
+use crate::event::EventId;
+use crate::key::PublicKey;
 use crate::nips::util::invalid_uri;
-use crate::{EventId, PublicKey};
 
 /// URI scheme
 pub const SCHEME: &str = "nostr";

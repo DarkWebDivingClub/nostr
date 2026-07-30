@@ -4,7 +4,7 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use lru::LruCache;
-use nostr::EventId;
+use nostr::event::EventId;
 use nostr_database::NostrDatabase;
 use nostr_gossip::NostrGossip;
 use tokio::sync::Mutex;

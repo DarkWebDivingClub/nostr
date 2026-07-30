@@ -6,9 +6,12 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 
 use btreecap::{BTreeCapSet, Capacity, Insert, OverCapacityPolicy};
-use nostr::filter::MatchEventOptions;
+use nostr::event::{Event, EventId, Kind};
+use nostr::filter::{Alphabet, Filter, MatchEventOptions, SingleLetterTag};
+use nostr::key::PublicKey;
 use nostr::nips::nip01::Coordinate;
-use nostr::{Alphabet, Event, EventId, Filter, Kind, PublicKey, SingleLetterTag, Timestamp};
+use nostr::nips::nip62;
+use nostr::types::Timestamp;
 use nostr_database::prelude::*;
 
 type DatabaseEvent = Arc<Event>;

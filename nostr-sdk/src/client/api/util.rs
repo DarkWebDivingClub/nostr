@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
-use nostr::{Filter, RelayUrl, RelayUrlArg};
+use nostr::filter::Filter;
+use nostr::types::{RelayUrl, RelayUrlArg};
 
 use super::req_target::{InnerReqTarget, ReqTarget};
 use crate::client::{Client, Error};

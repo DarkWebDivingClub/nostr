@@ -1,4 +1,5 @@
-use nostr::{Event, RelayMessage, SubscriptionId};
+use nostr::event::Event;
+use nostr::message::{RelayMessage, SubscriptionId};
 
 use super::status::RelayStatus;
 

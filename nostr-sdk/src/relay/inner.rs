@@ -9,6 +9,9 @@ use std::time::Duration;
 use async_utility::{task, time};
 use async_wsocket::Message;
 use futures::{self, SinkExt, StreamExt};
+use nostr::filter::MatchEventOptions;
+use nostr::message::MachineReadablePrefix;
+use nostr::nips::nip42;
 use nostr_database::prelude::*;
 #[cfg(not(target_arch = "wasm32"))]
 use rand::Rng;
@@ -1887,7 +1890,11 @@ async fn close_ws(tx: &mut WebSocketSink) -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
-    use nostr::{EventBuilder, Filter, Keys, Kind, RelayUrl, SubscriptionId};
+    use nostr::event::{EventBuilder, Kind};
+    use nostr::filter::Filter;
+    use nostr::key::Keys;
+    use nostr::message::SubscriptionId;
+    use nostr::types::RelayUrl;
 
     use super::*;
     use crate::authenticator::SignerAuthenticator;

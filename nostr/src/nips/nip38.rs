@@ -10,8 +10,8 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt;
 
-use crate::event::{EventBuilder, IntoEventBuilder};
-use crate::{Kind, Tag, Timestamp};
+use crate::event::{EventBuilder, IntoEventBuilder, Kind, Tag};
+use crate::types::Timestamp;
 
 /// NIP38 types
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

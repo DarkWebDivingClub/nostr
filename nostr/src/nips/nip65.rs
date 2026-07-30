@@ -12,9 +12,11 @@ use core::fmt;
 use core::str::FromStr;
 
 use crate::error::{Error, ErrorKind};
-use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{
+    Event, EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+};
 use crate::nips::util::{missing_tag_kind, take_relay_url, unknown_tag};
-use crate::{Event, Kind, RelayUrl};
+use crate::types::RelayUrl;
 
 const RELAY_METADATA: &str = "r";
 

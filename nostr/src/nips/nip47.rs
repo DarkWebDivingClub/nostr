@@ -22,16 +22,17 @@ use serde_json::Value;
 use super::util::{invalid_uri, unexpected_result, unsupported_method};
 use super::{nip04, nip44};
 use crate::error::{Error, ErrorKind};
+use crate::event::{Event, Kind, Tag, TagCodec};
 #[cfg(all(feature = "std", feature = "os-rng"))]
-use crate::event::FinalizeEvent;
-use crate::event::TagCodec;
+use crate::event::{EventBuilder, FinalizeEvent};
+#[cfg(all(feature = "std", feature = "os-rng"))]
+use crate::key::Keys;
+use crate::key::{PublicKey, SecretKey};
 use crate::nips::util::{invalid_value, missing_tag_kind, take_and_parse_from_str, unknown_tag};
+use crate::types::Timestamp;
 use crate::types::url::form_urlencoded::byte_serialize;
 use crate::types::url::{RelayUrl, Url};
 use crate::util::{impl_json_methods, parse_json_from_value};
-use crate::{Event, Kind, PublicKey, SecretKey, Tag, Timestamp};
-#[cfg(all(feature = "std", feature = "os-rng"))]
-use crate::{EventBuilder, Keys};
 
 const ENCRYPTION: &str = "encryption";
 

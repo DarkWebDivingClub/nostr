@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use async_utility::{task, time};
-use nostr::PublicKey;
+use nostr::key::PublicKey;
 use nostr_gossip::{GossipListKind, GossipPublicKeyStatus, OutdatedPublicKey};
 use tokio::sync::RwLock;
 

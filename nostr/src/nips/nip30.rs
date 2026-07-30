@@ -114,7 +114,8 @@ fn is_valid_shortcode(shortcode: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Kind, PublicKey};
+    use crate::event::Kind;
+    use crate::key::PublicKey;
 
     #[test]
     fn test_nip30_emoji_tag() {

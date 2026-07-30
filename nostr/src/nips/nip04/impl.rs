@@ -19,7 +19,8 @@ use rand::rand_core::UnwrapErr;
 use rand::rngs::SysRng;
 
 use crate::error::{Error, ErrorKind};
-use crate::{PublicKey, SecretKey, util};
+use crate::key::{PublicKey, SecretKey};
+use crate::util;
 
 type Aes256CbcEnc = Encryptor<Aes256>;
 type Aes256CbcDec = Decryptor<Aes256>;
@@ -153,7 +154,7 @@ mod tests {
     use core::str::FromStr;
 
     use super::*;
-    use crate::Keys;
+    use crate::key::Keys;
 
     #[test]
     fn test_encryption_decryption() {

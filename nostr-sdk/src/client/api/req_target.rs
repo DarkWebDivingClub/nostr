@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
-use nostr::{Filter, RelayUrlArg};
+use nostr::filter::Filter;
+use nostr::types::RelayUrlArg;
 
 // Keep this enum private, so if we change it in the future, we'll not cause breaking changes
 // (i.e., Vec to HashMap)

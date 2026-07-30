@@ -7,6 +7,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::pin::Pin;
 
+use nostr::nips::nip01::Coordinate;
+use nostr::nips::nip62;
 use nostr_database::error::Error;
 use nostr_database::prelude::*;
 use rusqlite::types::Value;
@@ -861,7 +863,8 @@ fn with_limit(filter: Filter, default_limit: usize) -> Filter {
 
 #[cfg(test)]
 mod tests {
-    use nostr::{EventBuilder, Keys, Tag};
+    use nostr::event::{EventBuilder, Tag};
+    use nostr::key::Keys;
     use nostr_database_test_suite::database_unit_tests;
 
     use super::*;

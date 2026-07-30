@@ -22,9 +22,9 @@ use super::nip05::Nip05Profile;
 #[cfg(feature = "nip49")]
 use super::nip49::EncryptedSecretKey;
 use crate::error::{Error, ErrorKind};
-use crate::event::EventId;
+use crate::event::{Event, EventId, Kind};
+use crate::key::{PublicKey, SecretKey};
 use crate::types::url::RelayUrl;
-use crate::{Event, Kind, PublicKey, SecretKey};
 
 pub const PREFIX_BECH32_SECRET_KEY: &str = "nsec";
 pub const PREFIX_BECH32_SECRET_KEY_ENCRYPTED: &str = "ncryptsec";

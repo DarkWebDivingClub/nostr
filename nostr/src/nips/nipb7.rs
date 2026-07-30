@@ -11,9 +11,10 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use super::util::{missing_tag_kind, take_and_parse_from_str, unknown_tag};
-use crate::Kind;
 use crate::error::Error;
-use crate::event::{EventBuilder, IntoEventBuilder, Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{
+    EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+};
 use crate::types::url::Url;
 
 const SERVER: &str = "server";

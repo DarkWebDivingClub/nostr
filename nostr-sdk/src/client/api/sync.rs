@@ -1,7 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use std::future::IntoFuture;
 
-use nostr::{EventId, Filter, RelayUrl, RelayUrlArg, Timestamp};
+use nostr::event::EventId;
+use nostr::filter::Filter;
+use nostr::types::{RelayUrl, RelayUrlArg, Timestamp};
 
 use super::output::Output;
 use crate::client::{Client, Error};
@@ -197,7 +199,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use nostr::Kind;
+    use nostr::event::Kind;
 
     use super::*;
     use crate::error::ErrorKind;

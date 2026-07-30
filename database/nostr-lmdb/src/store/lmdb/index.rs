@@ -5,8 +5,11 @@
 
 use core::cmp;
 
+use nostr::event::EventId;
+use nostr::filter::SingleLetterTag;
+use nostr::key::PublicKey;
 use nostr::nips::nip01::Coordinate;
-use nostr::{EventId, PublicKey, SingleLetterTag, Timestamp};
+use nostr::types::Timestamp;
 
 use crate::store::event::DatabaseEvent;
 

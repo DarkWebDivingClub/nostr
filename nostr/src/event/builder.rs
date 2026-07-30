@@ -9,8 +9,13 @@ use alloc::string::String;
 use core::future::Future;
 use core::pin::Pin;
 
+use super::{
+    AsyncSignEvent, Event, FinalizeEvent, FinalizeEventAsync, FinalizeUnsignedEvent, Kind,
+    SignEvent, Tag, Tags, UnsignedEvent,
+};
 use crate::error::Error;
-use crate::prelude::*;
+use crate::key::{AsyncGetPublicKey, GetPublicKey, PublicKey};
+use crate::types::Timestamp;
 
 /// Template that can be converted into a generic [`EventBuilder`].
 pub trait IntoEventBuilder: Sized {
@@ -187,7 +192,7 @@ mod tests {
     use core::str::FromStr;
 
     use super::*;
-    use crate::SecretKey;
+    use crate::key::{Keys, SecretKey};
 
     #[test]
     fn round_trip() {
@@ -213,6 +218,7 @@ mod benches {
     use test::{Bencher, black_box};
 
     use super::*;
+    use crate::key::Keys;
 
     #[bench]
     pub fn builder_to_event(bh: &mut Bencher) {

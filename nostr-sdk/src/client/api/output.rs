@@ -5,7 +5,9 @@
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 
-use nostr::{EventId, RelayUrl, SubscriptionId};
+use nostr::event::EventId;
+use nostr::message::SubscriptionId;
+use nostr::types::RelayUrl;
 
 /// Output
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

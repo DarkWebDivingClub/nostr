@@ -14,9 +14,10 @@ use core::panic::PanicInfo;
 use alloc_cortex_m::CortexMHeap;
 use cortex_m_rt::entry;
 use cortex_m_semihosting::{debug, hprintln};
-use nostr::rand::TryRng;
-use nostr::secp256k1::Secp256k1;
-use nostr::{FromBech32, Keys, ToBech32, SecretKey};
+use rand::TryRng;
+use secp256k1::Secp256k1;
+use nostr::key::{Keys, SecretKey};
+use nostr::nips::nip19::{FromBech32, ToBech32};
 use nostr::nips::nip06::FromMnemonic;
 
 // this is the allocator the application will use

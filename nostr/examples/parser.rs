@@ -2,7 +2,8 @@
 // Copyright (c) 2023-2025 Rust Nostr Developers
 // Distributed under the MIT software license
 
-use nostr::prelude::*;
+use nostr::error::Error;
+use nostr::parser::{NostrParser, NostrParserOptions};
 
 fn main() -> Result<(), Error> {
     let parser = NostrParser::new();

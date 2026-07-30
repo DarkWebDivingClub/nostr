@@ -6,7 +6,11 @@ use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
 use negentropy::{Negentropy, NegentropyStorageVector};
-use nostr::{Event, Filter, PublicKey, SubscriptionId, Timestamp};
+use nostr::event::Event;
+use nostr::filter::Filter;
+use nostr::key::PublicKey;
+use nostr::message::SubscriptionId;
+use nostr::types::Timestamp;
 
 pub(super) enum RateLimiterResponse {
     Allowed,

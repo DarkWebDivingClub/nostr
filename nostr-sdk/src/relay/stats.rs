@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
 
-use nostr::Timestamp;
+use nostr::types::Timestamp;
 
 #[cfg(not(target_arch = "wasm32"))]
 use super::constants::LATENCY_MIN_READS;

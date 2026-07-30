@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::future::IntoFuture;
 
-use nostr::{Filter, RelayUrl, SubscriptionId};
+use nostr::filter::Filter;
+use nostr::message::SubscriptionId;
+use nostr::types::RelayUrl;
 
 use super::output::Output;
 use super::req_target::ReqTarget;
@@ -71,8 +73,10 @@ mod tests {
     use std::time::Duration;
 
     use futures::StreamExt;
-    use nostr::event::{EventBuilder, FinalizeEvent};
-    use nostr::{Filter, Keys, Kind, SubscriptionId};
+    use nostr::event::{EventBuilder, FinalizeEvent, Kind};
+    use nostr::filter::Filter;
+    use nostr::key::Keys;
+    use nostr::message::SubscriptionId;
 
     use crate::authenticator::SignerAuthenticator;
     use crate::client::ClientNotification;

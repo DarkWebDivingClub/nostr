@@ -8,10 +8,12 @@ use std::pin::Pin;
 
 use indexmap::IndexMap;
 use lru::LruCache;
+use nostr::event::{Event, Kind};
+use nostr::key::PublicKey;
 use nostr::nips::nip01::Nip01Tag;
 use nostr::nips::nip17;
 use nostr::nips::nip65::{self, RelayMetadata};
-use nostr::{Event, Kind, PublicKey, RelayUrl, Timestamp};
+use nostr::types::{RelayUrl, Timestamp};
 use nostr_gossip::error::Error;
 use nostr_gossip::flags::GossipFlags;
 use nostr_gossip::{

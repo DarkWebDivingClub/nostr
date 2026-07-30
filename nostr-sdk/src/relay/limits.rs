@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use nostr::Kind;
+use nostr::event::Kind;
 
 use super::constants::MAX_MESSAGE_SIZE;
 

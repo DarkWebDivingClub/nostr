@@ -22,8 +22,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use unicode_normalization::UnicodeNormalization;
 
 use super::nip19::{FromBech32, ToBech32};
-use crate::SecretKey;
 use crate::error::{Error, ErrorKind};
+use crate::key::SecretKey;
 
 const SALT_SIZE: usize = 16;
 const NONCE_SIZE: usize = 24;

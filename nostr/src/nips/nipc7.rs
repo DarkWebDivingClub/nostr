@@ -13,9 +13,10 @@ use super::nip18::Nip18Tag;
 use super::nip19::Nip19Event;
 use super::nip21::ToNostrUri;
 use crate::error::Error;
-use crate::event::{Event, EventBuilder, IntoEventBuilder, TagCodec};
+use crate::event::{Event, EventBuilder, EventId, IntoEventBuilder, Kind, TagCodec};
+use crate::key::PublicKey;
 use crate::parser::{NostrParser, NostrParserOptions, Token};
-use crate::{EventId, Kind, PublicKey, RelayUrl};
+use crate::types::RelayUrl;
 
 /// Chat message reply.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -81,8 +82,8 @@ fn has_nostr_event_uri(content: &str, event_id: &EventId) -> bool {
 #[cfg(all(test, feature = "std", feature = "os-rng"))]
 mod tests {
     use super::*;
-    use crate::Keys;
     use crate::event::{FinalizeEvent, IntoEventBuilder};
+    use crate::key::Keys;
 
     #[test]
     fn chat_reply_adds_event_uri_once() {

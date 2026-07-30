@@ -22,18 +22,18 @@ use secp256k1::{Secp256k1, Verification};
 
 use crate::error::{Error, ErrorKind};
 #[cfg(all(feature = "std", feature = "os-rng"))]
-use crate::event::{AsyncSignEvent, FinalizeEvent, FinalizeEventAsync, SignEvent};
-use crate::event::{Event, UnsignedEvent};
+use crate::event::{AsyncSignEvent, EventBuilder, FinalizeEvent, FinalizeEventAsync, SignEvent};
+use crate::event::{Event, Kind, Tag, UnsignedEvent};
+use crate::key::PublicKey;
 #[cfg(all(feature = "std", feature = "os-rng"))]
 use crate::key::{AsyncGetPublicKey, GetPublicKey, Keys};
 #[cfg(all(feature = "std", feature = "os-rng"))]
 use crate::nips::nip44;
 use crate::nips::nip44::{AsyncNip44, Nip44};
+#[cfg(all(feature = "std", feature = "os-rng"))]
+use crate::types::Timestamp;
 #[cfg(feature = "std")]
 use crate::util::SECP256K1;
-#[cfg(all(feature = "std", feature = "os-rng"))]
-use crate::{EventBuilder, Timestamp};
-use crate::{Kind, PublicKey, Tag};
 
 #[cfg(all(feature = "std", feature = "os-rng"))]
 const RANGE_RANDOM_TIMESTAMP_TWEAK: Range<u64> = 0..172800; // From 0 secs to 2 days
@@ -153,6 +153,7 @@ impl UnwrappedGift {
 ///
 /// ```rust,no_run
 /// # use nostr::prelude::*;
+/// # use nostr::nips::nip59::GiftWrapSealBuilder;
 /// # #[cfg(all(feature = "std", feature = "os-rng"))]
 /// # fn main() -> Result<(), Box<dyn core::error::Error>> {
 /// let receiver = PublicKey::from_hex("<receiver-public-key>")?;
@@ -233,6 +234,7 @@ where
 ///
 /// ```rust,no_run
 /// # use nostr::prelude::*;
+/// # use nostr::nips::nip59::GiftWrapBuilder;
 /// # #[cfg(all(feature = "std", feature = "os-rng"))]
 /// # fn main() -> Result<(), Box<dyn core::error::Error>> {
 /// let receiver = PublicKey::from_hex("<receiver-public-key>")?;

@@ -4,7 +4,7 @@
 
 //! Monitor
 
-use nostr::RelayUrl;
+use nostr::types::RelayUrl;
 use tokio::sync::broadcast::{self, Receiver, Sender};
 
 use crate::relay::RelayStatus;

@@ -27,9 +27,8 @@ mod single_thread;
 pub use self::multi_thread::*;
 pub use self::single_thread::*;
 use super::util::{missing_tag_kind, take_and_parse_from_str, unknown_tag};
-use crate::UnsignedEvent;
 use crate::error::Error;
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{Tag, TagCodec, UnsignedEvent, impl_tag_codec_conversions};
 
 const NONCE: &str = "nonce";
 

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::future::IntoFuture;
 
-use nostr::RelayUrl;
+use nostr::types::RelayUrl;
 
 use crate::client::Client;
 use crate::future::BoxedFuture;

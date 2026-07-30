@@ -14,7 +14,8 @@ use std::{iter, thread};
 
 use flume::{Receiver, Sender};
 use heed::RwTxn;
-use nostr::{Event, Filter};
+use nostr::event::Event;
+use nostr::filter::Filter;
 use nostr_database::{FlatBufferBuilder, SaveEventStatus};
 use tokio::sync::oneshot;
 
@@ -374,8 +375,8 @@ mod tests {
     use std::sync::Arc;
 
     use futures::future::join_all;
-    use nostr::event::FinalizeEvent;
-    use nostr::{EventBuilder, Keys, Kind};
+    use nostr::event::{EventBuilder, FinalizeEvent, Kind};
+    use nostr::key::Keys;
     use tempfile::TempDir;
 
     use super::*;

@@ -264,7 +264,7 @@ impl_tag_codec_conversions!(Nip17Tag);
 
 /// Extracts the relay list
 ///
-/// This function doesn't verify if the event kind is [`Kind::InboxRelays`](crate::Kind::InboxRelays)!
+/// This function doesn't verify if the event kind is [`Kind::InboxRelays`]!
 pub fn extract_relay_list(event: &Event) -> impl Iterator<Item = RelayUrl> + '_ {
     event
         .tags
