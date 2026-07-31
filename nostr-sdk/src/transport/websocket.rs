@@ -11,12 +11,17 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use async_wsocket::{ConnectionMode, Message, WebSocket};
+#[cfg(not(target_arch = "wasm32"))]
+use async_wsocket::{HeaderMap, HeaderValue};
 use futures::stream::SplitSink;
 use futures::{Sink, SinkExt, Stream, StreamExt, TryStreamExt};
 use nostr::types::Url;
 
 use crate::error::Error;
 use crate::future::BoxedFuture;
+
+#[cfg(not(target_arch = "wasm32"))]
+const USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
 /// WebSocket transport sink
 pub type WebSocketSink = Pin<Box<dyn Sink<Message, Error = Error> + Send>>;
@@ -88,10 +93,16 @@ impl WebSocketTransport for DefaultWebsocketTransport {
                 None => ConnectionMode::Direct,
             };
 
-            // Connect
-            let socket: WebSocket = WebSocket::connect(url, &mode)
-                .await
-                .map_err(Error::transport)?;
+            #[cfg(not(target_arch = "wasm32"))]
+            let connection = {
+                let mut headers = HeaderMap::new();
+                headers.insert("user-agent", HeaderValue::from_static(USER_AGENT));
+                WebSocket::connect_with_headers(url, &mode, headers)
+            };
+            #[cfg(target_arch = "wasm32")]
+            let connection = WebSocket::connect(url, &mode);
+
+            let socket: WebSocket = connection.await.map_err(Error::transport)?;
 
             // Split sink and stream
             let (tx, rx) = socket.split();
@@ -133,5 +144,46 @@ impl Sink<Message> for TransportSink {
         Pin::new(&mut self.0)
             .poll_close_unpin(cx)
             .map_err(Error::transport)
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    use tokio::io::AsyncReadExt;
+    use tokio::net::TcpListener;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn default_transport_sends_user_agent() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut request = [0u8; 4096];
+            let mut len = 0;
+
+            while len < request.len() && !request[..len].ends_with(b"\r\n\r\n") {
+                let read = stream.read(&mut request[len..]).await.unwrap();
+                if read == 0 {
+                    break;
+                }
+                len += read;
+            }
+
+            String::from_utf8(request[..len].to_vec()).unwrap()
+        });
+
+        let url = Url::parse(&format!("ws://{address}")).unwrap();
+        assert!(DefaultWebsocketTransport.connect(&url, None).await.is_err());
+
+        let request = server.await.unwrap();
+        let user_agent = request.lines().find_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            name.eq_ignore_ascii_case("user-agent")
+                .then(|| value.trim())
+        });
+        assert_eq!(user_agent, Some(USER_AGENT));
     }
 }
