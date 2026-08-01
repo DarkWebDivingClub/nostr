@@ -2,16 +2,14 @@
 // Copyright (c) 2023-2025 Rust Nostr Developers
 // Distributed under the MIT software license
 
-use std::collections::hash_map::DefaultHasher;
 use std::fmt;
-use std::hash::{Hash, Hasher};
 use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use lru::LruCache;
 use nostr::prelude::IntoNostrSigner;
-use nostr::{Event, NostrSigner};
+use nostr::{Event, EventId, NostrSigner};
 use nostr_database::{IntoNostrDatabase, MemoryDatabase, NostrDatabase};
 use tokio::sync::{Mutex, RwLock};
 
@@ -42,9 +40,9 @@ impl fmt::Display for SharedStateError {
 pub struct SharedState {
     pub(crate) database: Arc<dyn NostrDatabase>,
     pub(crate) transport: Arc<dyn WebSocketTransport>,
-    signer: Arc<RwLock<Option<Arc<dyn NostrSigner>>>>,
-    nip42_auto_authentication: Arc<AtomicBool>,
-    verification_cache: Arc<Mutex<LruCache<u64, ()>>>,
+    pub(crate) signer: Arc<RwLock<Option<Arc<dyn NostrSigner>>>>,
+    pub(crate) nip42_auto_authentication: Arc<AtomicBool>,
+    pub(crate) verification_cache: Arc<Mutex<LruCache<EventId, ()>>>,
     pub(crate) admit_policy: Option<Arc<dyn AdmitPolicy>>,
     pub(crate) monitor: Option<Monitor>,
 }
@@ -146,12 +144,8 @@ impl SharedState {
     pub(crate) async fn verify_and_cache(&self, event: &Event) -> Result<(), nostr::event::Error> {
         let mut cache = self.verification_cache.lock().await;
 
-        // Hash event ID
-        // This reduces the memory footprint of the cache.
-        let id: u64 = hash(&event.id);
-
-        // Immediately return if the event is already verified
-        if cache.contains(&id) {
+        // Full IDs avoid treating a hash collision as proof of event verification.
+        if cache.contains(&event.id) {
             return Ok(());
         }
 
@@ -160,17 +154,8 @@ impl SharedState {
         event.verify()?;
 
         // Event is verified, so we can cache it.
-        cache.put(id, ());
+        cache.put(event.id, ());
 
         Ok(())
     }
-}
-
-fn hash<T>(val: &T) -> u64
-where
-    T: Hash,
-{
-    let mut hasher: DefaultHasher = DefaultHasher::new();
-    val.hash(&mut hasher);
-    hasher.finish()
 }

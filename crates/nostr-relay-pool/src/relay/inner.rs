@@ -1203,6 +1203,9 @@ impl InnerRelay {
             return Err(Error::EventExpired);
         }
 
+        // Policies may make security-sensitive decisions from event identity and content.
+        self.state.verify_and_cache(&event).await?;
+
         // Check event admission policy
         if let Some(policy) = &self.state.admit_policy {
             if let AdmitStatus::Rejected { .. } = policy
@@ -1219,10 +1222,8 @@ impl InnerRelay {
             DatabaseEventStatus::Saved => {}
             // Deleted, immediately return
             DatabaseEventStatus::Deleted => return Ok(None),
-            // Not existent, verify the event and try to save it to the database
+            // Not existent, try to save it to the database
             DatabaseEventStatus::NotExistent => {
-                self.state.verify_and_cache(&event).await?;
-
                 // Save into the database
                 let send_notification: bool = match self.state.database().save_event(&event).await?
                 {
@@ -2191,13 +2192,34 @@ async fn check_negentropy_support(
 
 #[cfg(test)]
 mod tests {
+    use std::future::Future;
+    use std::pin::Pin;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
     use nostr::event::{Event, EventBuilder, Kind};
     use nostr::key::Keys;
     use nostr::message::SubscriptionId;
     use nostr::types::RelayUrl;
 
     use super::*;
+    use crate::policy::{AdmitPolicy, AdmitStatus, PolicyError};
     use crate::relay::{Relay, RelayOptions};
+
+    #[derive(Debug)]
+    struct CountingAdmitPolicy(Arc<AtomicUsize>);
+
+    impl AdmitPolicy for CountingAdmitPolicy {
+        fn admit_event<'a>(
+            &'a self,
+            _relay_url: &'a RelayUrl,
+            _subscription_id: &'a SubscriptionId,
+            _event: &'a Event,
+        ) -> Pin<Box<dyn Future<Output = Result<AdmitStatus, PolicyError>> + Send + 'a>> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            Box::pin(async { Ok(AdmitStatus::Success) })
+        }
+    }
 
     fn event_with_invalid_signature() -> Event {
         let keys = Keys::generate();
@@ -2254,6 +2276,58 @@ mod tests {
                 .unwrap(),
             DatabaseEventStatus::NotExistent
         );
+    }
+
+    #[tokio::test]
+    async fn test_invalid_event_is_rejected_before_admit_policy() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let shared = SharedState {
+            admit_policy: Some(Arc::new(CountingAdmitPolicy(calls.clone()))),
+            ..Default::default()
+        };
+        let relay = Relay::new(
+            RelayUrl::parse("wss://relay.example.com").unwrap(),
+            shared,
+            RelayOptions::new(),
+        );
+        let event = event_with_invalid_signature();
+
+        let result = relay
+            .inner
+            .handle_event_msg(SubscriptionId::new("test"), event)
+            .await;
+
+        assert!(result.is_err());
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn test_invalid_event_with_saved_id_is_rejected() {
+        let relay = Relay::new(
+            RelayUrl::parse("wss://relay.example.com").unwrap(),
+            SharedState::default(),
+            RelayOptions::new(),
+        );
+        let valid_event = EventBuilder::new(Kind::TextNote, "valid")
+            .sign_with_keys(&Keys::generate())
+            .unwrap();
+        relay
+            .inner
+            .state
+            .database()
+            .save_event(&valid_event)
+            .await
+            .unwrap();
+
+        let mut forged_event = valid_event;
+        forged_event.content = String::from("forged");
+        assert!(forged_event.verify().is_err());
+
+        let result = relay
+            .inner
+            .handle_event_msg(SubscriptionId::new("test"), forged_event)
+            .await;
+        assert!(result.is_err());
     }
 }
 
