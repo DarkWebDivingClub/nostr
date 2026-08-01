@@ -755,33 +755,35 @@ impl InnerLocalRelay {
                 session.subscriptions.remove(&subscription_id);
                 Ok(())
             }
-            ClientMessage::Auth(event) => match session.nip42.check_challenge(&event) {
-                Ok(()) => {
-                    send_msg(
-                        ws_tx,
-                        RelayMessage::Ok {
-                            event_id: event.id,
-                            status: true,
-                            message: Cow::Owned(String::new()),
-                        },
-                    )
-                    .await
+            ClientMessage::Auth(event) => {
+                match session.nip42.check_challenge(&event, &self.url().await) {
+                    Ok(()) => {
+                        send_msg(
+                            ws_tx,
+                            RelayMessage::Ok {
+                                event_id: event.id,
+                                status: true,
+                                message: Cow::Owned(String::new()),
+                            },
+                        )
+                        .await
+                    }
+                    Err(e) => {
+                        send_msg(
+                            ws_tx,
+                            RelayMessage::Ok {
+                                event_id: event.id,
+                                status: false,
+                                message: Cow::Owned(format!(
+                                    "{}: {e}",
+                                    MachineReadablePrefix::AuthRequired
+                                )),
+                            },
+                        )
+                        .await
+                    }
                 }
-                Err(e) => {
-                    send_msg(
-                        ws_tx,
-                        RelayMessage::Ok {
-                            event_id: event.id,
-                            status: false,
-                            message: Cow::Owned(format!(
-                                "{}: {e}",
-                                MachineReadablePrefix::AuthRequired
-                            )),
-                        },
-                    )
-                    .await
-                }
-            },
+            }
             ClientMessage::NegOpen {
                 subscription_id,
                 filter,

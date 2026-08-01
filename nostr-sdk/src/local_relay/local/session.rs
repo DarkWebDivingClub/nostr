@@ -6,11 +6,13 @@ use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
 use negentropy::{Negentropy, NegentropyStorageVector};
-use nostr::event::Event;
+use nostr::event::{Event, Kind};
 use nostr::filter::Filter;
 use nostr::key::PublicKey;
 use nostr::message::SubscriptionId;
+use nostr::nips::nip42;
 use nostr::types::Timestamp;
+use nostr::types::url::RelayUrl;
 
 pub(super) enum RateLimiterResponse {
     Allowed,
@@ -46,11 +48,15 @@ impl Nip42Session {
         self.public_key.is_some()
     }
 
-    pub fn check_challenge(&mut self, event: &Event) -> Result<(), String> {
+    pub fn check_challenge(&mut self, event: &Event, relay_url: &RelayUrl) -> Result<(), String> {
+        // Authentication must be bound to the NIP-42 kind, this relay, and this connection.
+        if event.kind != Kind::Authentication {
+            return Err(String::from("invalid authentication event kind"));
+        }
+
         match event.tags.challenge() {
             Some(challenge) => {
-                // Tried to remove challenge but wasn't in the set: return false.
-                if !self.challenges.remove(&challenge) {
+                if !self.challenges.contains(&challenge) {
                     return Err(String::from("received invalid challenge"));
                 }
 
@@ -64,7 +70,12 @@ impl Nip42Session {
                 // Verify event
                 event.verify().map_err(|e| e.to_string())?;
 
-                // TODO: check `relay` tag
+                if !nip42::is_valid_auth_event(event, relay_url, &challenge) {
+                    return Err(String::from("invalid authentication event"));
+                }
+
+                // Consume only after every check, so malformed replies cannot invalidate it.
+                self.challenges.remove(&challenge);
 
                 // Mark as authenticated
                 self.public_key = Some(event.pubkey);
@@ -147,5 +158,50 @@ impl Tokens {
         if self.count >= max_per_minute {
             self.count = max_per_minute.saturating_sub(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use nostr::event::{EventBuilder, FinalizeEvent, IntoEventBuilder, Tag};
+    use nostr::key::Keys;
+
+    use super::*;
+
+    #[test]
+    fn authentication_rejects_signatures_from_other_event_kinds() {
+        let keys = Keys::generate();
+        let mut session = Nip42Session::default();
+        let challenge = session.generate_challenge();
+        let relay_url = RelayUrl::parse("ws://127.0.0.1:8080").unwrap();
+        let event = EventBuilder::new(Kind::TextNote, "unrelated")
+            .tag(Tag::custom("challenge", [challenge.as_str()]))
+            .finalize(&keys)
+            .unwrap();
+
+        let error = session.check_challenge(&event, &relay_url).unwrap_err();
+        assert_eq!(error, "invalid authentication event kind");
+        assert!(session.challenges.contains(&challenge));
+        assert!(!session.is_authenticated());
+    }
+
+    #[test]
+    fn authentication_rejects_events_for_another_relay() {
+        let keys = Keys::generate();
+        let mut session = Nip42Session::default();
+        let challenge = session.generate_challenge();
+        let expected_relay = RelayUrl::parse("ws://127.0.0.1:8080").unwrap();
+        let other_relay = RelayUrl::parse("wss://attacker.example.com").unwrap();
+        let event = nip42::ClientAuthentication::new(challenge.clone(), other_relay)
+            .into_event_builder()
+            .finalize(&keys)
+            .unwrap();
+
+        let error = session
+            .check_challenge(&event, &expected_relay)
+            .unwrap_err();
+        assert_eq!(error, "invalid authentication event");
+        assert!(session.challenges.contains(&challenge));
+        assert!(!session.is_authenticated());
     }
 }
