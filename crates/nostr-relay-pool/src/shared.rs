@@ -7,13 +7,13 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use lru::LruCache;
 use nostr::prelude::IntoNostrSigner;
-use nostr::{EventId, NostrSigner};
+use nostr::{Event, NostrSigner};
 use nostr_database::{IntoNostrDatabase, MemoryDatabase, NostrDatabase};
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 use crate::monitor::Monitor;
 use crate::policy::AdmitPolicy;
@@ -26,7 +26,6 @@ const MAX_VERIFICATION_CACHE_SIZE: usize = 128_000;
 #[derive(Debug)]
 pub enum SharedStateError {
     SignerNotConfigured,
-    MutexPoisoned,
 }
 
 impl std::error::Error for SharedStateError {}
@@ -35,7 +34,6 @@ impl fmt::Display for SharedStateError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SignerNotConfigured => f.write_str("signer not configured"),
-            Self::MutexPoisoned => f.write_str("mutex poisoned"),
         }
     }
 }
@@ -137,17 +135,34 @@ impl SharedState {
         *s = None;
     }
 
-    pub(crate) fn verified(&self, id: &EventId) -> Result<bool, SharedStateError> {
-        let mut cache = self
-            .verification_cache
-            .lock()
-            .map_err(|_| SharedStateError::MutexPoisoned)?;
+    /// Check if the event was already verified or verify it.
+    ///
+    /// This is useful if someone continues to send the same invalid event:
+    /// since invalid events aren't stored in the database,
+    /// skipping this check would result in the re-verification of the event.
+    /// This may also be useful to avoid double verification if the event is received at the exact same time by many different Relay instances.
+    ///
+    /// This is important since event signature verification is a heavy job!
+    pub(crate) async fn verify_and_cache(&self, event: &Event) -> Result<(), nostr::event::Error> {
+        let mut cache = self.verification_cache.lock().await;
 
         // Hash event ID
-        let id: u64 = hash(&id);
+        // This reduces the memory footprint of the cache.
+        let id: u64 = hash(&event.id);
 
-        // Returns `Some(T)` if the key already exists
-        Ok(cache.put(id, ()).is_some())
+        // Immediately return if the event is already verified
+        if cache.contains(&id) {
+            return Ok(());
+        }
+
+        // We now verify the event
+        // If the event verification fails, the cache is not populated
+        event.verify()?;
+
+        // Event is verified, so we can cache it.
+        cache.put(id, ());
+
+        Ok(())
     }
 }
 
