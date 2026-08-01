@@ -117,11 +117,17 @@ impl LocalRelay {
     /// This method doesn't save the event into the database!
     /// It's intended to be used ONLY when the database is shared with other apps (i.e. with the nostr-sdk `Client`).
     pub fn notify_event(&self, event: Event) -> bool {
+        if event.verify().is_err() {
+            return false;
+        }
+
         self.inner.notify_event(event)
     }
 
     /// Save the event to the database and, if success, notify the subscribers.
     pub async fn add_event(&self, event: Event) -> Result<SaveEventStatus, Error> {
+        event.verify()?;
+
         let status = self.inner.save_event(&event).await?;
 
         if status.is_success() {
@@ -154,7 +160,9 @@ mod tests {
 
     use async_wsocket::{ConnectionMode, Message, Url, WebSocket};
     use futures::{SinkExt, StreamExt};
+    use nostr::event::{EventBuilder, FinalizeEvent, Kind};
     use nostr::filter::Filter;
+    use nostr::key::Keys;
     use nostr::message::{MachineReadablePrefix, RelayMessage};
     use tokio::time;
 
@@ -174,6 +182,31 @@ mod tests {
                 QueryPolicyResult::reject(MachineReadablePrefix::Blocked, "query rejected")
             })
         }
+    }
+
+    #[tokio::test]
+    async fn add_event_rejects_unverified_events() {
+        let relay = LocalRelay::new();
+        let keys = Keys::generate();
+        let mut event = EventBuilder::new(Kind::TextNote, "original")
+            .finalize(&keys)
+            .unwrap();
+        event.content = String::from("forged");
+
+        let err = relay.add_event(event).await.unwrap_err();
+        assert_eq!(err.kind(), crate::error::ErrorKind::Protocol);
+    }
+
+    #[test]
+    fn notify_event_rejects_unverified_events() {
+        let relay = LocalRelay::new();
+        let keys = Keys::generate();
+        let mut event = EventBuilder::new(Kind::TextNote, "original")
+            .finalize(&keys)
+            .unwrap();
+        event.content = String::from("forged");
+
+        assert!(!relay.notify_event(event));
     }
 
     #[tokio::test]

@@ -385,6 +385,9 @@ where
 
     fn into_future(self) -> Self::IntoFuture {
         Box::pin(async move {
+            // Caller-supplied events may be externally signed; validate before local side effects.
+            self.event.verify()?;
+
             // Save event into database
             if self.save_into_database {
                 self.client.database().save_event(self.event).await?;
@@ -445,6 +448,7 @@ mod tests {
     use nostr::nips::nip17::InboxRelayList;
     use nostr::nips::nip65::RelayList;
     use nostr::prelude::*;
+    use nostr_database::DatabaseEventStatus;
     use nostr_gossip::GossipAllowedRelays;
     use nostr_gossip_memory::store::NostrGossipMemory;
 
@@ -452,6 +456,23 @@ mod tests {
     use crate::client::{GossipConfig, GossipRelayLimits};
     use crate::error::ErrorKind;
     use crate::local_relay::*;
+
+    #[tokio::test]
+    async fn unverified_event_is_rejected_before_sending() {
+        let client = Client::default();
+        let keys = Keys::generate();
+        let mut event = EventBuilder::new(Kind::TextNote, "original")
+            .finalize(&keys)
+            .unwrap();
+        event.content = String::from("forged");
+
+        let err = client.send_event(&event).await.unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::Protocol);
+        assert_eq!(
+            client.database().check_id(&event.id).await.unwrap(),
+            DatabaseEventStatus::NotExistent
+        );
+    }
 
     #[tokio::test]
     async fn test_send_event() {
