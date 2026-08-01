@@ -16,9 +16,9 @@ use crate::client::Client;
 use crate::events_tracker::MemoryEventsTracker;
 use crate::monitor::Monitor;
 use crate::policy::AdmitPolicy;
-use crate::prelude::RelayLimits;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::proxy::Proxy;
+use crate::relay::{RelayLimits, SleepWhenIdle};
 use crate::transport::websocket::{
     DefaultWebsocketTransport, IntoWebSocketTransport, WebSocketTransport,
 };
@@ -402,19 +402,4 @@ impl ClientBuilder {
     pub fn build(self) -> Client {
         Client::from_builder(self)
     }
-}
-
-/// Put relays to sleep when idle.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum SleepWhenIdle {
-    /// Disabled
-    #[default]
-    Disabled,
-    /// Enabled for all relays
-    Enabled {
-        /// Idle timeout
-        ///
-        /// After how much time of inactivity put the relay to sleep.
-        timeout: Duration,
-    },
 }

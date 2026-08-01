@@ -30,7 +30,10 @@ use super::constants::{
 use super::options::{RelayOptions, ReqExitPolicy, SubscribeAutoCloseOptions};
 use super::ping::PingTracker;
 use super::stats::RelayConnectionStats;
-use super::{RelayNotification, RelayStatus, SubscriptionActivity, SubscriptionAutoClosedReason};
+use super::{
+    RelayNotification, RelayStatus, SleepWhenIdle, SubscriptionActivity,
+    SubscriptionAutoClosedReason,
+};
 use crate::client::ClientNotification;
 use crate::error::Error;
 use crate::policy::AdmitStatus;
@@ -494,9 +497,9 @@ impl InnerRelay {
     /// Check if relay should sleep
     async fn should_sleep(&self) -> bool {
         // Check if sleeping is disabled
-        if !self.opts.sleep_when_idle {
+        let SleepWhenIdle::Enabled { timeout } = self.opts.sleep_when_idle else {
             return false;
-        }
+        };
 
         // Get current subscriptions
         let subscriptions = self.atomic.subscriptions.read().await;
@@ -523,14 +526,14 @@ impl InnerRelay {
 
         let idle_duration_secs: u64 = Timestamp::now().as_secs() - reference_time.as_secs();
         let idle_duration: Duration = Duration::from_secs(idle_duration_secs);
-        idle_duration >= self.opts.idle_timeout
+        idle_duration >= timeout
     }
 
     /// Wake up the relay if it's sleeping and update the last activity timestamp.
     #[inline]
     fn ensure_awake_for_activity(&self) {
         // If the sleeping is disabled, immediately return.
-        if !self.opts.sleep_when_idle {
+        if self.opts.sleep_when_idle.is_disabled() {
             return;
         }
 

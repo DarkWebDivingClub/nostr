@@ -7,6 +7,28 @@ use super::limits::RelayLimits;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::proxy::Proxy;
 
+/// Put relay/s to sleep when idle.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SleepWhenIdle {
+    /// Disabled
+    #[default]
+    Disabled,
+    /// Enabled for all relays
+    Enabled {
+        /// Idle timeout
+        ///
+        /// After how much time of inactivity put the relay to sleep.
+        timeout: Duration,
+    },
+}
+
+impl SleepWhenIdle {
+    #[inline]
+    pub(super) fn is_disabled(&self) -> bool {
+        matches!(self, SleepWhenIdle::Disabled)
+    }
+}
+
 /// Relay options
 #[derive(Debug, Clone)]
 pub struct RelayOptions {
@@ -14,9 +36,8 @@ pub struct RelayOptions {
     pub(crate) proxy: Option<Proxy>,
     pub(crate) ping: bool,
     pub(crate) reconnect: bool,
-    pub(crate) sleep_when_idle: bool,
+    pub(crate) sleep_when_idle: SleepWhenIdle,
     pub(crate) connect_timeout: Duration,
-    pub(crate) idle_timeout: Duration,
     pub(crate) retry_interval: Duration,
     pub(crate) adjust_retry_interval: bool,
     pub(crate) verify_subscriptions: bool,
@@ -33,9 +54,8 @@ impl Default for RelayOptions {
             proxy: None,
             ping: true,
             reconnect: true,
-            sleep_when_idle: false,
+            sleep_when_idle: SleepWhenIdle::Disabled,
             connect_timeout: Duration::from_secs(15),
-            idle_timeout: Duration::from_secs(300),
             retry_interval: DEFAULT_RETRY_INTERVAL,
             adjust_retry_interval: true,
             verify_subscriptions: false,
@@ -129,17 +149,10 @@ impl RelayOptions {
         self
     }
 
-    /// Sleep when idle (default: false)
+    /// Sleep when idle (default: disabled)
     #[inline]
-    pub fn sleep_when_idle(mut self, enable: bool) -> Self {
-        self.sleep_when_idle = enable;
-        self
-    }
-
-    /// Set idle timeout for on-demand connections (default: 5 minutes)
-    #[inline]
-    pub fn idle_timeout(mut self, timeout: Duration) -> Self {
-        self.idle_timeout = timeout;
+    pub fn sleep_when_idle(mut self, config: SleepWhenIdle) -> Self {
+        self.sleep_when_idle = config;
         self
     }
 }

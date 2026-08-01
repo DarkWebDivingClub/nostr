@@ -9,7 +9,7 @@ use crate::error::Error;
 use crate::future::BoxedFuture;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::proxy::Proxy;
-use crate::relay::{RelayCapabilities, RelayLimits, RelayOptions};
+use crate::relay::{RelayCapabilities, RelayLimits, RelayOptions, SleepWhenIdle};
 
 /// Add new relay to the pool
 #[must_use = "Does nothing unless you await!"]
@@ -116,17 +116,10 @@ impl<'client, 'url> AddRelay<'client, 'url> {
         self
     }
 
-    /// Sleep when idle (default: false)
+    /// Sleep when idle (default: disabled)
     #[inline]
-    pub fn sleep_when_idle(mut self, enable: bool) -> Self {
-        self.opts.sleep_when_idle = enable;
-        self
-    }
-
-    /// Set idle timeout for on-demand connections (default: 5 minutes)
-    #[inline]
-    pub fn idle_timeout(mut self, timeout: Duration) -> Self {
-        self.opts.idle_timeout = timeout;
+    pub fn sleep_when_idle(mut self, config: SleepWhenIdle) -> Self {
+        self.opts.sleep_when_idle = config;
         self
     }
 

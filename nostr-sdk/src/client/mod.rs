@@ -29,7 +29,9 @@ use crate::monitor::Monitor;
 use crate::pool::{RelayPool, RelayPoolBuilder};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::proxy::Proxy;
-use crate::relay::{Relay, RelayCapabilities, RelayLimits, RelayOptions, SyncOptions};
+use crate::relay::{
+    Relay, RelayCapabilities, RelayLimits, RelayOptions, SleepWhenIdle, SyncOptions,
+};
 use crate::stream::NotificationStream;
 
 #[derive(Debug)]
@@ -284,14 +286,7 @@ impl Client {
         }
 
         // Set sleep when idle
-        match self.config().sleep_when_idle {
-            // Do nothing
-            SleepWhenIdle::Disabled => {}
-            // Enable: update relay options
-            SleepWhenIdle::Enabled { timeout } => {
-                opts = opts.sleep_when_idle(true).idle_timeout(timeout);
-            }
-        };
+        opts = opts.sleep_when_idle(self.config().sleep_when_idle);
 
         // Set limits
         opts.connect_timeout(self.config().connect_timeout)

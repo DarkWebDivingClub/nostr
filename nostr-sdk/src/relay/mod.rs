@@ -959,9 +959,9 @@ mod tests {
         let url = mock.url().await;
 
         // Relay
-        let opts = RelayOptions::default()
-            .sleep_when_idle(true)
-            .idle_timeout(Duration::from_secs(2));
+        let opts = RelayOptions::default().sleep_when_idle(SleepWhenIdle::Enabled {
+            timeout: Duration::from_secs(2),
+        });
         let relay = new_relay(url, opts);
 
         // Connect
@@ -1019,9 +1019,9 @@ mod tests {
         let url = mock.url().await;
 
         // Relay
-        let opts = RelayOptions::default()
-            .sleep_when_idle(true)
-            .idle_timeout(Duration::from_secs(2));
+        let opts = RelayOptions::default().sleep_when_idle(SleepWhenIdle::Enabled {
+            timeout: Duration::from_secs(2),
+        });
         let relay = new_relay(url, opts);
 
         // Connect
