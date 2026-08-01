@@ -58,6 +58,7 @@ pub(super) struct InnerLocalRelay {
     rate_limit: RateLimit,
     queries_per_minute: u32,
     auth_events_per_minute: u32,
+    messages_per_minute: u32,
     connections_limit: Arc<Semaphore>,
     max_websocket_message_size: usize,
     websocket_handshake_timeout: Duration,
@@ -108,6 +109,7 @@ impl InnerLocalRelay {
             rate_limit: builder.rate_limit,
             queries_per_minute: builder.queries_per_minute,
             auth_events_per_minute: builder.auth_events_per_minute,
+            messages_per_minute: builder.messages_per_minute,
             connections_limit: Arc::new(Semaphore::new(builder.max_connections)),
             max_websocket_message_size: builder.max_websocket_message_size,
             websocket_handshake_timeout: builder.websocket_handshake_timeout,
@@ -348,6 +350,7 @@ impl InnerLocalRelay {
             write_tokens: Tokens::new(self.rate_limit.notes_per_minute),
             query_tokens: Tokens::new(self.queries_per_minute),
             auth_tokens: Tokens::new(self.auth_events_per_minute),
+            message_tokens: Tokens::new(self.messages_per_minute),
         };
 
         loop {
@@ -355,6 +358,13 @@ impl InnerLocalRelay {
                 msg = rx.next() => {
                     match msg {
                         Some(Ok(msg)) => {
+                            // Charge every frame type so non-text traffic cannot bypass the limit.
+                            if let RateLimiterResponse::Limited =
+                                session.check_message_rate_limit(self.messages_per_minute)
+                            {
+                                return Err(Error::limit_exceeded("too many client messages"));
+                            }
+
                             match msg {
                                 Message::Text(json) => {
                                     tracing::trace!("Received {json}");
@@ -1506,6 +1516,7 @@ mod tests {
             write_tokens: Tokens::new(1),
             query_tokens: Tokens::new(1),
             auth_tokens: Tokens::new(1),
+            message_tokens: Tokens::new(1),
         }
     }
 
@@ -1517,6 +1528,7 @@ mod tests {
         assert_eq!(relay.connections_limit.available_permits(), 128);
         assert_eq!(relay.queries_per_minute, 120);
         assert_eq!(relay.auth_events_per_minute, 30);
+        assert_eq!(relay.messages_per_minute, 300);
         assert_eq!(relay.max_filters_per_req, 20);
         assert_eq!(relay.max_filter_limit, Some(500));
         assert_eq!(relay.max_query_results, 500);

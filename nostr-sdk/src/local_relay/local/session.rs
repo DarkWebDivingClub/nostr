@@ -95,6 +95,7 @@ pub(super) struct Session<'a> {
     pub write_tokens: Tokens,
     pub query_tokens: Tokens,
     pub auth_tokens: Tokens,
+    pub message_tokens: Tokens,
 }
 
 pub(super) struct Subscription {
@@ -125,6 +126,10 @@ impl Session<'_> {
 
     pub fn check_auth_rate_limit(&mut self, max_per_minute: u32) -> RateLimiterResponse {
         Self::take_token(&mut self.auth_tokens, max_per_minute)
+    }
+
+    pub fn check_message_rate_limit(&mut self, max_per_minute: u32) -> RateLimiterResponse {
+        Self::take_token(&mut self.message_tokens, max_per_minute)
     }
 
     fn take_token(tokens: &mut Tokens, max_per_minute: u32) -> RateLimiterResponse {
@@ -210,6 +215,7 @@ mod tests {
             write_tokens: Tokens::new(tokens),
             query_tokens: Tokens::new(tokens),
             auth_tokens: Tokens::new(tokens),
+            message_tokens: Tokens::new(tokens),
         }
     }
 
@@ -255,6 +261,10 @@ mod tests {
         ));
         assert!(matches!(
             session.check_auth_rate_limit(1),
+            RateLimiterResponse::Allowed
+        ));
+        assert!(matches!(
+            session.check_message_rate_limit(1),
             RateLimiterResponse::Allowed
         ));
     }

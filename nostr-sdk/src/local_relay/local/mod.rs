@@ -413,6 +413,41 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_binary_messages_are_rate_limited() {
+        let relay = LocalRelay::builder().messages_per_minute(1).build();
+        relay.run().await.unwrap();
+
+        let url = Url::parse(relay.url().await.as_str()).unwrap();
+        let mut socket = WebSocket::connect(&url, &ConnectionMode::direct())
+            .await
+            .unwrap();
+
+        socket.send(Message::Binary(vec![1].into())).await.unwrap();
+        let notice = time::timeout(Duration::from_secs(1), socket.next())
+            .await
+            .expect("relay did not answer the first binary message")
+            .unwrap()
+            .unwrap();
+        assert!(matches!(
+            notice,
+            Message::Text(json)
+                if matches!(
+                    RelayMessage::from_json(json.as_bytes()).unwrap(),
+                    RelayMessage::Notice(..)
+                )
+        ));
+
+        socket.send(Message::Binary(vec![2].into())).await.unwrap();
+        let closed = time::timeout(Duration::from_secs(1), socket.next())
+            .await
+            .expect("connection did not close after rate limit");
+        assert!(matches!(
+            closed,
+            None | Some(Ok(Message::Close(..))) | Some(Err(..))
+        ));
+    }
+
+    #[tokio::test]
     async fn test_shutdown() {
         let relay = LocalRelay::new();
 

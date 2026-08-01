@@ -24,6 +24,7 @@ pub(super) const DEFAULT_MAX_WEBSOCKET_MESSAGE_SIZE: usize = 5 * 1024 * 1024;
 pub(super) const DEFAULT_WEBSOCKET_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 pub(super) const DEFAULT_QUERIES_PER_MINUTE: u32 = 120;
 pub(super) const DEFAULT_AUTH_EVENTS_PER_MINUTE: u32 = 30;
+pub(super) const DEFAULT_MESSAGES_PER_MINUTE: u32 = 300;
 
 /// Rate limit
 #[derive(Debug, Clone)]
@@ -277,6 +278,8 @@ pub struct LocalRelayBuilder {
     pub(crate) queries_per_minute: u32,
     /// Authentication events per minute per connection
     pub(crate) auth_events_per_minute: u32,
+    /// Text messages per minute per connection
+    pub(crate) messages_per_minute: u32,
     /// NIP42 options
     pub(crate) nip42: Option<LocalRelayBuilderNip42>,
     /// Max connections allowed
@@ -334,6 +337,7 @@ impl Default for LocalRelayBuilder {
             rate_limit: RateLimit::default(),
             queries_per_minute: DEFAULT_QUERIES_PER_MINUTE,
             auth_events_per_minute: DEFAULT_AUTH_EVENTS_PER_MINUTE,
+            messages_per_minute: DEFAULT_MESSAGES_PER_MINUTE,
             nip42: None,
             max_connections: DEFAULT_MAX_CONNECTIONS,
             max_websocket_message_size: DEFAULT_MAX_WEBSOCKET_MESSAGE_SIZE,
@@ -407,6 +411,14 @@ impl LocalRelayBuilder {
     #[inline]
     pub fn auth_events_per_minute(mut self, max: u32) -> Self {
         self.auth_events_per_minute = max;
+        self
+    }
+
+    /// Sets the maximum WebSocket messages per minute for each connection.
+    /// Defaults to 300.
+    #[inline]
+    pub fn messages_per_minute(mut self, max: u32) -> Self {
+        self.messages_per_minute = max;
         self
     }
 
