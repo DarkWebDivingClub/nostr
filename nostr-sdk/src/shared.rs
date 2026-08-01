@@ -1,11 +1,9 @@
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use lru::LruCache;
 use nostr::error::Error;
-use nostr::event::Event;
+use nostr::event::{Event, EventId};
 use nostr_database::NostrDatabase;
 use nostr_gossip::NostrGossip;
 use tokio::sync::Mutex;
@@ -16,7 +14,7 @@ use crate::policy::AdmitPolicy;
 use crate::transport::websocket::WebSocketTransport;
 
 // LruCache pre-allocate, so keep this at a reasonable value.
-// A good value may be <= 128k, considering that stored values are the 64-bit hashes of the event IDs.
+// A good value may be <= 128k.
 const MAX_VERIFICATION_CACHE_SIZE: usize = 128_000;
 
 #[derive(Debug, Clone)]
@@ -24,7 +22,7 @@ pub(crate) struct SharedState {
     pub(crate) database: Arc<dyn NostrDatabase>,
     pub(crate) transport: Arc<dyn WebSocketTransport>,
     pub(crate) gossip: Option<Arc<dyn NostrGossip>>,
-    verification_cache: Arc<Mutex<LruCache<u64, ()>>>,
+    verification_cache: Arc<Mutex<LruCache<EventId, ()>>>,
     pub(crate) admit_policy: Option<Arc<dyn AdmitPolicy>>,
     pub(crate) authenticator: Option<Arc<dyn Authenticator>>,
     pub(crate) monitor: Option<Monitor>,
@@ -75,12 +73,8 @@ impl SharedState {
     pub(crate) async fn verify_and_cache(&self, event: &Event) -> Result<(), Error> {
         let mut cache = self.verification_cache.lock().await;
 
-        // Hash event ID
-        // This reduces the memory footprint of the cache.
-        let id: u64 = hash(&event.id);
-
-        // Immediately return if the event is already verified
-        if cache.contains(&id) {
+        // Full IDs avoid treating a hash collision as proof of event verification.
+        if cache.contains(&event.id) {
             return Ok(());
         }
 
@@ -89,17 +83,8 @@ impl SharedState {
         event.verify()?;
 
         // Event is verified, so we can cache it.
-        cache.put(id, ());
+        cache.put(event.id, ());
 
         Ok(())
     }
-}
-
-fn hash<T>(val: &T) -> u64
-where
-    T: Hash,
-{
-    let mut hasher: DefaultHasher = DefaultHasher::new();
-    val.hash(&mut hasher);
-    hasher.finish()
 }
