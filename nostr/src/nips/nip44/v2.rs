@@ -23,9 +23,16 @@ use crate::util::{self, hkdf};
 
 const VERSION_SIZE: usize = 1;
 const NONCE_SIZE: usize = 32;
-const MIN_CIPHERTEXT_SIZE: usize = 2 + 32;
+const LENGTH_PREFIX_SIZE: usize = 2;
+const MIN_CIPHERTEXT_SIZE: usize = LENGTH_PREFIX_SIZE + 32;
 const HMAC_SIZE: usize = 32;
 const MIN_PAYLOAD_SIZE: usize = VERSION_SIZE + NONCE_SIZE + MIN_CIPHERTEXT_SIZE + HMAC_SIZE;
+// This codec currently supports the original two-byte length prefix only.
+const MAX_SUPPORTED_PLAINTEXT_SIZE: usize = 65_536 - 128;
+const MAX_CIPHERTEXT_SIZE: usize = LENGTH_PREFIX_SIZE + calc_padding(MAX_SUPPORTED_PLAINTEXT_SIZE);
+pub(super) const MAX_PAYLOAD_SIZE: usize =
+    VERSION_SIZE + NONCE_SIZE + MAX_CIPHERTEXT_SIZE + HMAC_SIZE;
+pub(super) const MAX_ENCODED_PAYLOAD_SIZE: usize = MAX_PAYLOAD_SIZE.div_ceil(3) * 4;
 
 const MESSAGE_KEYS_SIZE: usize = 76;
 const MESSAGES_KEYS_ENCRYPTION_SIZE: usize = 32;
@@ -193,6 +200,10 @@ pub fn decrypt_to_bytes(
     if len < MIN_PAYLOAD_SIZE {
         return Err(ErrorV2::PayloadTooShort.into());
     }
+    // Reject before HMAC and ciphertext allocation using the largest payload we can emit.
+    if len > MAX_PAYLOAD_SIZE {
+        return Err(ErrorV2::MessageTooLong.into());
+    }
 
     // Extract nonce, buffer and hmac from payload
     let nonce: &[u8] = payload
@@ -264,7 +275,7 @@ fn pad(unpadded: &[u8]) -> Result<Vec<u8>, ErrorV2> {
         return Err(ErrorV2::MessageEmpty);
     }
 
-    if len > 65536 - 128 {
+    if len > MAX_SUPPORTED_PLAINTEXT_SIZE {
         return Err(ErrorV2::MessageTooLong);
     }
 
@@ -277,7 +288,7 @@ fn pad(unpadded: &[u8]) -> Result<Vec<u8>, ErrorV2> {
 }
 
 #[inline]
-fn calc_padding(len: usize) -> usize {
+const fn calc_padding(len: usize) -> usize {
     if len <= 32 {
         return 32;
     }
@@ -288,7 +299,7 @@ fn calc_padding(len: usize) -> usize {
 
 /// Returns the base 2 logarithm of the number, rounded down.
 #[inline]
-fn log2_round_down(x: usize) -> u32 {
+const fn log2_round_down(x: usize) -> u32 {
     if x == 0 {
         0
     } else {
@@ -665,5 +676,29 @@ mod tests {
             assert_eq!(err.kind(), ErrorKind::Invalid);
             assert_eq!(err.to_string(), "payload size is too short");
         }
+    }
+
+    #[test]
+    fn test_oversized_binary_payload_is_rejected() {
+        let conversation_key = ConversationKey::new([0x42; 32]);
+        let payload = vec![0u8; MAX_PAYLOAD_SIZE + 1];
+
+        let err = decrypt_to_bytes(&conversation_key, &payload).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::Invalid);
+        assert_eq!(err.to_string(), "message too long");
+    }
+
+    #[test]
+    fn test_maximum_plaintext_roundtrip() {
+        let conversation_key = ConversationKey::new([0x42; 32]);
+        let plaintext = vec![0x24; MAX_SUPPORTED_PLAINTEXT_SIZE];
+        let payload =
+            encrypt_to_bytes_with_nonce(&conversation_key, &plaintext, [0x11; 32]).unwrap();
+
+        assert_eq!(payload.len(), MAX_PAYLOAD_SIZE);
+        assert_eq!(
+            decrypt_to_bytes(&conversation_key, &payload).unwrap(),
+            plaintext
+        );
     }
 }
