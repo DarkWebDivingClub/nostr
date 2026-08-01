@@ -57,6 +57,7 @@ pub(super) struct InnerLocalRelay {
     mode: LocalRelayBuilderMode,
     rate_limit: RateLimit,
     queries_per_minute: u32,
+    auth_events_per_minute: u32,
     connections_limit: Arc<Semaphore>,
     max_websocket_message_size: usize,
     websocket_handshake_timeout: Duration,
@@ -106,6 +107,7 @@ impl InnerLocalRelay {
             mode: builder.mode,
             rate_limit: builder.rate_limit,
             queries_per_minute: builder.queries_per_minute,
+            auth_events_per_minute: builder.auth_events_per_minute,
             connections_limit: Arc::new(Semaphore::new(builder.max_connections)),
             max_websocket_message_size: builder.max_websocket_message_size,
             websocket_handshake_timeout: builder.websocket_handshake_timeout,
@@ -345,6 +347,7 @@ impl InnerLocalRelay {
             nip42: Nip42Session::default(),
             write_tokens: Tokens::new(self.rate_limit.notes_per_minute),
             query_tokens: Tokens::new(self.queries_per_minute),
+            auth_tokens: Tokens::new(self.auth_events_per_minute),
         };
 
         loop {
@@ -812,6 +815,24 @@ impl InnerLocalRelay {
                 Ok(())
             }
             ClientMessage::Auth(event) => {
+                // Charge before signature verification so malformed attempts consume quota too.
+                if let RateLimiterResponse::Limited =
+                    session.check_auth_rate_limit(self.auth_events_per_minute)
+                {
+                    return send_msg(
+                        ws_tx,
+                        RelayMessage::Ok {
+                            event_id: event.id,
+                            status: false,
+                            message: Cow::Owned(format!(
+                                "{}: too many authentication attempts",
+                                MachineReadablePrefix::RateLimited
+                            )),
+                        },
+                    )
+                    .await;
+                }
+
                 match session.nip42.check_challenge(&event, &self.url().await) {
                     Ok(()) => {
                         send_msg(
@@ -1484,6 +1505,7 @@ mod tests {
             },
             write_tokens: Tokens::new(1),
             query_tokens: Tokens::new(1),
+            auth_tokens: Tokens::new(1),
         }
     }
 
@@ -1494,6 +1516,7 @@ mod tests {
 
         assert_eq!(relay.connections_limit.available_permits(), 128);
         assert_eq!(relay.queries_per_minute, 120);
+        assert_eq!(relay.auth_events_per_minute, 30);
         assert_eq!(relay.max_filters_per_req, 20);
         assert_eq!(relay.max_filter_limit, Some(500));
         assert_eq!(relay.max_query_results, 500);
@@ -1738,6 +1761,43 @@ mod tests {
                 message,
             } if subscription_id.as_str() == "limited"
                 && message == "rate-limited: too many queries"
+        ));
+    }
+
+    #[tokio::test]
+    async fn zero_auth_rate_rejects_before_event_verification() {
+        let relay = InnerLocalRelay::new(LocalRelayBuilder::default().auth_events_per_minute(0));
+        let event = EventBuilder::new(Kind::TextNote, "not an auth event")
+            .finalize(&Keys::generate())
+            .unwrap();
+        let (server_stream, client_stream) = tokio::io::duplex(16 * 1024);
+        let server = WebSocketStream::from_raw_socket(server_stream, Role::Server, None).await;
+        let mut client = WebSocketStream::from_raw_socket(client_stream, Role::Client, None).await;
+        let (mut server_tx, _) = server.split();
+        let mut session = session(None);
+        session.auth_tokens = Tokens::new(0);
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+
+        relay
+            .handle_client_msg(
+                &mut session,
+                &mut server_tx,
+                ClientMessage::Auth(Cow::Owned(event)),
+                &addr,
+                0,
+            )
+            .await
+            .unwrap();
+
+        let response = client.next().await.unwrap().unwrap();
+        assert!(matches!(
+            response,
+            Message::Text(json)
+                if matches!(
+                    RelayMessage::from_json(json.as_bytes()).unwrap(),
+                    RelayMessage::Ok { status: false, message, .. }
+                        if message == "rate-limited: too many authentication attempts"
+                )
         ));
     }
 

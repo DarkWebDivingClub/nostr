@@ -94,6 +94,7 @@ pub(super) struct Session<'a> {
     pub nip42: Nip42Session,
     pub write_tokens: Tokens,
     pub query_tokens: Tokens,
+    pub auth_tokens: Tokens,
 }
 
 pub(super) struct Subscription {
@@ -120,6 +121,10 @@ impl Session<'_> {
 
     pub fn check_query_rate_limit(&mut self, max_per_minute: u32) -> RateLimiterResponse {
         Self::take_token(&mut self.query_tokens, max_per_minute)
+    }
+
+    pub fn check_auth_rate_limit(&mut self, max_per_minute: u32) -> RateLimiterResponse {
+        Self::take_token(&mut self.auth_tokens, max_per_minute)
     }
 
     fn take_token(tokens: &mut Tokens, max_per_minute: u32) -> RateLimiterResponse {
@@ -204,6 +209,7 @@ mod tests {
             nip42: Nip42Session::default(),
             write_tokens: Tokens::new(tokens),
             query_tokens: Tokens::new(tokens),
+            auth_tokens: Tokens::new(tokens),
         }
     }
 
@@ -236,7 +242,7 @@ mod tests {
     }
 
     #[test]
-    fn write_and_query_rate_limits_use_separate_buckets() {
+    fn rate_limits_use_separate_buckets() {
         let mut session = session(1);
 
         assert!(matches!(
@@ -245,6 +251,10 @@ mod tests {
         ));
         assert!(matches!(
             session.check_query_rate_limit(1),
+            RateLimiterResponse::Allowed
+        ));
+        assert!(matches!(
+            session.check_auth_rate_limit(1),
             RateLimiterResponse::Allowed
         ));
     }
