@@ -931,6 +931,8 @@ impl Filter {
     #[inline]
     fn search_match(&self, event: &Event) -> bool {
         match &self.search {
+            // `windows(0)` panics, while an empty substring is defined to match.
+            Some(query) if query.is_empty() => true,
             Some(query) => event
                 .content
                 .as_bytes()
@@ -1339,6 +1341,9 @@ mod tests {
         assert!(filter.match_event(&event, MatchEventOptions::new()));
 
         let filter = Filter::new().search("yuki kishimoto");
+        assert!(filter.match_event(&event, MatchEventOptions::new()));
+
+        let filter = Filter::new().search("");
         assert!(filter.match_event(&event, MatchEventOptions::new()));
     }
 
