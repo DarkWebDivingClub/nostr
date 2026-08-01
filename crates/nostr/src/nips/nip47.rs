@@ -20,8 +20,8 @@ use super::nip04;
 use crate::types::url::form_urlencoded::byte_serialize;
 use crate::types::url::{RelayUrl, Url};
 #[cfg(feature = "std")]
-use crate::{event, EventBuilder, Keys, Kind, Tag};
-use crate::{Event, JsonUtil, PublicKey, SecretKey, Timestamp};
+use crate::{event, EventBuilder, Keys, Tag};
+use crate::{Event, JsonUtil, Kind, PublicKey, SecretKey, Timestamp};
 
 /// NIP47 error
 #[derive(Debug)]
@@ -48,6 +48,14 @@ pub enum Error {
     UnknownMethod,
     /// Invalid URI
     InvalidURI,
+    /// Wallet author mismatch
+    WalletAuthorMismatch,
+    /// Invalid event kind
+    InvalidEventKind,
+    /// Invalid event id
+    InvalidEventId,
+    /// Invalid event signature
+    InvalidEventSig,
 }
 
 #[cfg(feature = "std")]
@@ -68,6 +76,10 @@ impl fmt::Display for Error {
             Self::UnexpectedResult => f.write_str("Unexpected result"),
             Self::UnknownMethod => f.write_str("Unknown method"),
             Self::InvalidURI => f.write_str("Invalid URI"),
+            Self::WalletAuthorMismatch => f.write_str("wallet event author mismatch"),
+            Self::InvalidEventKind => f.write_str("invalid wallet event kind"),
+            Self::InvalidEventId => f.write_str("invalid wallet event id"),
+            Self::InvalidEventSig => f.write_str("invalid wallet event signature"),
         }
     }
 }
@@ -89,6 +101,32 @@ impl From<event::builder::Error> for Error {
     fn from(e: event::builder::Error) -> Self {
         Self::EventBuilder(e)
     }
+}
+
+fn validate_wallet_event(
+    uri: &NostrWalletConnectURI,
+    event: &Event,
+    allowed_kinds: &[Kind],
+) -> Result<(), Error> {
+    // ECDH authenticates the supplied peer, so bind that peer to the configured wallet first.
+    if event.pubkey != uri.public_key {
+        return Err(Error::WalletAuthorMismatch);
+    }
+
+    if !allowed_kinds.contains(&event.kind) {
+        return Err(Error::InvalidEventKind);
+    }
+
+    if !event.verify_id() {
+        return Err(Error::InvalidEventId);
+    }
+
+    #[cfg(feature = "std")]
+    if !event.verify_signature() {
+        return Err(Error::InvalidEventSig);
+    }
+
+    Ok(())
 }
 
 /// NIP47 Response Error codes
@@ -930,6 +968,8 @@ impl Response {
     /// Deserialize from [Event]
     #[inline]
     pub fn from_event(uri: &NostrWalletConnectURI, event: &Event) -> Result<Self, Error> {
+        validate_wallet_event(uri, event, &[Kind::WalletConnectResponse])?;
+
         let decrypt_res: String = nip04::decrypt(&uri.secret, &event.pubkey, &event.content)?;
         Self::from_json(&decrypt_res).map_err(|e| Error::CantDeserializeResponse {
             response: decrypt_res,
@@ -1319,6 +1359,8 @@ impl Notification {
     /// Deserialize from [Event]
     #[inline]
     pub fn from_event(uri: &NostrWalletConnectURI, event: &Event) -> Result<Self, Error> {
+        validate_wallet_event(uri, event, &[Kind::WalletConnectNotification])?;
+
         let decrypt_res: String = nip04::decrypt(&uri.secret, &event.pubkey, &event.content)?;
         Self::from_json(decrypt_res)
     }
