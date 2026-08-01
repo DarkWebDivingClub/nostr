@@ -19,7 +19,7 @@ use rand::RngExt;
 use rand::rand_core::UnwrapErr;
 use rand::rngs::SysRng;
 use tokio::sync::mpsc::{self, Receiver, Sender};
-use tokio::sync::{Mutex, MutexGuard, Notify, RwLock, RwLockWriteGuard, broadcast, oneshot};
+use tokio::sync::{Mutex, MutexGuard, Notify, RwLock, RwLockWriteGuard, broadcast, oneshot, watch};
 use universal_time::Instant;
 
 use super::capabilities::{AtomicRelayCapabilities, RelayCapabilities};
@@ -46,8 +46,9 @@ type ClientMessageJson = String;
 // Skip NIP-50 matches since they may create issues and ban non-malicious relays.
 const MATCH_EVENT_OPTS: MatchEventOptions = MatchEventOptions::new().nip50(false);
 
-enum IngesterCommand {
-    Authenticate { challenge: String },
+fn queue_auth_challenge(tx: &watch::Sender<Option<String>>, challenge: &str) {
+    // NIP-42 invalidates the previous challenge when a relay sends a new one.
+    tx.send_replace(Some(challenge.to_owned()));
 }
 
 enum HandleClosedMsg {
@@ -827,7 +828,8 @@ impl InnerRelay {
 
         let ping: PingTracker = PingTracker::default();
 
-        let (ingester_tx, ingester_rx) = mpsc::unbounded_channel();
+        // Retain only the latest valid challenge while asynchronous signing is in progress.
+        let (ingester_tx, ingester_rx) = watch::channel(None);
 
         // Wait that one of the futures terminates/completes
         // Add also termination here, to allow closing the connection in case of termination request.
@@ -937,7 +939,7 @@ impl InnerRelay {
         &self,
         mut ws_rx: WebSocketStream,
         ping: &PingTracker,
-        ingester_tx: mpsc::UnboundedSender<IngesterCommand>,
+        ingester_tx: watch::Sender<Option<String>>,
     ) -> Result<(), Error> {
         #[cfg(target_arch = "wasm32")]
         let _ping = ping;
@@ -990,39 +992,35 @@ impl InnerRelay {
         Ok(())
     }
 
-    async fn ingester(
-        &self,
-        mut rx: mpsc::UnboundedReceiver<IngesterCommand>,
-    ) -> Result<(), Error> {
-        while let Some(command) = rx.recv().await {
-            match command {
-                // Authenticate to relay
-                IngesterCommand::Authenticate { challenge } => {
-                    match self.auth(challenge).await {
-                        Ok(..) => {
-                            self.send_notification(RelayNotification::Authenticated, false);
+    async fn ingester(&self, mut rx: watch::Receiver<Option<String>>) -> Result<(), Error> {
+        while rx.changed().await.is_ok() {
+            let Some(challenge) = rx.borrow_and_update().clone() else {
+                continue;
+            };
 
-                            tracing::info!(url = %self.url, "Authenticated to relay.");
+            match self.auth(challenge).await {
+                Ok(..) => {
+                    self.send_notification(RelayNotification::Authenticated, false);
 
-                            // TODO: ?
-                            if let Err(e) = self.resubscribe().await {
-                                tracing::error!(
-                                    url = %self.url,
-                                    error = %e,
-                                    "Impossible to resubscribe."
-                                );
-                            }
-                        }
-                        Err(e) => {
-                            self.send_notification(RelayNotification::AuthenticationFailed, false);
+                    tracing::info!(url = %self.url, "Authenticated to relay.");
 
-                            tracing::error!(
-                                url = %self.url,
-                                error = %e,
-                                "Can't authenticate to relay."
-                            );
-                        }
+                    // TODO: ?
+                    if let Err(e) = self.resubscribe().await {
+                        tracing::error!(
+                            url = %self.url,
+                            error = %e,
+                            "Impossible to resubscribe."
+                        );
                     }
+                }
+                Err(e) => {
+                    self.send_notification(RelayNotification::AuthenticationFailed, false);
+
+                    tracing::error!(
+                        url = %self.url,
+                        error = %e,
+                        "Can't authenticate to relay."
+                    );
                 }
             }
         }
@@ -1062,11 +1060,7 @@ impl InnerRelay {
         }
     }
 
-    async fn handle_relay_message(
-        &self,
-        msg: &str,
-        ingester_tx: &mpsc::UnboundedSender<IngesterCommand>,
-    ) {
+    async fn handle_relay_message(&self, msg: &str, ingester_tx: &watch::Sender<Option<String>>) {
         match self.handle_raw_relay_message(msg).await {
             Ok(Some(message)) => {
                 match &message {
@@ -1126,10 +1120,7 @@ impl InnerRelay {
                         self.received_eose(id).await;
                     }
                     RelayMessage::Auth { challenge } if self.state.is_authenticator_available() => {
-                        // Forward action to ingester
-                        let _ = ingester_tx.send(IngesterCommand::Authenticate {
-                            challenge: challenge.to_string(),
-                        });
+                        queue_auth_challenge(ingester_tx, challenge);
                     }
                     _ => (),
                 }
@@ -1928,6 +1919,17 @@ mod tests {
         event
     }
 
+    #[test]
+    fn test_new_auth_challenge_replaces_the_previous_one() {
+        let (tx, rx) = watch::channel(None);
+
+        for index in 0..100 {
+            queue_auth_challenge(&tx, &index.to_string());
+        }
+
+        assert_eq!(rx.borrow().as_deref(), Some("99"));
+    }
+
     #[tokio::test]
     async fn test_invalid_event_does_not_poison_verification_cache() {
         let relay = Relay::new(RelayUrl::parse("wss://relay.example.com").unwrap());
@@ -2072,7 +2074,7 @@ mod tests {
             .await
             .unwrap();
 
-        let (tx, _rx) = mpsc::unbounded_channel();
+        let (tx, _rx) = watch::channel(None);
         relay
             .inner
             .handle_relay_message(r#"["CLOSED","test","auth-required: you must auth"]"#, &tx)
@@ -2255,7 +2257,7 @@ mod tests {
             .await
             .unwrap();
 
-        let (tx, _rx) = mpsc::unbounded_channel();
+        let (tx, _rx) = watch::channel(None);
         relay
             .inner
             .handle_relay_message(r#"["CLOSED","test","auth-required: you must auth"]"#, &tx)
