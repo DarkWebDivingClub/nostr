@@ -40,6 +40,44 @@ fn error_code(code: NIP47Error) -> Error {
     Error::new(ErrorKind::Other, code.to_string())
 }
 
+fn validate_wallet_event(
+    uri: &NostrWalletConnectUri,
+    event: &Event,
+    allowed_kinds: &[Kind],
+) -> Result<(), Error> {
+    // ECDH authenticates the supplied peer, so bind that peer to the configured wallet first.
+    if event.pubkey != uri.public_key {
+        return Err(Error::with_static_message(
+            ErrorKind::Invalid,
+            "wallet event author mismatch",
+        ));
+    }
+
+    if !allowed_kinds.contains(&event.kind) {
+        return Err(Error::with_static_message(
+            ErrorKind::Invalid,
+            "invalid wallet event kind",
+        ));
+    }
+
+    if !event.verify_id() {
+        return Err(Error::with_static_message(
+            ErrorKind::Invalid,
+            "invalid wallet event ID",
+        ));
+    }
+
+    #[cfg(feature = "std")]
+    if !event.verify_signature() {
+        return Err(Error::with_static_message(
+            ErrorKind::Invalid,
+            "invalid wallet event signature",
+        ));
+    }
+
+    Ok(())
+}
+
 /// NIP47 Response Error codes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ErrorCode {
@@ -1095,6 +1133,8 @@ impl Response {
         event: &Event,
         cipher: Nip47Ciphers,
     ) -> Result<Self, Error> {
+        validate_wallet_event(uri, event, &[Kind::WalletConnectResponse])?;
+
         let decrypt_res = cipher.decrypt(&uri.secret, &event.pubkey, &event.content)?;
 
         Self::from_json(&decrypt_res)
@@ -1479,6 +1519,15 @@ impl Notification {
     /// Deserialize from [Event]
     #[inline]
     pub fn from_event(uri: &NostrWalletConnectUri, event: &Event) -> Result<Self, Error> {
+        validate_wallet_event(
+            uri,
+            event,
+            &[
+                Kind::WalletConnectNotification,
+                Kind::WalletConnectNotificationNip44V2,
+            ],
+        )?;
+
         let decrypt_res = if event.kind == Kind::WalletConnectNotificationNip44V2 {
             nip44::decrypt(&uri.secret, &event.pubkey, &event.content)?
         } else {
@@ -2119,6 +2168,80 @@ mod tests {
             Response::from_event(&uri, &response_event, Nip47Ciphers::NIP04).unwrap(),
             response
         );
+    }
+
+    #[cfg(all(
+        feature = "std",
+        feature = "os-rng",
+        feature = "nip04",
+        feature = "nip44"
+    ))]
+    #[test]
+    fn test_wallet_events_require_the_configured_author() {
+        let wallet_keys = Keys::generate();
+        let attacker_keys = Keys::generate();
+        let client_keys = Keys::generate();
+        let uri = NostrWalletConnectUri::new(
+            wallet_keys.public_key(),
+            vec![],
+            client_keys.secret_key().clone(),
+            None,
+        );
+        let response = Response {
+            result_type: Method::GetBalance,
+            error: None,
+            result: Some(ResponseResult::GetBalance(GetBalanceResponse {
+                balance: 43_000,
+            })),
+        };
+        let encrypted = nip44::encrypt(
+            attacker_keys.secret_key(),
+            &client_keys.public_key(),
+            response.as_json(),
+            nip44::Version::V2,
+        )
+        .unwrap();
+        let event = EventBuilder::new(Kind::WalletConnectResponse, encrypted)
+            .finalize(&attacker_keys)
+            .unwrap();
+
+        let error = Response::from_event(&uri, &event, Nip47Ciphers::NIP44V2).unwrap_err();
+        assert_eq!(error.to_string(), "wallet event author mismatch");
+    }
+
+    #[cfg(all(
+        feature = "std",
+        feature = "os-rng",
+        feature = "nip04",
+        feature = "nip44"
+    ))]
+    #[test]
+    fn test_wallet_events_require_a_valid_signature() {
+        let wallet_keys = Keys::generate();
+        let client_keys = Keys::generate();
+        let uri = NostrWalletConnectUri::new(
+            wallet_keys.public_key(),
+            vec![],
+            client_keys.secret_key().clone(),
+            None,
+        );
+        let encrypted = nip44::encrypt(
+            wallet_keys.secret_key(),
+            &client_keys.public_key(),
+            NOTIFICATION_JSON,
+            nip44::Version::V2,
+        )
+        .unwrap();
+        let mut event = EventBuilder::new(Kind::WalletConnectNotificationNip44V2, encrypted)
+            .finalize(&wallet_keys)
+            .unwrap();
+        event.sig = EventBuilder::new(Kind::TextNote, "invalid")
+            .finalize(&Keys::generate())
+            .unwrap()
+            .sig;
+
+        let error = Notification::from_event(&uri, &event).unwrap_err();
+        assert_eq!(error.to_string(), "invalid wallet event signature");
     }
 
     #[cfg(all(
