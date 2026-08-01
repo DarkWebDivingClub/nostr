@@ -134,6 +134,13 @@ impl EncryptedSecretKey {
     /// Encrypted Secret Key len
     pub const LEN: usize = 1 + 1 + SALT_SIZE + NONCE_SIZE + 1 + CIPHERTEXT_SIZE; // 91;
 
+    /// Maximum scrypt `log_n` accepted by [`Self::decrypt`].
+    ///
+    /// This limits the memory requested by untrusted encrypted key payloads to
+    /// approximately 256 MiB. Use [`Self::decrypt_with_max_log_n`] to explicitly
+    /// accept a different limit.
+    pub const MAX_LOG_N: u8 = 18;
+
     /// Encrypt secret key
     #[inline]
     #[cfg(all(feature = "std", feature = "os-rng"))]
@@ -306,6 +313,26 @@ impl EncryptedSecretKey {
 
     /// Decrypt secret key
     pub fn decrypt(&self, password: &str) -> Result<SecretKey, Error> {
+        self.decrypt_with_max_log_n(password, Self::MAX_LOG_N)
+    }
+
+    /// Decrypt secret key with a custom maximum scrypt `log_n` value.
+    ///
+    /// The memory required by scrypt doubles for every increment of `log_n`.
+    /// Only increase this limit for trusted payloads and after checking the
+    /// resources available to the application.
+    pub fn decrypt_with_max_log_n(
+        &self,
+        password: &str,
+        max_log_n: u8,
+    ) -> Result<SecretKey, Error> {
+        if self.log_n > max_log_n {
+            return Err(Error::new(
+                ErrorKind::Invalid,
+                format!("scrypt log_n {} exceeds maximum {max_log_n}", self.log_n),
+            ));
+        }
+
         // Derive key
         let key: [u8; KEY_SIZE] = derive_key(password, &self.salt, self.log_n)?;
 
@@ -363,6 +390,8 @@ fn derive_key(password: &str, salt: &[u8; SALT_SIZE], log_n: u8) -> Result<[u8; 
 
 #[cfg(test)]
 mod tests {
+    use alloc::string::ToString;
+
     use super::*;
 
     const CRYPTSEC: &str = "ncryptsec1qgg9947rlpvqu76pj5ecreduf9jxhselq2nae2kghhvd5g7dgjtcxfqtd67p9m0w57lspw8gsq6yphnm8623nsl8xn9j4jdzz84zm3frztj3z7s35vpzmqf6ksu8r89qk5z2zxfmu5gv8th8wclt0h4p";
@@ -373,6 +402,18 @@ mod tests {
         let encrypted_secret_key = EncryptedSecretKey::from_bech32(CRYPTSEC).unwrap();
         let secret_key: SecretKey = encrypted_secret_key.decrypt("nostr").unwrap();
         assert_eq!(secret_key.to_secret_hex(), SECRET_KEY)
+    }
+
+    #[test]
+    fn test_decryption_rejects_excessive_scrypt_cost() {
+        let encrypted_secret_key = EncryptedSecretKey::from_bech32(CRYPTSEC).unwrap();
+        let mut bytes = encrypted_secret_key.as_vec();
+        bytes[1] = EncryptedSecretKey::MAX_LOG_N + 1;
+        let encrypted_secret_key = EncryptedSecretKey::from_slice(&bytes).unwrap();
+
+        let error = encrypted_secret_key.decrypt("nostr").unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::Invalid);
+        assert_eq!(error.to_string(), "scrypt log_n 19 exceeds maximum 18");
     }
 
     #[test]
