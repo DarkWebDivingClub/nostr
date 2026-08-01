@@ -10,9 +10,9 @@ use core::str::FromStr;
 use serde::{Deserialize, Serialize};
 
 use super::nip44;
-use crate::event::{self, tag, Event, EventId, TagKind};
+use crate::event::{self, tag, Event, EventId, Kind, TagKind};
 #[cfg(feature = "std")]
-use crate::event::{EventBuilder, Kind, Tag};
+use crate::event::{EventBuilder, Tag};
 use crate::key::{PublicKey, SecretKey};
 use crate::types::time::Timestamp;
 use crate::types::url::{ParseError, Url};
@@ -51,6 +51,14 @@ pub enum Error {
     MissingMintTag,
     /// Invalid mint URL
     InvalidMintUrl,
+    /// Wallet author mismatch
+    WalletAuthorMismatch,
+    /// Invalid event kind
+    InvalidEventKind,
+    /// Invalid event id
+    InvalidEventId,
+    /// Invalid event signature
+    InvalidEventSig,
 }
 
 #[cfg(feature = "std")]
@@ -70,6 +78,10 @@ impl fmt::Display for Error {
             Self::InvalidAmount => f.write_str("Invalid amount"),
             Self::MissingMintTag => f.write_str("Missing mint tag"),
             Self::InvalidMintUrl => f.write_str("Invalid mint URL"),
+            Self::WalletAuthorMismatch => f.write_str("wallet event author mismatch"),
+            Self::InvalidEventKind => f.write_str("invalid wallet event kind"),
+            Self::InvalidEventId => f.write_str("invalid wallet event id"),
+            Self::InvalidEventSig => f.write_str("invalid wallet event signature"),
         }
     }
 }
@@ -102,6 +114,32 @@ impl From<ParseError> for Error {
     fn from(e: ParseError) -> Self {
         Self::Url(e)
     }
+}
+
+fn validate_wallet_event(
+    wallet_public_key: &PublicKey,
+    event: &Event,
+    expected_kind: Kind,
+) -> Result<(), Error> {
+    // ECDH authenticates the supplied peer, so bind that peer to the trusted wallet first.
+    if event.pubkey != *wallet_public_key {
+        return Err(Error::WalletAuthorMismatch);
+    }
+
+    if event.kind != expected_kind {
+        return Err(Error::InvalidEventKind);
+    }
+
+    if !event.verify_id() {
+        return Err(Error::InvalidEventId);
+    }
+
+    #[cfg(feature = "std")]
+    if !event.verify_signature() {
+        return Err(Error::InvalidEventSig);
+    }
+
+    Ok(())
 }
 
 /// Cashu proof
@@ -162,13 +200,17 @@ impl WalletEvent {
         }
     }
 
-    /// Parse from wallet event
+    /// Parse from wallet event.
+    ///
+    /// `wallet_public_key` must be the trusted public key of the wallet author.
     pub fn from_wallet_event(
         secret_key: &SecretKey,
-        public_key: &PublicKey,
+        wallet_public_key: &PublicKey,
         event: &Event,
     ) -> Result<Self, Error> {
-        let decrypted: String = nip44::decrypt(secret_key, public_key, &event.content)?;
+        validate_wallet_event(wallet_public_key, event, Kind::CashuWallet)?;
+
+        let decrypted: String = nip44::decrypt(secret_key, wallet_public_key, &event.content)?;
         let wallet_data: Vec<Vec<String>> = serde_json::from_str(&decrypted)?;
 
         let mut privkey: String = String::new();
@@ -268,13 +310,17 @@ impl TokenEvent {
         }
     }
 
-    /// Parse from token event
+    /// Parse from token event.
+    ///
+    /// `wallet_public_key` must be the trusted public key of the wallet author.
     pub fn from_token_event(
         secret_key: &SecretKey,
-        public_key: &PublicKey,
+        wallet_public_key: &PublicKey,
         event: &Event,
     ) -> Result<Self, Error> {
-        let decrypted: String = nip44::decrypt(secret_key, public_key, &event.content)?;
+        validate_wallet_event(wallet_public_key, event, Kind::CashuWalletUnspentProof)?;
+
+        let decrypted: String = nip44::decrypt(secret_key, wallet_public_key, &event.content)?;
         Ok(serde_json::from_str(&decrypted)?)
     }
 
@@ -378,13 +424,17 @@ impl SpendingHistory {
         }
     }
 
-    /// Parse from spending history event
+    /// Parse from spending history event.
+    ///
+    /// `wallet_public_key` must be the trusted public key of the wallet author.
     pub fn from_spending_history_event(
         secret_key: &SecretKey,
-        public_key: &PublicKey,
+        wallet_public_key: &PublicKey,
         event: &Event,
     ) -> Result<Self, Error> {
-        let decrypted: String = nip44::decrypt(secret_key, public_key, &event.content)?;
+        validate_wallet_event(wallet_public_key, event, Kind::CashuWalletSpendingHistory)?;
+
+        let decrypted: String = nip44::decrypt(secret_key, wallet_public_key, &event.content)?;
         let data: Vec<Vec<String>> = serde_json::from_str(&decrypted)?;
 
         let mut direction = None;
@@ -562,13 +612,17 @@ impl QuoteEvent {
         }
     }
 
-    /// Parse from quote event
+    /// Parse from quote event.
+    ///
+    /// `wallet_public_key` must be the trusted public key of the wallet author.
     pub fn from_quote_event(
         secret_key: &SecretKey,
-        public_key: &PublicKey,
+        wallet_public_key: &PublicKey,
         event: &Event,
     ) -> Result<Self, Error> {
-        let quote_id: String = nip44::decrypt(secret_key, public_key, &event.content)?;
+        validate_wallet_event(wallet_public_key, event, Kind::CashuWalletQuote)?;
+
+        let quote_id: String = nip44::decrypt(secret_key, wallet_public_key, &event.content)?;
 
         // Extract mint URL from tags
         let mint: Url = event
@@ -747,5 +801,56 @@ mod tests {
         assert!(!debug.contains("wallet-private-key"));
         assert!(!debug.contains("cashu-bearer-secret"));
         assert!(!debug.contains("quote-capability"));
+    }
+
+    #[test]
+    #[cfg(all(feature = "std", feature = "os-rng"))]
+    fn wallet_event_requires_the_trusted_author() {
+        let wallet_keys = Keys::generate();
+        let attacker_keys = Keys::generate();
+        let wallet = WalletEvent::new(
+            "attacker-controlled-key",
+            vec![Url::parse("https://mint.example.com").unwrap()],
+        );
+        let event = wallet
+            .prepare(attacker_keys.secret_key(), &wallet_keys.public_key())
+            .unwrap()
+            .finalize(&attacker_keys)
+            .unwrap();
+
+        let error = WalletEvent::from_wallet_event(
+            wallet_keys.secret_key(),
+            &wallet_keys.public_key(),
+            &event,
+        )
+        .unwrap_err();
+        assert_eq!(error.to_string(), "wallet event author mismatch");
+    }
+
+    #[test]
+    #[cfg(all(feature = "std", feature = "os-rng"))]
+    fn wallet_event_requires_a_valid_signature() {
+        let wallet_keys = Keys::generate();
+        let wallet = WalletEvent::new(
+            "wallet-key",
+            vec![Url::parse("https://mint.example.com").unwrap()],
+        );
+        let mut event = wallet
+            .prepare(wallet_keys.secret_key(), &wallet_keys.public_key())
+            .unwrap()
+            .finalize(&wallet_keys)
+            .unwrap();
+        event.sig = EventBuilder::new(Kind::TextNote, "invalid")
+            .finalize(&Keys::generate())
+            .unwrap()
+            .sig;
+
+        let error = WalletEvent::from_wallet_event(
+            wallet_keys.secret_key(),
+            &wallet_keys.public_key(),
+            &event,
+        )
+        .unwrap_err();
+        assert_eq!(error.to_string(), "invalid wallet event signature");
     }
 }
