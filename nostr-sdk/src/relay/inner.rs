@@ -1290,17 +1290,7 @@ impl InnerRelay {
             DatabaseEventStatus::Deleted => return Ok(None),
             // Not existent, verify the event and try to save it to the database
             DatabaseEventStatus::NotExistent => {
-                // Check if the event was already verified.
-                //
-                // This is useful if someone continues to send the same invalid event:
-                // since invalid events aren't stored in the database,
-                // skipping this check would result in the re-verification of the event.
-                // This may also be useful to avoid double verification if the event is received at the exact same time by many different Relay instances.
-                //
-                // This is important since event signature verification is a heavy job!
-                if !self.state.verified(&event.id).await {
-                    event.verify()?;
-                }
+                self.state.verify_and_cache(&event).await?;
 
                 // Save into the database
                 let send_notification: bool = match self.state.database().save_event(&event).await?
@@ -1890,7 +1880,7 @@ async fn close_ws(tx: &mut WebSocketSink) -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
-    use nostr::event::{EventBuilder, Kind};
+    use nostr::event::{Event, EventBuilder, Kind};
     use nostr::filter::Filter;
     use nostr::key::Keys;
     use nostr::message::SubscriptionId;
@@ -1900,6 +1890,57 @@ mod tests {
     use crate::authenticator::SignerAuthenticator;
     use crate::error::ErrorKind;
     use crate::relay::{Relay, RelayOptions};
+
+    fn event_with_invalid_signature() -> Event {
+        let keys = Keys::generate();
+        let mut event = EventBuilder::new(Kind::TextNote, "test")
+            .finalize(&keys)
+            .unwrap();
+        let other_event = EventBuilder::new(Kind::TextNote, "other")
+            .finalize(&Keys::generate())
+            .unwrap();
+        event.sig = other_event.sig;
+        event
+    }
+
+    #[tokio::test]
+    async fn test_invalid_event_does_not_poison_verification_cache() {
+        let relay = Relay::new(RelayUrl::parse("wss://relay.example.com").unwrap());
+        let event = event_with_invalid_signature();
+
+        assert!(event.verify().is_err());
+        for _ in 0..2 {
+            assert!(relay.inner.state.verify_and_cache(&event).await.is_err());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_repeated_invalid_event_is_not_saved() {
+        let relay = Relay::new(RelayUrl::parse("wss://relay.example.com").unwrap());
+        let event = event_with_invalid_signature();
+        let subscription_id = SubscriptionId::new("test");
+
+        for _ in 0..2 {
+            assert!(
+                relay
+                    .inner
+                    .handle_event_msg(subscription_id.clone(), event.clone())
+                    .await
+                    .is_err()
+            );
+        }
+
+        assert_eq!(
+            relay
+                .inner
+                .state
+                .database()
+                .check_id(&event.id)
+                .await
+                .unwrap(),
+            DatabaseEventStatus::NotExistent
+        );
+    }
 
     #[tokio::test]
     async fn test_subscription_verification_accepts_event_matching_any_filter() {

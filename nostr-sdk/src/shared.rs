@@ -4,7 +4,8 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use lru::LruCache;
-use nostr::event::EventId;
+use nostr::error::Error;
+use nostr::event::Event;
 use nostr_database::NostrDatabase;
 use nostr_gossip::NostrGossip;
 use tokio::sync::Mutex;
@@ -63,14 +64,34 @@ impl SharedState {
         self.authenticator.is_some()
     }
 
-    pub(crate) async fn verified(&self, id: &EventId) -> bool {
+    /// Check if the event was already verified or verify it.
+    ///
+    /// This is useful if someone continues to send the same invalid event:
+    /// since invalid events aren't stored in the database,
+    /// skipping this check would result in the re-verification of the event.
+    /// This may also be useful to avoid double verification if the event is received at the exact same time by many different Relay instances.
+    ///
+    /// This is important since event signature verification is a heavy job!
+    pub(crate) async fn verify_and_cache(&self, event: &Event) -> Result<(), Error> {
         let mut cache = self.verification_cache.lock().await;
 
         // Hash event ID
-        let id: u64 = hash(&id);
+        // This reduces the memory footprint of the cache.
+        let id: u64 = hash(&event.id);
 
-        // Returns `Some(T)` if the key already exists
-        cache.put(id, ()).is_some()
+        // Immediately return if the event is already verified
+        if cache.contains(&id) {
+            return Ok(());
+        }
+
+        // We now verify the event
+        // If the event verification fails, the cache is not populated
+        event.verify()?;
+
+        // Event is verified, so we can cache it.
+        cache.put(id, ());
+
+        Ok(())
     }
 }
 
