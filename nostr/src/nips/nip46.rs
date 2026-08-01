@@ -130,7 +130,7 @@ impl<'de> Deserialize<'de> for NostrConnectMethod {
 }
 
 /// Nostr Connect Request
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum NostrConnectRequest {
     /// Connect
     Connect {
@@ -173,6 +173,44 @@ pub enum NostrConnectRequest {
     },
     /// Ping
     Ping,
+}
+
+impl fmt::Debug for NostrConnectRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Connect {
+                remote_signer_public_key,
+                secret,
+            } => f
+                .debug_struct("Connect")
+                .field("remote_signer_public_key", remote_signer_public_key)
+                .field("secret", &secret.as_ref().map(|_| "[REDACTED]"))
+                .finish(),
+            Self::GetPublicKey => f.write_str("GetPublicKey"),
+            Self::SignEvent(_) => f.debug_tuple("SignEvent").field(&"[REDACTED]").finish(),
+            Self::Nip04Encrypt { public_key, .. } => f
+                .debug_struct("Nip04Encrypt")
+                .field("public_key", public_key)
+                .field("text", &"[REDACTED]")
+                .finish(),
+            Self::Nip04Decrypt { public_key, .. } => f
+                .debug_struct("Nip04Decrypt")
+                .field("public_key", public_key)
+                .field("ciphertext", &"[REDACTED]")
+                .finish(),
+            Self::Nip44Encrypt { public_key, .. } => f
+                .debug_struct("Nip44Encrypt")
+                .field("public_key", public_key)
+                .field("text", &"[REDACTED]")
+                .finish(),
+            Self::Nip44Decrypt { public_key, .. } => f
+                .debug_struct("Nip44Decrypt")
+                .field("public_key", public_key)
+                .field("ciphertext", &"[REDACTED]")
+                .finish(),
+            Self::Ping => f.write_str("Ping"),
+        }
+    }
 }
 
 impl NostrConnectRequest {
@@ -285,7 +323,7 @@ impl NostrConnectRequest {
 }
 
 /// Response
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum ResponseResult {
     /// Connect ACK (returned by signers using the `bunker://` flow or older implementations)
     Ack,
@@ -325,6 +363,38 @@ pub enum ResponseResult {
     AuthUrl,
     /// Error
     Error,
+}
+
+impl fmt::Debug for ResponseResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Ack => f.write_str("Ack"),
+            Self::ConnectSecret(_) => f.debug_tuple("ConnectSecret").field(&"[REDACTED]").finish(),
+            Self::GetPublicKey(public_key) => {
+                f.debug_tuple("GetPublicKey").field(public_key).finish()
+            }
+            Self::SignEvent(_) => f.debug_tuple("SignEvent").field(&"[REDACTED]").finish(),
+            Self::Nip04Encrypt { .. } => f
+                .debug_struct("Nip04Encrypt")
+                .field("ciphertext", &"[REDACTED]")
+                .finish(),
+            Self::Nip04Decrypt { .. } => f
+                .debug_struct("Nip04Decrypt")
+                .field("plaintext", &"[REDACTED]")
+                .finish(),
+            Self::Nip44Encrypt { .. } => f
+                .debug_struct("Nip44Encrypt")
+                .field("ciphertext", &"[REDACTED]")
+                .finish(),
+            Self::Nip44Decrypt { .. } => f
+                .debug_struct("Nip44Decrypt")
+                .field("plaintext", &"[REDACTED]")
+                .finish(),
+            Self::Pong => f.write_str("Pong"),
+            Self::AuthUrl => f.write_str("AuthUrl"),
+            Self::Error => f.write_str("Error"),
+        }
+    }
 }
 
 /// Nostr Connect Response
@@ -540,7 +610,7 @@ impl ResponseResult {
 /// Nostr Connect Message
 ///
 /// <https://github.com/nostr-protocol/nips/blob/master/46.md>
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum NostrConnectMessage {
     /// Request
@@ -561,6 +631,28 @@ pub enum NostrConnectMessage {
         /// Reason, if failed
         error: Option<String>,
     },
+}
+
+impl fmt::Debug for NostrConnectMessage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Request { id, method, params } => f
+                .debug_struct("Request")
+                .field("id", id)
+                .field("method", method)
+                .field(
+                    "params",
+                    &format_args!("[REDACTED; {} items]", params.len()),
+                )
+                .finish(),
+            Self::Response { id, result, error } => f
+                .debug_struct("Response")
+                .field("id", id)
+                .field("result", &result.as_ref().map(|_| "[REDACTED]"))
+                .field("error", error)
+                .finish(),
+        }
+    }
 }
 
 impl fmt::Display for NostrConnectMessage {
@@ -716,7 +808,7 @@ impl_json_methods!(NostrConnectMetadata);
 pub type NostrConnectURI = NostrConnectUri;
 
 /// Nostr Connect URI
-#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum NostrConnectUri {
     /// Direct connection initiated by remote signer
     Bunker {
@@ -741,6 +833,35 @@ pub enum NostrConnectUri {
         /// The client MUST validate that the signer returns this exact value.
         secret: String,
     },
+}
+
+impl fmt::Debug for NostrConnectUri {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Bunker {
+                remote_signer_public_key,
+                relays,
+                secret,
+            } => f
+                .debug_struct("Bunker")
+                .field("remote_signer_public_key", remote_signer_public_key)
+                .field("relays", relays)
+                .field("secret", &secret.as_ref().map(|_| "[REDACTED]"))
+                .finish(),
+            Self::Client {
+                public_key,
+                relays,
+                metadata,
+                ..
+            } => f
+                .debug_struct("Client")
+                .field("public_key", public_key)
+                .field("relays", relays)
+                .field("metadata", metadata)
+                .field("secret", &"[REDACTED]")
+                .finish(),
+        }
+    }
 }
 
 impl NostrConnectUri {
@@ -1050,6 +1171,38 @@ impl fmt::Display for NostrConnectUri {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_debug_redacts_sensitive_values() {
+        let public_key =
+            PublicKey::parse("79dff8f82963424e0bb02708a22e44b4980893e3a4be0fa3cb60a43b946764e3")
+                .unwrap();
+        let request = NostrConnectRequest::Nip44Encrypt {
+            public_key,
+            text: String::from("private message"),
+        };
+        let response = ResponseResult::Nip44Decrypt {
+            plaintext: String::from("decrypted message"),
+        };
+        let message = NostrConnectMessage::Response {
+            id: String::from("request-id"),
+            result: Some(String::from("connection-secret")),
+            error: None,
+        };
+        let uri = NostrConnectUri::client_with_secret(
+            public_key,
+            Vec::<RelayUrl>::new(),
+            "app",
+            "uri-secret",
+        );
+
+        let debug = format!("{request:?} {response:?} {message:?} {uri:?}");
+        assert!(debug.contains("[REDACTED]"));
+        assert!(!debug.contains("private message"));
+        assert!(!debug.contains("decrypted message"));
+        assert!(!debug.contains("connection-secret"));
+        assert!(!debug.contains("uri-secret"));
+    }
 
     #[test]
     fn test_parse_bunker_uri() {
