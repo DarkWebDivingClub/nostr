@@ -289,7 +289,7 @@ pub struct LocalRelayBuilder {
     pub(crate) max_websocket_message_size: usize,
     /// WebSocket handshake timeout
     pub(crate) websocket_handshake_timeout: Duration,
-    /// Max subscription ID length
+    /// Max subscription ID length in UTF-8 bytes
     pub(crate) max_subid_length: usize,
     /// Max filters in one REQ
     pub(crate) max_filters_per_req: usize,
@@ -454,7 +454,7 @@ impl LocalRelayBuilder {
         self
     }
 
-    /// Sets the maximum subscription ID length. Defaults 250.
+    /// Sets the maximum subscription ID length in UTF-8 bytes. Defaults to 250.
     #[inline]
     pub fn max_subid_length(mut self, max: usize) -> Self {
         self.max_subid_length = max;

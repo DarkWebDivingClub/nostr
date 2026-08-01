@@ -413,6 +413,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_subscription_id_limit_counts_utf8_bytes() {
+        let relay = LocalRelay::builder().max_subid_length(3).build();
+        relay.run().await.unwrap();
+
+        let url = Url::parse(relay.url().await.as_str()).unwrap();
+        let mut socket = WebSocket::connect(&url, &ConnectionMode::direct())
+            .await
+            .unwrap();
+        socket
+            .send(Message::Text(r#"["NEG-OPEN","éé",{},""]"#.to_owned()))
+            .await
+            .unwrap();
+
+        let neg_err = socket.next().await.unwrap().unwrap();
+        let Message::Text(neg_err) = neg_err else {
+            panic!("unexpected websocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(neg_err.as_bytes()).unwrap(),
+            RelayMessage::NegErr {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "éé"
+                && message == "blocked: subscription ID exceeds max length 3"
+        ));
+    }
+
+    #[tokio::test]
     async fn test_negentropy_item_limit() {
         let relay = LocalRelay::builder().max_negentropy_items(2).build();
         let keys = Keys::generate();

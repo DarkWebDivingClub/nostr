@@ -885,6 +885,21 @@ impl InnerLocalRelay {
                     return send_negentropy_rate_limit_error(ws_tx, subscription_id).await;
                 }
 
+                if self.subscription_id_exceeds_limit(&subscription_id) {
+                    return send_msg(
+                        ws_tx,
+                        RelayMessage::NegErr {
+                            subscription_id,
+                            message: Cow::Owned(format!(
+                                "{}: subscription ID exceeds max length {}",
+                                MachineReadablePrefix::Blocked,
+                                self.max_subid_length
+                            )),
+                        },
+                    )
+                    .await;
+                }
+
                 // Reopening an existing ID replaces state and does not consume another slot.
                 if session.negentropy_subscription.len() >= self.max_negentropy_subscriptions
                     && !session
@@ -1094,8 +1109,7 @@ impl InnerLocalRelay {
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
-        // Check the subscription ID length
-        if subscription_id.as_str().chars().count() > self.max_subid_length {
+        if self.subscription_id_exceeds_limit(&subscription_id) {
             return send_msg(
                 ws_tx,
                 RelayMessage::Closed {
@@ -1309,6 +1323,11 @@ impl InnerLocalRelay {
             .as_ref()
             .is_some_and(|nip42| nip42.mode.is_read())
             && !session.nip42.is_authenticated()
+    }
+
+    fn subscription_id_exceeds_limit(&self, subscription_id: &SubscriptionId) -> bool {
+        // Bound retained and echoed UTF-8 bytes, not the number of Unicode scalar values.
+        subscription_id.as_str().len() > self.max_subid_length
     }
 
     fn gift_wrap_query_access<'a, I>(
