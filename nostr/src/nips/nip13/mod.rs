@@ -100,7 +100,8 @@ where
     let mut res: u8 = 0u8;
     for b in h.as_ref().iter() {
         if *b == 0 {
-            res += 8;
+            // The public API caps a 256-bit all-zero hash at the largest `u8` value.
+            res = res.saturating_add(8);
         } else {
             res += b.leading_zeros() as u8;
             return res;
@@ -202,6 +203,7 @@ pub mod tests {
 
     #[test]
     fn check_get_leading_zeroes() {
+        assert_eq!(255, get_leading_zero_bits([0u8; 32]));
         assert_eq!(
             4,
             get_leading_zero_bits(
