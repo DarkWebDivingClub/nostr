@@ -114,27 +114,20 @@ impl Session<'_> {
     }
 
     pub fn check_rate_limit(&mut self, max_per_minute: u32) -> RateLimiterResponse {
-        match self.tokens.last {
-            Some(last) => {
-                let now: Instant = Instant::now();
-                let elapsed_time: Duration = self.calculate_elapsed_time(now, last);
-
-                self.tokens
-                    .calculate_new_tokens(max_per_minute, elapsed_time);
-
-                if self.tokens.count == 0 {
-                    return RateLimiterResponse::Limited;
-                }
-
-                self.tokens.last = Some(now);
-
-                RateLimiterResponse::Allowed
-            }
-            None => {
-                self.tokens.last = Some(Instant::now());
-                RateLimiterResponse::Allowed
-            }
+        let now = Instant::now();
+        if let Some(last) = self.tokens.last {
+            let elapsed_time: Duration = self.calculate_elapsed_time(now, last);
+            self.tokens.replenish(max_per_minute, elapsed_time);
         }
+        self.tokens.last = Some(now);
+
+        // Charge the first operation too; a zero-capacity bucket admits nothing.
+        if self.tokens.count == 0 {
+            return RateLimiterResponse::Limited;
+        }
+
+        self.tokens.count -= 1;
+        RateLimiterResponse::Allowed
     }
 
     pub fn subscription_fits(&self, id: &SubscriptionId, size: usize, max_size: usize) -> bool {
@@ -178,17 +171,11 @@ impl Tokens {
         }
     }
 
-    fn calculate_new_tokens(&mut self, max_per_minute: u32, elapsed_time: Duration) {
+    fn replenish(&mut self, max_per_minute: u32, elapsed_time: Duration) {
         let percent: f32 = (elapsed_time.as_secs() as f32) / 60.0;
         let new_tokens: u32 = (percent * max_per_minute as f32).floor() as u32;
 
-        self.count = self.count.saturating_add(new_tokens);
-
-        self.count = self.count.saturating_sub(1);
-
-        if self.count >= max_per_minute {
-            self.count = max_per_minute.saturating_sub(1);
-        }
+        self.count = self.count.saturating_add(new_tokens).min(max_per_minute);
     }
 }
 
@@ -198,6 +185,44 @@ mod tests {
     use nostr::key::Keys;
 
     use super::*;
+
+    fn session(tokens: u32) -> Session<'static> {
+        Session {
+            subscriptions: HashMap::new(),
+            subscription_bytes: 0,
+            negentropy_subscription: HashMap::new(),
+            nip42: Nip42Session::default(),
+            tokens: Tokens::new(tokens),
+        }
+    }
+
+    #[test]
+    fn zero_rate_limit_rejects_the_first_event() {
+        let mut session = session(0);
+
+        assert!(matches!(
+            session.check_rate_limit(0),
+            RateLimiterResponse::Limited
+        ));
+    }
+
+    #[test]
+    fn rate_limit_allows_exactly_the_available_tokens() {
+        let mut session = session(2);
+
+        assert!(matches!(
+            session.check_rate_limit(2),
+            RateLimiterResponse::Allowed
+        ));
+        assert!(matches!(
+            session.check_rate_limit(2),
+            RateLimiterResponse::Allowed
+        ));
+        assert!(matches!(
+            session.check_rate_limit(2),
+            RateLimiterResponse::Limited
+        ));
+    }
 
     #[test]
     fn authentication_rejects_signatures_from_other_event_kinds() {
