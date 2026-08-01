@@ -98,6 +98,8 @@ impl UnwrappedGift {
         if gift_wrap.kind != Kind::GiftWrap {
             return Err(not_gift_wrap());
         }
+        // Authenticate the outer event before using its metadata or decrypting its content.
+        gift_wrap.verify_with_ctx(secp)?;
 
         // Decrypt and verify seal
         let seal: String = signer
@@ -129,6 +131,8 @@ impl UnwrappedGift {
         if gift_wrap.kind != Kind::GiftWrap {
             return Err(not_gift_wrap());
         }
+        // Authenticate the outer event before using its metadata or decrypting its content.
+        gift_wrap.verify_with_ctx(secp)?;
 
         // Decrypt and verify seal
         let seal: String = signer
@@ -465,6 +469,24 @@ mod tests {
             extract_rumor(&receiver_keys, &event).unwrap_err().kind(),
             not_gift_wrap().kind()
         );
+    }
+
+    #[test]
+    fn test_extract_rumor_rejects_modified_gift_wrap() {
+        let sender_keys =
+            Keys::parse("6b911fd37cdf5c81d4c0adb1ab7fa822ed253ab0ad9aa18d77257c88b29b718e")
+                .unwrap();
+        let receiver_keys =
+            Keys::parse("7b911fd37cdf5c81d4c0adb1ab7fa822ed253ab0ad9aa18d77257c88b29b718e")
+                .unwrap();
+        let rumor =
+            EventBuilder::new(Kind::TextNote, "Test").finalize_unsigned(sender_keys.public_key());
+        let mut gift_wrap = GiftWrapBuilder::new(receiver_keys.public_key(), rumor)
+            .finalize(&sender_keys)
+            .unwrap();
+        gift_wrap.created_at = gift_wrap.created_at + Duration::from_secs(1);
+
+        assert!(extract_rumor(&receiver_keys, &gift_wrap).is_err());
     }
 
     #[tokio::test]
