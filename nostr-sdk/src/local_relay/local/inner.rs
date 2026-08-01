@@ -580,40 +580,6 @@ impl InnerLocalRelay {
                     }
                 }
 
-                // Check if event already exists
-                let event_status = self.database.check_id(&event.id).await?;
-                match event_status {
-                    DatabaseEventStatus::Saved => {
-                        return send_msg(
-                            ws_tx,
-                            RelayMessage::Ok {
-                                event_id: event.id,
-                                status: true,
-                                message: Cow::Owned(format!(
-                                    "{}: already have this event",
-                                    MachineReadablePrefix::Duplicate
-                                )),
-                            },
-                        )
-                        .await;
-                    }
-                    DatabaseEventStatus::Deleted => {
-                        return send_msg(
-                            ws_tx,
-                            RelayMessage::Ok {
-                                event_id: event.id,
-                                status: false,
-                                message: Cow::Owned(format!(
-                                    "{}: this event is deleted",
-                                    MachineReadablePrefix::Blocked
-                                )),
-                            },
-                        )
-                        .await;
-                    }
-                    DatabaseEventStatus::NotExistent => {}
-                }
-
                 // Check mode
                 if let LocalRelayBuilderMode::PublicKey(pk) = self.mode {
                     let authored: bool = event.pubkey == pk;
@@ -653,6 +619,40 @@ impl InnerLocalRelay {
                         )
                         .await;
                     }
+                }
+
+                // Check if event already exists only after all write authorization checks.
+                let event_status = self.database.check_id(&event.id).await?;
+                match event_status {
+                    DatabaseEventStatus::Saved => {
+                        return send_msg(
+                            ws_tx,
+                            RelayMessage::Ok {
+                                event_id: event.id,
+                                status: true,
+                                message: Cow::Owned(format!(
+                                    "{}: already have this event",
+                                    MachineReadablePrefix::Duplicate
+                                )),
+                            },
+                        )
+                        .await;
+                    }
+                    DatabaseEventStatus::Deleted => {
+                        return send_msg(
+                            ws_tx,
+                            RelayMessage::Ok {
+                                event_id: event.id,
+                                status: false,
+                                message: Cow::Owned(format!(
+                                    "{}: this event is deleted",
+                                    MachineReadablePrefix::Blocked
+                                )),
+                            },
+                        )
+                        .await;
+                    }
+                    DatabaseEventStatus::NotExistent => {}
                 }
 
                 if event.kind.is_ephemeral() {
@@ -1335,6 +1335,22 @@ where
 mod tests {
     use super::*;
 
+    #[derive(Debug)]
+    struct RejectWrites;
+
+    impl WritePolicy for RejectWrites {
+        fn admit_event<'a>(
+            &'a self,
+            _event: &'a Event,
+            _addr: &'a SocketAddr,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = WritePolicyResult> + Send + 'a>>
+        {
+            Box::pin(async {
+                WritePolicyResult::reject(MachineReadablePrefix::Blocked, "write rejected")
+            })
+        }
+    }
+
     fn session(public_key: Option<PublicKey>) -> Session<'static> {
         Session {
             subscriptions: HashMap::new(),
@@ -1372,6 +1388,45 @@ mod tests {
         assert_eq!(config.max_message_size, Some(1024));
         assert_eq!(config.max_frame_size, Some(1024));
         assert_eq!(relay.websocket_handshake_timeout.as_secs(), 2);
+    }
+
+    #[tokio::test]
+    async fn write_policy_is_applied_before_duplicate_lookup() {
+        let relay = InnerLocalRelay::new(LocalRelayBuilder::default().write_policy(RejectWrites));
+        let event = EventBuilder::new(Kind::TextNote, "already stored")
+            .finalize(&Keys::generate())
+            .unwrap();
+        relay.database.save_event(&event).await.unwrap();
+
+        let (server_stream, client_stream) = tokio::io::duplex(16 * 1024);
+        let server = WebSocketStream::from_raw_socket(server_stream, Role::Server, None).await;
+        let mut client = WebSocketStream::from_raw_socket(client_stream, Role::Client, None).await;
+        let (mut server_tx, _) = server.split();
+        let mut session = session(None);
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+
+        relay
+            .handle_client_msg(
+                &mut session,
+                &mut server_tx,
+                ClientMessage::Event(Cow::Owned(event)),
+                &addr,
+            )
+            .await
+            .unwrap();
+
+        let response = client.next().await.unwrap().unwrap();
+        let Message::Text(response) = response else {
+            panic!("unexpected WebSocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(response.as_bytes()).unwrap(),
+            RelayMessage::Ok {
+                status: false,
+                message,
+                ..
+            } if message == "blocked: write rejected"
+        ));
     }
 
     #[test]
