@@ -57,6 +57,13 @@ pub enum Error {
     VersionNotFound,
     /// Log2 round not found
     Log2RoundNotFound,
+    /// Log N too big
+    LogNTooBig {
+        /// Log N
+        log_n: u8,
+        /// Max log N
+        max_log_n: u8,
+    },
     /// Salt not found
     SaltNotFound,
     /// Nonce not found
@@ -85,6 +92,9 @@ impl fmt::Display for Error {
             Self::UnknownKeySecurity(v) => write!(f, "unknown security: {v}"),
             Self::VersionNotFound => f.write_str("version not found"),
             Self::Log2RoundNotFound => f.write_str("`log N` not found"),
+            Self::LogNTooBig { log_n, max_log_n } => {
+                write!(f, "scrypt log_n {log_n} exceeds maximum {max_log_n}")
+            }
             Self::SaltNotFound => f.write_str("salt not found"),
             Self::NonceNotFound => f.write_str("nonce not found"),
             Self::KeySecurityNotFound => f.write_str("security not found"),
@@ -182,6 +192,13 @@ pub struct EncryptedSecretKey {
 impl EncryptedSecretKey {
     /// Encrypted Secret Key len
     pub const LEN: usize = 1 + 1 + SALT_SIZE + NONCE_SIZE + 1 + CIPHERTEXT_SIZE; // 91;
+
+    /// Maximum scrypt `log_n` accepted by [`Self::decrypt`].
+    ///
+    /// This limits the memory requested by untrusted encrypted key payloads to
+    /// approximately 256 MiB. Use [`Self::decrypt_with_max_log_n`] to explicitly
+    /// accept a different limit.
+    pub const MAX_LOG_N: u8 = 18;
 
     /// Encrypt secret key
     #[inline]
@@ -323,6 +340,26 @@ impl EncryptedSecretKey {
 
     /// Decrypt secret key
     pub fn decrypt(&self, password: &str) -> Result<SecretKey, Error> {
+        self.decrypt_with_max_log_n(password, Self::MAX_LOG_N)
+    }
+
+    /// Decrypt secret key with a custom maximum scrypt `log_n` value.
+    ///
+    /// The memory required by scrypt doubles for every increment of `log_n`.
+    /// Only increase this limit for trusted payloads and after checking the
+    /// resources available to the application.
+    pub fn decrypt_with_max_log_n(
+        &self,
+        password: &str,
+        max_log_n: u8,
+    ) -> Result<SecretKey, Error> {
+        if self.log_n > max_log_n {
+            return Err(Error::LogNTooBig {
+                log_n: self.log_n,
+                max_log_n,
+            });
+        }
+
         // Derive key
         let key: [u8; KEY_SIZE] = derive_key(password, &self.salt, self.log_n)?;
 
@@ -388,6 +425,23 @@ mod tests {
         let encrypted_secret_key = EncryptedSecretKey::from_bech32(CRYPTSEC).unwrap();
         let secret_key: SecretKey = encrypted_secret_key.decrypt("nostr").unwrap();
         assert_eq!(secret_key.to_secret_hex(), SECRET_KEY)
+    }
+
+    #[test]
+    fn test_decryption_rejects_excessive_scrypt_cost() {
+        let encrypted_secret_key = EncryptedSecretKey::from_bech32(CRYPTSEC).unwrap();
+        let mut bytes = encrypted_secret_key.as_vec();
+        bytes[1] = EncryptedSecretKey::MAX_LOG_N + 1;
+        let encrypted_secret_key = EncryptedSecretKey::from_slice(&bytes).unwrap();
+
+        let error = encrypted_secret_key.decrypt("nostr").unwrap_err();
+        assert_eq!(
+            error,
+            Error::LogNTooBig {
+                log_n: 19,
+                max_log_n: 18
+            }
+        );
     }
 
     #[test]
