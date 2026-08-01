@@ -92,7 +92,8 @@ pub(super) struct Session<'a> {
     pub subscription_bytes: usize,
     pub negentropy_subscription: HashMap<SubscriptionId, Negentropy<'a, NegentropyStorageVector>>,
     pub nip42: Nip42Session,
-    pub tokens: Tokens,
+    pub write_tokens: Tokens,
+    pub query_tokens: Tokens,
 }
 
 pub(super) struct Subscription {
@@ -103,7 +104,7 @@ pub(super) struct Subscription {
 impl Session<'_> {
     const MIN: Duration = Duration::from_secs(60);
 
-    fn calculate_elapsed_time(&self, now: Instant, last: Instant) -> Duration {
+    fn calculate_elapsed_time(now: Instant, last: Instant) -> Duration {
         let mut elapsed_time: Duration = now - last;
 
         if elapsed_time > Self::MIN {
@@ -114,19 +115,27 @@ impl Session<'_> {
     }
 
     pub fn check_rate_limit(&mut self, max_per_minute: u32) -> RateLimiterResponse {
-        let now = Instant::now();
-        if let Some(last) = self.tokens.last {
-            let elapsed_time: Duration = self.calculate_elapsed_time(now, last);
-            self.tokens.replenish(max_per_minute, elapsed_time);
-        }
-        self.tokens.last = Some(now);
+        Self::take_token(&mut self.write_tokens, max_per_minute)
+    }
 
-        // Charge the first operation too; a zero-capacity bucket admits nothing.
-        if self.tokens.count == 0 {
+    pub fn check_query_rate_limit(&mut self, max_per_minute: u32) -> RateLimiterResponse {
+        Self::take_token(&mut self.query_tokens, max_per_minute)
+    }
+
+    fn take_token(tokens: &mut Tokens, max_per_minute: u32) -> RateLimiterResponse {
+        let now = Instant::now();
+        if let Some(last) = tokens.last {
+            let elapsed_time: Duration = Self::calculate_elapsed_time(now, last);
+            tokens.replenish(max_per_minute, elapsed_time);
+        }
+        tokens.last = Some(now);
+
+        // Every admitted operation consumes one token, including the first one.
+        if tokens.count == 0 {
             return RateLimiterResponse::Limited;
         }
 
-        self.tokens.count -= 1;
+        tokens.count -= 1;
         RateLimiterResponse::Allowed
     }
 
@@ -175,6 +184,7 @@ impl Tokens {
         let percent: f32 = (elapsed_time.as_secs() as f32) / 60.0;
         let new_tokens: u32 = (percent * max_per_minute as f32).floor() as u32;
 
+        // Idle time cannot accumulate a burst above the configured per-minute capacity.
         self.count = self.count.saturating_add(new_tokens).min(max_per_minute);
     }
 }
@@ -192,7 +202,8 @@ mod tests {
             subscription_bytes: 0,
             negentropy_subscription: HashMap::new(),
             nip42: Nip42Session::default(),
-            tokens: Tokens::new(tokens),
+            write_tokens: Tokens::new(tokens),
+            query_tokens: Tokens::new(tokens),
         }
     }
 
@@ -221,6 +232,20 @@ mod tests {
         assert!(matches!(
             session.check_rate_limit(2),
             RateLimiterResponse::Limited
+        ));
+    }
+
+    #[test]
+    fn write_and_query_rate_limits_use_separate_buckets() {
+        let mut session = session(1);
+
+        assert!(matches!(
+            session.check_rate_limit(1),
+            RateLimiterResponse::Allowed
+        ));
+        assert!(matches!(
+            session.check_query_rate_limit(1),
+            RateLimiterResponse::Allowed
         ));
     }
 

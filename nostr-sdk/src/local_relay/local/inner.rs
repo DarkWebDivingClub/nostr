@@ -56,6 +56,7 @@ pub(super) struct InnerLocalRelay {
     new_event: broadcast::Sender<Event>,
     mode: LocalRelayBuilderMode,
     rate_limit: RateLimit,
+    queries_per_minute: u32,
     connections_limit: Arc<Semaphore>,
     max_websocket_message_size: usize,
     websocket_handshake_timeout: Duration,
@@ -103,6 +104,7 @@ impl InnerLocalRelay {
             new_event,
             mode: builder.mode,
             rate_limit: builder.rate_limit,
+            queries_per_minute: builder.queries_per_minute,
             connections_limit: Arc::new(Semaphore::new(builder.max_connections)),
             max_websocket_message_size: builder.max_websocket_message_size,
             websocket_handshake_timeout: builder.websocket_handshake_timeout,
@@ -339,7 +341,8 @@ impl InnerLocalRelay {
             subscription_bytes: 0,
             negentropy_subscription: HashMap::new(),
             nip42: Nip42Session::default(),
-            tokens: Tokens::new(self.rate_limit.notes_per_minute),
+            write_tokens: Tokens::new(self.rate_limit.notes_per_minute),
+            query_tokens: Tokens::new(self.queries_per_minute),
         };
 
         loop {
@@ -745,6 +748,12 @@ impl InnerLocalRelay {
                 subscription_id,
                 filter,
             } => {
+                if let RateLimiterResponse::Limited =
+                    session.check_query_rate_limit(self.queries_per_minute)
+                {
+                    return send_query_rate_limit_error(ws_tx, subscription_id).await;
+                }
+
                 if self.requires_read_auth(session) {
                     return send_auth_and_close(
                         ws_tx,
@@ -834,6 +843,12 @@ impl InnerLocalRelay {
                 initial_message,
                 ..
             } => {
+                if let RateLimiterResponse::Limited =
+                    session.check_query_rate_limit(self.queries_per_minute)
+                {
+                    return send_negentropy_rate_limit_error(ws_tx, subscription_id).await;
+                }
+
                 // Reopening an existing ID replaces state and does not consume another slot.
                 if session.negentropy_subscription.len() >= self.max_negentropy_subscriptions
                     && !session
@@ -943,6 +958,12 @@ impl InnerLocalRelay {
                 subscription_id,
                 message,
             } => {
+                if let RateLimiterResponse::Limited =
+                    session.check_query_rate_limit(self.queries_per_minute)
+                {
+                    return send_negentropy_rate_limit_error(ws_tx, subscription_id).await;
+                }
+
                 match session.negentropy_subscription.get_mut(&subscription_id) {
                     Some(negentropy) => {
                         let Some(size) = message.len().checked_div(2) else {
@@ -1013,6 +1034,12 @@ impl InnerLocalRelay {
                 },
             )
             .await;
+        }
+
+        if let RateLimiterResponse::Limited =
+            session.check_query_rate_limit(self.queries_per_minute)
+        {
+            return send_query_rate_limit_error(ws_tx, subscription_id).await;
         }
 
         // Check number of subscriptions
@@ -1267,6 +1294,46 @@ where
     Ok(())
 }
 
+async fn send_query_rate_limit_error<S>(
+    tx: &mut WsTx<S>,
+    subscription_id: Cow<'_, SubscriptionId>,
+) -> Result<(), Error>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    send_msg(
+        tx,
+        RelayMessage::Closed {
+            subscription_id,
+            message: Cow::Owned(format!(
+                "{}: too many queries",
+                MachineReadablePrefix::RateLimited
+            )),
+        },
+    )
+    .await
+}
+
+async fn send_negentropy_rate_limit_error<S>(
+    tx: &mut WsTx<S>,
+    subscription_id: Cow<'_, SubscriptionId>,
+) -> Result<(), Error>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    send_msg(
+        tx,
+        RelayMessage::NegErr {
+            subscription_id,
+            message: Cow::Owned(format!(
+                "{}: too many queries",
+                MachineReadablePrefix::RateLimited
+            )),
+        },
+    )
+    .await
+}
+
 async fn send_auth_and_close<S>(
     tx: &mut WsTx<S>,
     subscription_id: Cow<'_, SubscriptionId>,
@@ -1412,7 +1479,8 @@ mod tests {
                 public_key,
                 challenges: HashSet::new(),
             },
-            tokens: Tokens::new(1),
+            write_tokens: Tokens::new(1),
+            query_tokens: Tokens::new(1),
         }
     }
 
@@ -1422,6 +1490,7 @@ mod tests {
         let config = relay.websocket_config();
 
         assert_eq!(relay.connections_limit.available_permits(), 128);
+        assert_eq!(relay.queries_per_minute, 120);
         assert_eq!(relay.max_filters_per_req, 20);
         assert_eq!(relay.max_subscription_bytes, 1024 * 1024);
         assert_eq!(config.max_message_size, Some(5 * 1024 * 1024));
@@ -1576,6 +1645,45 @@ mod tests {
                 message,
             } if subscription_id.as_str() == "filters"
                 && message == "rate-limited: REQ exceeds max filter count 1"
+        ));
+    }
+
+    #[tokio::test]
+    async fn zero_query_rate_rejects_the_first_req() {
+        let relay = InnerLocalRelay::new(LocalRelayBuilder::default().queries_per_minute(0));
+        let (server_stream, client_stream) = tokio::io::duplex(16 * 1024);
+        let server = WebSocketStream::from_raw_socket(server_stream, Role::Server, None).await;
+        let mut client = WebSocketStream::from_raw_socket(client_stream, Role::Client, None).await;
+        let (mut server_tx, _) = server.split();
+        let mut session = session(None);
+        session.query_tokens = Tokens::new(0);
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+
+        relay
+            .handle_client_msg(
+                &mut session,
+                &mut server_tx,
+                ClientMessage::Req {
+                    subscription_id: Cow::Owned(SubscriptionId::new("limited")),
+                    filters: vec![Cow::Owned(Filter::new())],
+                },
+                &addr,
+                2,
+            )
+            .await
+            .unwrap();
+
+        let response = client.next().await.unwrap().unwrap();
+        let Message::Text(response) = response else {
+            panic!("unexpected WebSocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(response.as_bytes()).unwrap(),
+            RelayMessage::Closed {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "limited"
+                && message == "rate-limited: too many queries"
         ));
     }
 

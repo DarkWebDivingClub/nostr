@@ -21,6 +21,7 @@ pub(super) const DEFAULT_MAX_FILTERS_PER_REQ: usize = 20;
 pub(super) const DEFAULT_MAX_SUBSCRIPTION_BYTES: usize = 1024 * 1024;
 pub(super) const DEFAULT_MAX_WEBSOCKET_MESSAGE_SIZE: usize = 5 * 1024 * 1024;
 pub(super) const DEFAULT_WEBSOCKET_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
+pub(super) const DEFAULT_QUERIES_PER_MINUTE: u32 = 120;
 
 /// Rate limit
 #[derive(Debug, Clone)]
@@ -270,6 +271,8 @@ pub struct LocalRelayBuilder {
     pub(crate) mode: LocalRelayBuilderMode,
     /// Rate limit
     pub(crate) rate_limit: RateLimit,
+    /// Query messages per minute per connection
+    pub(crate) queries_per_minute: u32,
     /// NIP42 options
     pub(crate) nip42: Option<LocalRelayBuilderNip42>,
     /// Max connections allowed
@@ -323,6 +326,7 @@ impl Default for LocalRelayBuilder {
             database: None,
             mode: LocalRelayBuilderMode::default(),
             rate_limit: RateLimit::default(),
+            queries_per_minute: DEFAULT_QUERIES_PER_MINUTE,
             nip42: None,
             max_connections: DEFAULT_MAX_CONNECTIONS,
             max_websocket_message_size: DEFAULT_MAX_WEBSOCKET_MESSAGE_SIZE,
@@ -379,6 +383,14 @@ impl LocalRelayBuilder {
     #[inline]
     pub fn rate_limit(mut self, limit: RateLimit) -> Self {
         self.rate_limit = limit;
+        self
+    }
+
+    /// Sets the maximum query messages per minute for each connection.
+    /// Defaults to 120.
+    #[inline]
+    pub fn queries_per_minute(mut self, max: u32) -> Self {
+        self.queries_per_minute = max;
         self
     }
 
