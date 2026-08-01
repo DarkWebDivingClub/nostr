@@ -148,14 +148,33 @@ impl LocalRelay {
 
 #[cfg(test)]
 mod tests {
+    use std::future::Future;
+    use std::pin::Pin;
     use std::time::Duration;
 
     use async_wsocket::{ConnectionMode, Message, Url, WebSocket};
     use futures::{SinkExt, StreamExt};
-    use nostr::message::RelayMessage;
+    use nostr::filter::Filter;
+    use nostr::message::{MachineReadablePrefix, RelayMessage};
     use tokio::time;
 
     use super::*;
+    use crate::local_relay::{QueryPolicy, QueryPolicyResult};
+
+    #[derive(Debug)]
+    struct RejectQueries;
+
+    impl QueryPolicy for RejectQueries {
+        fn admit_query<'a>(
+            &'a self,
+            _query: &'a mut Filter,
+            _addr: &'a SocketAddr,
+        ) -> Pin<Box<dyn Future<Output = QueryPolicyResult> + Send + 'a>> {
+            Box::pin(async {
+                QueryPolicyResult::reject(MachineReadablePrefix::Blocked, "query rejected")
+            })
+        }
+    }
 
     #[tokio::test]
     async fn test_malformed_client_message_does_not_close_connection() {
@@ -204,6 +223,130 @@ mod tests {
         })
         .await
         .expect("timed out waiting for EOSE");
+    }
+
+    #[tokio::test]
+    async fn test_nip42_read_auth_is_required_for_count() {
+        let relay = LocalRelay::builder()
+            .nip42(crate::local_relay::LocalRelayBuilderNip42::read())
+            .build();
+        relay.run().await.unwrap();
+
+        let url = Url::parse(relay.url().await.as_str()).unwrap();
+        let mut socket = WebSocket::connect(&url, &ConnectionMode::direct())
+            .await
+            .unwrap();
+        socket
+            .send(Message::Text(r#"["COUNT","count",{}]"#.to_owned()))
+            .await
+            .unwrap();
+
+        let auth = socket.next().await.unwrap().unwrap();
+        let Message::Text(auth) = auth else {
+            panic!("unexpected websocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(auth.as_bytes()).unwrap(),
+            RelayMessage::Auth { .. }
+        ));
+
+        let closed = socket.next().await.unwrap().unwrap();
+        let Message::Text(closed) = closed else {
+            panic!("unexpected websocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(closed.as_bytes()).unwrap(),
+            RelayMessage::Closed {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "count"
+                && message.starts_with("auth-required:")
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_nip42_read_auth_is_required_for_negentropy() {
+        let relay = LocalRelay::builder()
+            .nip42(crate::local_relay::LocalRelayBuilderNip42::read())
+            .build();
+        relay.run().await.unwrap();
+
+        let url = Url::parse(relay.url().await.as_str()).unwrap();
+        let mut socket = WebSocket::connect(&url, &ConnectionMode::direct())
+            .await
+            .unwrap();
+        socket
+            .send(Message::Text(r#"["NEG-OPEN","neg",{},""]"#.to_owned()))
+            .await
+            .unwrap();
+
+        let auth = socket.next().await.unwrap().unwrap();
+        let Message::Text(auth) = auth else {
+            panic!("unexpected websocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(auth.as_bytes()).unwrap(),
+            RelayMessage::Auth { .. }
+        ));
+
+        let neg_err = socket.next().await.unwrap().unwrap();
+        let Message::Text(neg_err) = neg_err else {
+            panic!("unexpected websocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(neg_err.as_bytes()).unwrap(),
+            RelayMessage::NegErr {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "neg"
+                && message.starts_with("auth-required:")
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_query_policy_is_applied_to_count_and_negentropy() {
+        let relay = LocalRelay::builder().query_policy(RejectQueries).build();
+        relay.run().await.unwrap();
+
+        let url = Url::parse(relay.url().await.as_str()).unwrap();
+        let mut socket = WebSocket::connect(&url, &ConnectionMode::direct())
+            .await
+            .unwrap();
+        socket
+            .send(Message::Text(r#"["COUNT","count",{}]"#.to_owned()))
+            .await
+            .unwrap();
+
+        let closed = socket.next().await.unwrap().unwrap();
+        let Message::Text(closed) = closed else {
+            panic!("unexpected websocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(closed.as_bytes()).unwrap(),
+            RelayMessage::Closed {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "count"
+                && message == "blocked: query rejected"
+        ));
+
+        socket
+            .send(Message::Text(r#"["NEG-OPEN","neg",{},""]"#.to_owned()))
+            .await
+            .unwrap();
+
+        let neg_err = socket.next().await.unwrap().unwrap();
+        let Message::Text(neg_err) = neg_err else {
+            panic!("unexpected websocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(neg_err.as_bytes()).unwrap(),
+            RelayMessage::NegErr {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "neg"
+                && message == "blocked: query rejected"
+        ));
     }
 
     #[tokio::test]

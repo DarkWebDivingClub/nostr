@@ -35,6 +35,13 @@ use crate::relay::SyncOptions;
 type WsTx<S> = SplitSink<WebSocketStream<S>, Message>;
 const P_TAG: SingleLetterTag = SingleLetterTag::lowercase(Alphabet::P);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GiftWrapQueryAccess {
+    Allowed,
+    AuthRequired,
+    Forbidden,
+}
+
 #[derive(Debug, Clone)]
 pub(super) struct InnerLocalRelay {
     ip: IpAddr,
@@ -692,7 +699,47 @@ impl InnerLocalRelay {
                 subscription_id,
                 filter,
             } => {
-                let count: usize = self.database.count(filter.into_owned()).await?;
+                if self.requires_read_auth(session) {
+                    return send_auth_and_close(
+                        ws_tx,
+                        subscription_id,
+                        session.nip42.generate_challenge(),
+                    )
+                    .await;
+                }
+
+                let mut filter = filter.into_owned();
+                match self.gift_wrap_query_access(session, [&filter]) {
+                    GiftWrapQueryAccess::Allowed => {}
+                    GiftWrapQueryAccess::AuthRequired => {
+                        return send_auth_and_close(
+                            ws_tx,
+                            subscription_id,
+                            session.nip42.generate_challenge(),
+                        )
+                        .await;
+                    }
+                    GiftWrapQueryAccess::Forbidden => {
+                        return send_gift_wrap_error(ws_tx, subscription_id).await;
+                    }
+                }
+
+                if let Some(policy) = self.query_policy.as_ref() {
+                    if let QueryPolicyResult::Reject { prefix, message } =
+                        policy.admit_query(&mut filter, addr).await
+                    {
+                        return send_msg(
+                            ws_tx,
+                            RelayMessage::Closed {
+                                subscription_id,
+                                message: Cow::Owned(format!("{prefix}: {message}")),
+                            },
+                        )
+                        .await;
+                    }
+                }
+
+                let count: usize = self.database.count(filter).await?;
                 send_msg(
                     ws_tx,
                     RelayMessage::Count {
@@ -739,12 +786,50 @@ impl InnerLocalRelay {
                 initial_message,
                 ..
             } => {
+                if self.requires_read_auth(session) {
+                    return send_auth_and_neg_err(
+                        ws_tx,
+                        subscription_id,
+                        session.nip42.generate_challenge(),
+                    )
+                    .await;
+                }
+
                 // TODO: check number of neg subscriptions
 
-                // TODO: check nip42?
+                let mut filter = filter.into_owned();
+                match self.gift_wrap_query_access(session, [&filter]) {
+                    GiftWrapQueryAccess::Allowed => {}
+                    GiftWrapQueryAccess::AuthRequired => {
+                        return send_auth_and_neg_err(
+                            ws_tx,
+                            subscription_id,
+                            session.nip42.generate_challenge(),
+                        )
+                        .await;
+                    }
+                    GiftWrapQueryAccess::Forbidden => {
+                        return send_gift_wrap_neg_err(ws_tx, subscription_id).await;
+                    }
+                }
+
+                if let Some(policy) = self.query_policy.as_ref() {
+                    if let QueryPolicyResult::Reject { prefix, message } =
+                        policy.admit_query(&mut filter, addr).await
+                    {
+                        return send_msg(
+                            ws_tx,
+                            RelayMessage::NegErr {
+                                subscription_id,
+                                message: Cow::Owned(format!("{prefix}: {message}")),
+                            },
+                        )
+                        .await;
+                    }
+                }
 
                 // Query database
-                let items = self.database.negentropy_items(filter.into_owned()).await?;
+                let items = self.database.negentropy_items(filter).await?;
 
                 tracing::debug!(
                     id = %subscription_id,
@@ -882,11 +967,15 @@ impl InnerLocalRelay {
         }
 
         // Check NIP42
-        if let Some(nip42) = &self.nip42 {
-            // TODO: check if public key allowed
+        // TODO: check if public key allowed
+        if self.requires_read_auth(session) {
+            return send_auth_and_close(ws_tx, subscription_id, session.nip42.generate_challenge())
+                .await;
+        }
 
-            // Check mode and if it's authenticated
-            if nip42.mode.is_read() && !session.nip42.is_authenticated() {
+        match self.gift_wrap_query_access(session, &filters) {
+            GiftWrapQueryAccess::Allowed => {}
+            GiftWrapQueryAccess::AuthRequired => {
                 return send_auth_and_close(
                     ws_tx,
                     subscription_id,
@@ -894,35 +983,8 @@ impl InnerLocalRelay {
                 )
                 .await;
             }
-        }
-
-        // Check if NIP-42 DMs are enabled and any filter includes the GiftWrap kind
-        if let Some(giftwraps_filters) = self
-            .auth_dm
-            .then(|| find_filters_with_kind(&filters, &Kind::GiftWrap))
-            .flatten()
-        {
-            let Some(ref pkey) = session.nip42.public_key else {
-                // The user must be authenticated to access DMs
-                return send_auth_and_close(
-                    ws_tx,
-                    subscription_id,
-                    session.nip42.generate_challenge(),
-                )
-                .await;
-            };
-
-            let hex_pkey = pkey.to_hex();
-            for filter in giftwraps_filters {
-                let Some(p_tag) = filter.generic_tags.get(&P_TAG) else {
-                    // Reject if no "p" tag is present (requesting all relay DMs)
-                    return send_gift_wrap_error(ws_tx, subscription_id).await;
-                };
-
-                if p_tag.len() != 1 || p_tag.iter().next().expect("length is 1") != &hex_pkey {
-                    // Reject if multiple public keys or wrong public key
-                    return send_gift_wrap_error(ws_tx, subscription_id).await;
-                }
+            GiftWrapQueryAccess::Forbidden => {
+                return send_gift_wrap_error(ws_tx, subscription_id).await;
             }
         }
 
@@ -1042,6 +1104,53 @@ impl InnerLocalRelay {
         // Send JSON messages
         send_json_msgs(ws_tx, json_msgs).await
     }
+
+    fn requires_read_auth(&self, session: &Session<'_>) -> bool {
+        self.nip42
+            .as_ref()
+            .is_some_and(|nip42| nip42.mode.is_read())
+            && !session.nip42.is_authenticated()
+    }
+
+    fn gift_wrap_query_access<'a, I>(
+        &self,
+        session: &Session<'_>,
+        filters: I,
+    ) -> GiftWrapQueryAccess
+    where
+        I: IntoIterator<Item = &'a Filter>,
+    {
+        if !self.auth_dm {
+            return GiftWrapQueryAccess::Allowed;
+        }
+
+        // A missing kind constraint is a wildcard and can therefore select gift wraps.
+        let gift_wrap_filters = filters.into_iter().filter(|filter| {
+            filter
+                .kinds
+                .as_ref()
+                .is_none_or(|kinds| kinds.contains(&Kind::GiftWrap))
+        });
+        let Some(public_key) = session.nip42.public_key else {
+            return if gift_wrap_filters.count() > 0 {
+                GiftWrapQueryAccess::AuthRequired
+            } else {
+                GiftWrapQueryAccess::Allowed
+            };
+        };
+
+        let public_key = public_key.to_hex();
+        for filter in gift_wrap_filters {
+            let Some(public_keys) = filter.generic_tags.get(&P_TAG) else {
+                return GiftWrapQueryAccess::Forbidden;
+            };
+            if public_keys.len() != 1 || !public_keys.contains(&public_key) {
+                return GiftWrapQueryAccess::Forbidden;
+            }
+        }
+
+        GiftWrapQueryAccess::Allowed
+    }
 }
 
 #[inline]
@@ -1086,26 +1195,33 @@ where
     .await
 }
 
-/// Finds filters containing the specified kind. Returns `None` if no such
-/// filters exist.
-fn find_filters_with_kind<'a>(filters: &'a [Filter], kind: &Kind) -> Option<Vec<&'a Filter>> {
-    let mut match_filters = Vec::new();
+async fn send_auth_and_neg_err<S>(
+    tx: &mut WsTx<S>,
+    subscription_id: Cow<'_, SubscriptionId>,
+    challenge: String,
+) -> Result<(), Error>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    send_msg(
+        tx,
+        RelayMessage::Auth {
+            challenge: Cow::Owned(challenge),
+        },
+    )
+    .await?;
 
-    for filter in filters {
-        if filter
-            .kinds
-            .as_ref()
-            .is_some_and(|kinds| kinds.contains(kind))
-        {
-            match_filters.push(filter);
-        }
-    }
-
-    if match_filters.is_empty() {
-        return None;
-    }
-
-    Some(match_filters)
+    send_msg(
+        tx,
+        RelayMessage::NegErr {
+            subscription_id,
+            message: Cow::Owned(format!(
+                "{}: you must auth",
+                MachineReadablePrefix::AuthRequired
+            )),
+        },
+    )
+    .await
 }
 
 /// Send gift wrap error, when a user ask for someone else DMs
@@ -1131,6 +1247,27 @@ where
 }
 
 #[inline]
+async fn send_gift_wrap_neg_err<S>(
+    tx: &mut WsTx<S>,
+    subscription_id: Cow<'_, SubscriptionId>,
+) -> Result<(), Error>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    send_msg(
+        tx,
+        RelayMessage::NegErr {
+            subscription_id,
+            message: Cow::Owned(format!(
+                "{}: you cannot request another user's gift wrap",
+                MachineReadablePrefix::Error
+            )),
+        },
+    )
+    .await
+}
+
+#[inline]
 async fn send_json_msgs<I, S>(tx: &mut WsTx<S>, json_msgs: I) -> Result<(), Error>
 where
     I: IntoIterator<Item = String>,
@@ -1141,4 +1278,51 @@ where
         .await
         .map_err(|e| Error::new(ErrorKind::Other, e))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn session(public_key: Option<PublicKey>) -> Session<'static> {
+        Session {
+            subscriptions: HashMap::new(),
+            negentropy_subscription: HashMap::new(),
+            nip42: Nip42Session {
+                public_key,
+                challenges: HashSet::new(),
+            },
+            tokens: Tokens::new(1),
+        }
+    }
+
+    #[test]
+    fn gift_wrap_auth_restricts_filters_without_kinds() {
+        let relay = InnerLocalRelay::new(LocalRelayBuilder::default().auth_dm(true));
+        let filter = Filter::new();
+
+        assert_eq!(
+            relay.gift_wrap_query_access(&session(None), [&filter]),
+            GiftWrapQueryAccess::AuthRequired
+        );
+    }
+
+    #[test]
+    fn gift_wrap_auth_only_allows_the_authenticated_public_key() {
+        let relay = InnerLocalRelay::new(LocalRelayBuilder::default().auth_dm(true));
+        let public_key = Keys::generate().public_key();
+        let other_public_key = Keys::generate().public_key();
+
+        let own_filter = Filter::new().kind(Kind::GiftWrap).pubkey(public_key);
+        assert_eq!(
+            relay.gift_wrap_query_access(&session(Some(public_key)), [&own_filter]),
+            GiftWrapQueryAccess::Allowed
+        );
+
+        let other_filter = Filter::new().kind(Kind::GiftWrap).pubkey(other_public_key);
+        assert_eq!(
+            relay.gift_wrap_query_access(&session(Some(public_key)), [&other_filter]),
+            GiftWrapQueryAccess::Forbidden
+        );
+    }
 }
