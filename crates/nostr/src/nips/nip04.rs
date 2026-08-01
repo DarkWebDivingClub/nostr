@@ -28,6 +28,7 @@ type Aes256CbcEnc = Encryptor<Aes256>;
 type Aes256CbcDec = Decryptor<Aes256>;
 
 const IV_SIZE: usize = 16;
+const ENCODED_IV_SIZE: usize = 24;
 
 /// `NIP04` error
 #[derive(Debug, PartialEq)]
@@ -132,16 +133,20 @@ where
     S: Into<String>,
 {
     let encrypted_content: String = encrypted_content.into();
-    let parsed_content: Vec<&str> = encrypted_content.split("?iv=").collect();
-    if parsed_content.len() != 2 {
+    let Some((ciphertext, encoded_iv)) = encrypted_content.split_once("?iv=") else {
         return Err(Error::InvalidContentFormat);
+    };
+
+    // Reject extra separators and oversized IVs before Base64 allocation.
+    if encoded_iv.len() != ENCODED_IV_SIZE || encoded_iv.contains("?iv=") {
+        return Err(Error::InvalidIVLen);
     }
 
     let encrypted_content: Vec<u8> = general_purpose::STANDARD
-        .decode(parsed_content[0])
+        .decode(ciphertext)
         .map_err(|_| Error::Base64Decode)?;
     let iv: Vec<u8> = general_purpose::STANDARD
-        .decode(parsed_content[1])
+        .decode(encoded_iv)
         .map_err(|_| Error::Base64Decode)?;
     let iv: [u8; IV_SIZE] = iv.as_slice().try_into().map_err(|_| Error::InvalidIVLen)?;
     let key: [u8; 32] = util::generate_shared_key(secret_key, public_key)?;
@@ -230,7 +235,7 @@ mod tests {
                 "badbase64?iv=encode"
             )
             .unwrap_err(),
-            Error::Base64Decode
+            Error::InvalidIVLen
         );
 
         // Content encrypted with aes256 using GCM mode
@@ -264,5 +269,17 @@ mod tests {
 
             assert_eq!(err, Error::InvalidIVLen);
         }
+    }
+
+    #[test]
+    fn test_decryption_rejects_multiple_iv_separators() {
+        let keys = Keys::generate();
+        let ciphertext = general_purpose::STANDARD.encode([0u8; 16]);
+        let iv = general_purpose::STANDARD.encode([0u8; IV_SIZE]);
+        let encrypted_content = format!("{ciphertext}?iv={iv}?iv={iv}");
+
+        let err = decrypt(keys.secret_key(), &keys.public_key(), encrypted_content).unwrap_err();
+
+        assert_eq!(err, Error::InvalidIVLen);
     }
 }
