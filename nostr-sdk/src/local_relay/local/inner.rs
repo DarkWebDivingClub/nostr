@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use async_utility::futures_util::stream::{self, SplitSink};
+use async_utility::futures_util::stream::SplitSink;
 use async_utility::futures_util::{SinkExt, StreamExt};
 use async_wsocket::native;
 use async_wsocket::native::{Message, Role, WebSocketConfig, WebSocketStream};
@@ -65,6 +65,7 @@ pub(super) struct InnerLocalRelay {
     max_subscription_bytes: usize,
     max_negentropy_subscriptions: usize,
     max_filter_limit: Option<usize>,
+    max_query_results: usize,
     default_filter_limit: usize,
     auth_dm: bool,
     min_pow: Option<u8>, // TODO: use AtomicU8 to allow to change it?
@@ -113,6 +114,7 @@ impl InnerLocalRelay {
             max_subscription_bytes: builder.max_subscription_bytes,
             max_negentropy_subscriptions: builder.max_negentropy_subscriptions,
             max_filter_limit: builder.max_filter_limit,
+            max_query_results: builder.max_query_results,
             default_filter_limit: builder.default_filter_limit,
             auth_dm: builder.auth_dm,
             min_pow: builder.min_pow,
@@ -1116,25 +1118,18 @@ impl InnerLocalRelay {
             }
         }
 
+        // Cap each query and the merged result so multiple filters cannot multiply output.
         for filter in filters.iter_mut() {
-            match filter.limit {
-                Some(filter_limit) => {
-                    // Filter limit set, check if it's within the limit
-                    if let Some(max_limit) = self.max_filter_limit {
-                        // If the limit is greater than the max limit, use the max limit
-                        if filter_limit > max_limit {
-                            filter.limit = Some(max_limit)
-                        }
-                    }
-                }
-                // No limit set, if the filter has IDs, set the limit to the number of IDs, otherwise to the default limit.
-                None => match filter.ids.as_ref() {
-                    Some(ids) => {
-                        filter.limit = Some(ids.len());
-                    }
-                    None => filter.limit = Some(self.default_filter_limit),
-                },
-            }
+            let requested_limit = filter.limit.unwrap_or_else(|| {
+                filter
+                    .ids
+                    .as_ref()
+                    .map_or(self.default_filter_limit, |ids| ids.len())
+            });
+            let per_filter_limit = self
+                .max_filter_limit
+                .map_or(requested_limit, |max| requested_limit.min(max));
+            filter.limit = Some(per_filter_limit.min(self.max_query_results));
         }
 
         // Check query policy
@@ -1167,17 +1162,19 @@ impl InnerLocalRelay {
 
             let keys = Keys::generate();
 
-            for _ in 0..500 {
+            for _ in 0..500.min(self.max_query_results) {
                 events.insert(EventBuilder::new(Kind::TextNote, "Test").finalize(&keys)?);
             }
 
             events
+        } else if self.max_query_results == 0 {
+            Events::default()
         } else {
-            let mut events: Events = Events::default();
+            let mut events: Events = Events::new(&Filter::new().limit(self.max_query_results));
 
             for filter in filters.iter() {
                 let res = self.database.query(filter.clone()).await?;
-                events = events.merge(res);
+                events.extend(res);
             }
 
             events
@@ -1187,38 +1184,38 @@ impl InnerLocalRelay {
 
         tracing::debug!("Found {events_len} events for subscription '{subscription_id}'",);
 
-        let mut json_msgs: Vec<String> = Vec::with_capacity(events_len + 1);
-
         let now = Timestamp::now();
-        // Add events
-        json_msgs.extend(events.into_iter().filter_map(|event| {
+        for event in events {
             if event.is_expired_at(now) {
-                return None;
+                continue;
             }
-            Some(
+            send_msg(
+                ws_tx,
                 RelayMessage::Event {
                     subscription_id: Cow::Borrowed(subscription_id.as_ref()),
                     event: Cow::Owned(event),
-                }
-                .as_json(),
+                },
             )
-        }));
+            .await?;
+        }
 
-        // Add EOSE message
-        json_msgs.push(
-            RelayMessage::EndOfStoredEvents(Cow::Borrowed(subscription_id.as_ref())).as_json(),
-        );
+        send_msg(
+            ws_tx,
+            RelayMessage::EndOfStoredEvents(Cow::Borrowed(subscription_id.as_ref())),
+        )
+        .await?;
 
         match ids_len {
             // Requested IDs len is the same as the query output, close the subscription.
             Some(ids_len) if ids_len == events_len => {
-                json_msgs.push(
+                send_msg(
+                    ws_tx,
                     RelayMessage::Closed {
                         subscription_id,
                         message: Cow::Borrowed(""),
-                    }
-                    .as_json(),
-                );
+                    },
+                )
+                .await?;
             }
             // The stored events are all served, but miss some: save the subscription.
             _ => {
@@ -1231,8 +1228,7 @@ impl InnerLocalRelay {
             }
         }
 
-        // Send JSON messages
-        send_json_msgs(ws_tx, json_msgs).await
+        Ok(())
     }
 
     fn requires_read_auth(&self, session: &Session<'_>) -> bool {
@@ -1437,19 +1433,6 @@ where
     .await
 }
 
-#[inline]
-async fn send_json_msgs<I, S>(tx: &mut WsTx<S>, json_msgs: I) -> Result<(), Error>
-where
-    I: IntoIterator<Item = String>,
-    S: AsyncRead + AsyncWrite + Unpin,
-{
-    let mut stream = stream::iter(json_msgs).map(|msg| Ok(Message::Text(msg.into())));
-    tx.send_all(&mut stream)
-        .await
-        .map_err(|e| Error::new(ErrorKind::Other, e))?;
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1492,6 +1475,8 @@ mod tests {
         assert_eq!(relay.connections_limit.available_permits(), 128);
         assert_eq!(relay.queries_per_minute, 120);
         assert_eq!(relay.max_filters_per_req, 20);
+        assert_eq!(relay.max_filter_limit, Some(500));
+        assert_eq!(relay.max_query_results, 500);
         assert_eq!(relay.max_subscription_bytes, 1024 * 1024);
         assert_eq!(config.max_message_size, Some(5 * 1024 * 1024));
         assert_eq!(config.max_frame_size, Some(5 * 1024 * 1024));
@@ -1684,6 +1669,63 @@ mod tests {
                 message,
             } if subscription_id.as_str() == "limited"
                 && message == "rate-limited: too many queries"
+        ));
+    }
+
+    #[tokio::test]
+    async fn req_results_are_bounded_and_streamed() {
+        let relay = InnerLocalRelay::new(
+            LocalRelayBuilder::default()
+                .max_filter_limit(1)
+                .max_query_results(1),
+        );
+        for content in ["one", "two"] {
+            let event = EventBuilder::new(Kind::TextNote, content)
+                .finalize(&Keys::generate())
+                .unwrap();
+            relay.database.save_event(&event).await.unwrap();
+        }
+
+        let (server_stream, client_stream) = tokio::io::duplex(16 * 1024);
+        let server = WebSocketStream::from_raw_socket(server_stream, Role::Server, None).await;
+        let mut client = WebSocketStream::from_raw_socket(client_stream, Role::Client, None).await;
+        let (mut server_tx, _) = server.split();
+        let mut session = session(None);
+        session.query_tokens = Tokens::new(1);
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+
+        relay
+            .handle_client_msg(
+                &mut session,
+                &mut server_tx,
+                ClientMessage::Req {
+                    subscription_id: Cow::Owned(SubscriptionId::new("bounded")),
+                    filters: vec![Cow::Owned(Filter::new().limit(usize::MAX))],
+                },
+                &addr,
+                32,
+            )
+            .await
+            .unwrap();
+
+        let event = client.next().await.unwrap().unwrap();
+        let eose = client.next().await.unwrap().unwrap();
+        assert!(matches!(
+            event,
+            Message::Text(json)
+                if matches!(
+                    RelayMessage::from_json(json.as_bytes()).unwrap(),
+                    RelayMessage::Event { .. }
+                )
+        ));
+        assert!(matches!(
+            eose,
+            Message::Text(json)
+                if matches!(
+                    RelayMessage::from_json(json.as_bytes()).unwrap(),
+                    RelayMessage::EndOfStoredEvents(subscription_id)
+                        if subscription_id.as_str() == "bounded"
+                )
         ));
     }
 

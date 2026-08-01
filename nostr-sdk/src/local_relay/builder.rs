@@ -18,6 +18,7 @@ use super::local::LocalRelay;
 
 pub(super) const DEFAULT_MAX_CONNECTIONS: usize = 128;
 pub(super) const DEFAULT_MAX_FILTERS_PER_REQ: usize = 20;
+pub(super) const DEFAULT_MAX_QUERY_RESULTS: usize = 500;
 pub(super) const DEFAULT_MAX_SUBSCRIPTION_BYTES: usize = 1024 * 1024;
 pub(super) const DEFAULT_MAX_WEBSOCKET_MESSAGE_SIZE: usize = 5 * 1024 * 1024;
 pub(super) const DEFAULT_WEBSOCKET_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -291,6 +292,8 @@ pub struct LocalRelayBuilder {
     pub(crate) max_negentropy_subscriptions: usize,
     /// Max filter's limit
     pub(crate) max_filter_limit: Option<usize>,
+    /// Max aggregate query results
+    pub(crate) max_query_results: usize,
     /// Default filter's limit if there is no limit
     pub(crate) default_filter_limit: usize,
     /// Enables NIP-42 authentication for kind 1059 (GiftWrap), ensuring the
@@ -335,7 +338,8 @@ impl Default for LocalRelayBuilder {
             max_filters_per_req: DEFAULT_MAX_FILTERS_PER_REQ,
             max_subscription_bytes: DEFAULT_MAX_SUBSCRIPTION_BYTES,
             max_negentropy_subscriptions: 10,
-            max_filter_limit: None,
+            max_filter_limit: Some(DEFAULT_MAX_QUERY_RESULTS),
+            max_query_results: DEFAULT_MAX_QUERY_RESULTS,
             default_filter_limit: 500,
             auth_dm: false,
             min_pow: None,
@@ -457,6 +461,14 @@ impl LocalRelayBuilder {
     #[inline]
     pub fn max_filter_limit(mut self, max: usize) -> Self {
         self.max_filter_limit = Some(max);
+        self
+    }
+
+    /// Sets the maximum aggregate number of events returned by one REQ.
+    /// Defaults to 500.
+    #[inline]
+    pub fn max_query_results(mut self, max: usize) -> Self {
+        self.max_query_results = max;
         self
     }
 
