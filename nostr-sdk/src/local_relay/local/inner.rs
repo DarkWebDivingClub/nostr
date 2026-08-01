@@ -60,6 +60,7 @@ pub(super) struct InnerLocalRelay {
     max_websocket_message_size: usize,
     websocket_handshake_timeout: Duration,
     max_subid_length: usize,
+    max_filters_per_req: usize,
     max_subscription_bytes: usize,
     max_negentropy_subscriptions: usize,
     max_filter_limit: Option<usize>,
@@ -106,6 +107,7 @@ impl InnerLocalRelay {
             max_websocket_message_size: builder.max_websocket_message_size,
             websocket_handshake_timeout: builder.websocket_handshake_timeout,
             max_subid_length: builder.max_subid_length,
+            max_filters_per_req: builder.max_filters_per_req,
             max_subscription_bytes: builder.max_subscription_bytes,
             max_negentropy_subscriptions: builder.max_negentropy_subscriptions,
             max_filter_limit: builder.max_filter_limit,
@@ -1030,6 +1032,22 @@ impl InnerLocalRelay {
             .await;
         }
 
+        // Bound retained filter state before policy and database work.
+        if filters.len() > self.max_filters_per_req {
+            return send_msg(
+                ws_tx,
+                RelayMessage::Closed {
+                    subscription_id,
+                    message: Cow::Owned(format!(
+                        "{}: REQ exceeds max filter count {}",
+                        MachineReadablePrefix::RateLimited,
+                        self.max_filters_per_req
+                    )),
+                },
+            )
+            .await;
+        }
+
         if !session.subscription_fits(
             subscription_id.as_ref(),
             request_size,
@@ -1404,6 +1422,7 @@ mod tests {
         let config = relay.websocket_config();
 
         assert_eq!(relay.connections_limit.available_permits(), 128);
+        assert_eq!(relay.max_filters_per_req, 20);
         assert_eq!(relay.max_subscription_bytes, 1024 * 1024);
         assert_eq!(config.max_message_size, Some(5 * 1024 * 1024));
         assert_eq!(config.max_frame_size, Some(5 * 1024 * 1024));
@@ -1520,6 +1539,44 @@ mod tests {
         ));
         assert!(session.subscriptions.is_empty());
         assert_eq!(session.subscription_bytes, 0);
+    }
+
+    #[tokio::test]
+    async fn excessive_req_filters_are_rejected() {
+        let relay = InnerLocalRelay::new(LocalRelayBuilder::default().max_filters_per_req(1));
+        let (server_stream, client_stream) = tokio::io::duplex(16 * 1024);
+        let server = WebSocketStream::from_raw_socket(server_stream, Role::Server, None).await;
+        let mut client = WebSocketStream::from_raw_socket(client_stream, Role::Client, None).await;
+        let (mut server_tx, _) = server.split();
+        let mut session = session(None);
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+
+        relay
+            .handle_client_msg(
+                &mut session,
+                &mut server_tx,
+                ClientMessage::Req {
+                    subscription_id: Cow::Owned(SubscriptionId::new("filters")),
+                    filters: vec![Cow::Owned(Filter::new()), Cow::Owned(Filter::new())],
+                },
+                &addr,
+                4,
+            )
+            .await
+            .unwrap();
+
+        let response = client.next().await.unwrap().unwrap();
+        let Message::Text(response) = response else {
+            panic!("unexpected WebSocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(response.as_bytes()).unwrap(),
+            RelayMessage::Closed {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "filters"
+                && message == "rate-limited: REQ exceeds max filter count 1"
+        ));
     }
 
     #[test]

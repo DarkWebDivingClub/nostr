@@ -17,6 +17,7 @@ use nostr_database::prelude::*;
 use super::local::LocalRelay;
 
 pub(super) const DEFAULT_MAX_CONNECTIONS: usize = 128;
+pub(super) const DEFAULT_MAX_FILTERS_PER_REQ: usize = 20;
 pub(super) const DEFAULT_MAX_SUBSCRIPTION_BYTES: usize = 1024 * 1024;
 pub(super) const DEFAULT_MAX_WEBSOCKET_MESSAGE_SIZE: usize = 5 * 1024 * 1024;
 pub(super) const DEFAULT_WEBSOCKET_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -279,6 +280,8 @@ pub struct LocalRelayBuilder {
     pub(crate) websocket_handshake_timeout: Duration,
     /// Max subscription ID length
     pub(crate) max_subid_length: usize,
+    /// Max filters in one REQ
+    pub(crate) max_filters_per_req: usize,
     /// Max total bytes retained by active subscriptions per connection
     pub(crate) max_subscription_bytes: usize,
     /// Max active negentropy subscriptions per connection
@@ -325,6 +328,7 @@ impl Default for LocalRelayBuilder {
             max_websocket_message_size: DEFAULT_MAX_WEBSOCKET_MESSAGE_SIZE,
             websocket_handshake_timeout: DEFAULT_WEBSOCKET_HANDSHAKE_TIMEOUT,
             max_subid_length: 250,
+            max_filters_per_req: DEFAULT_MAX_FILTERS_PER_REQ,
             max_subscription_bytes: DEFAULT_MAX_SUBSCRIPTION_BYTES,
             max_negentropy_subscriptions: 10,
             max_filter_limit: None,
@@ -410,6 +414,13 @@ impl LocalRelayBuilder {
     #[inline]
     pub fn max_subid_length(mut self, max: usize) -> Self {
         self.max_subid_length = max;
+        self
+    }
+
+    /// Sets the maximum number of filters in one REQ. Defaults to 20.
+    #[inline]
+    pub fn max_filters_per_req(mut self, max: usize) -> Self {
+        self.max_filters_per_req = max;
         self
     }
 
