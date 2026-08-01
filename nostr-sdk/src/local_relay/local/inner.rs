@@ -766,21 +766,6 @@ impl InnerLocalRelay {
                 }
 
                 let mut filter = filter.into_owned();
-                match self.gift_wrap_query_access(session, [&filter]) {
-                    GiftWrapQueryAccess::Allowed => {}
-                    GiftWrapQueryAccess::AuthRequired => {
-                        return send_auth_and_close(
-                            ws_tx,
-                            subscription_id,
-                            session.nip42.generate_challenge(),
-                        )
-                        .await;
-                    }
-                    GiftWrapQueryAccess::Forbidden => {
-                        return send_gift_wrap_error(ws_tx, subscription_id).await;
-                    }
-                }
-
                 if let Some(policy) = self.query_policy.as_ref() {
                     if let QueryPolicyResult::Reject { prefix, message } =
                         policy.admit_query(&mut filter, addr).await
@@ -793,6 +778,22 @@ impl InnerLocalRelay {
                             },
                         )
                         .await;
+                    }
+                }
+
+                // A policy may broaden the filter, so authorize the mutated form.
+                match self.gift_wrap_query_access(session, [&filter]) {
+                    GiftWrapQueryAccess::Allowed => {}
+                    GiftWrapQueryAccess::AuthRequired => {
+                        return send_auth_and_close(
+                            ws_tx,
+                            subscription_id,
+                            session.nip42.generate_challenge(),
+                        )
+                        .await;
+                    }
+                    GiftWrapQueryAccess::Forbidden => {
+                        return send_gift_wrap_error(ws_tx, subscription_id).await;
                     }
                 }
 
@@ -880,21 +881,6 @@ impl InnerLocalRelay {
                 }
 
                 let mut filter = filter.into_owned();
-                match self.gift_wrap_query_access(session, [&filter]) {
-                    GiftWrapQueryAccess::Allowed => {}
-                    GiftWrapQueryAccess::AuthRequired => {
-                        return send_auth_and_neg_err(
-                            ws_tx,
-                            subscription_id,
-                            session.nip42.generate_challenge(),
-                        )
-                        .await;
-                    }
-                    GiftWrapQueryAccess::Forbidden => {
-                        return send_gift_wrap_neg_err(ws_tx, subscription_id).await;
-                    }
-                }
-
                 if let Some(policy) = self.query_policy.as_ref() {
                     if let QueryPolicyResult::Reject { prefix, message } =
                         policy.admit_query(&mut filter, addr).await
@@ -907,6 +893,22 @@ impl InnerLocalRelay {
                             },
                         )
                         .await;
+                    }
+                }
+
+                // A policy may broaden the filter, so authorize the mutated form.
+                match self.gift_wrap_query_access(session, [&filter]) {
+                    GiftWrapQueryAccess::Allowed => {}
+                    GiftWrapQueryAccess::AuthRequired => {
+                        return send_auth_and_neg_err(
+                            ws_tx,
+                            subscription_id,
+                            session.nip42.generate_challenge(),
+                        )
+                        .await;
+                    }
+                    GiftWrapQueryAccess::Forbidden => {
+                        return send_gift_wrap_neg_err(ws_tx, subscription_id).await;
                     }
                 }
 
@@ -1103,6 +1105,25 @@ impl InnerLocalRelay {
                 .await;
         }
 
+        // Check query policy
+        if let Some(policy) = self.query_policy.as_ref() {
+            for filter in filters.iter_mut() {
+                if let QueryPolicyResult::Reject { prefix, message } =
+                    policy.admit_query(filter, addr).await
+                {
+                    return send_msg(
+                        ws_tx,
+                        RelayMessage::Closed {
+                            subscription_id,
+                            message: Cow::Owned(format!("{prefix}: {message}",)),
+                        },
+                    )
+                    .await;
+                }
+            }
+        }
+
+        // Policies may broaden filters, so authorize their final mutated forms.
         match self.gift_wrap_query_access(session, &filters) {
             GiftWrapQueryAccess::Allowed => {}
             GiftWrapQueryAccess::AuthRequired => {
@@ -1130,24 +1151,6 @@ impl InnerLocalRelay {
                 .max_filter_limit
                 .map_or(requested_limit, |max| requested_limit.min(max));
             filter.limit = Some(per_filter_limit.min(self.max_query_results));
-        }
-
-        // Check query policy
-        if let Some(policy) = self.query_policy.as_ref() {
-            for filter in filters.iter_mut() {
-                if let QueryPolicyResult::Reject { prefix, message } =
-                    policy.admit_query(filter, addr).await
-                {
-                    return send_msg(
-                        ws_tx,
-                        RelayMessage::Closed {
-                            subscription_id,
-                            message: Cow::Owned(format!("{prefix}: {message}",)),
-                        },
-                    )
-                    .await;
-                }
-            }
         }
 
         // Check if subscription has IDs
@@ -1453,6 +1456,23 @@ mod tests {
         }
     }
 
+    #[derive(Debug)]
+    struct ReplaceWithGiftWrap;
+
+    impl QueryPolicy for ReplaceWithGiftWrap {
+        fn admit_query<'a>(
+            &'a self,
+            query: &'a mut Filter,
+            _addr: &'a SocketAddr,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = QueryPolicyResult> + Send + 'a>>
+        {
+            Box::pin(async move {
+                *query = Filter::new().kind(Kind::GiftWrap);
+                QueryPolicyResult::Accept
+            })
+        }
+    }
+
     fn session(public_key: Option<PublicKey>) -> Session<'static> {
         Session {
             subscriptions: HashMap::new(),
@@ -1552,6 +1572,55 @@ mod tests {
                 message,
                 ..
             } if message == "blocked: write rejected"
+        ));
+    }
+
+    #[tokio::test]
+    async fn gift_wrap_access_is_checked_after_query_policy_mutation() {
+        let relay = InnerLocalRelay::new(
+            LocalRelayBuilder::default()
+                .auth_dm(true)
+                .query_policy(ReplaceWithGiftWrap),
+        );
+        let (server_stream, client_stream) = tokio::io::duplex(16 * 1024);
+        let server = WebSocketStream::from_raw_socket(server_stream, Role::Server, None).await;
+        let mut client = WebSocketStream::from_raw_socket(client_stream, Role::Client, None).await;
+        let (mut server_tx, _) = server.split();
+        let mut session = session(None);
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+
+        relay
+            .handle_client_msg(
+                &mut session,
+                &mut server_tx,
+                ClientMessage::Count {
+                    subscription_id: Cow::Owned(SubscriptionId::new("gift-wrap")),
+                    filter: Cow::Owned(Filter::new().kind(Kind::TextNote)),
+                },
+                &addr,
+                0,
+            )
+            .await
+            .unwrap();
+
+        let auth = client.next().await.unwrap().unwrap();
+        let closed = client.next().await.unwrap().unwrap();
+        assert!(matches!(
+            auth,
+            Message::Text(json)
+                if matches!(
+                    RelayMessage::from_json(json.as_bytes()).unwrap(),
+                    RelayMessage::Auth { .. }
+                )
+        ));
+        assert!(matches!(
+            closed,
+            Message::Text(json)
+                if matches!(
+                    RelayMessage::from_json(json.as_bytes()).unwrap(),
+                    RelayMessage::Closed { message, .. }
+                        if message.starts_with("auth-required:")
+                )
         ));
     }
 
