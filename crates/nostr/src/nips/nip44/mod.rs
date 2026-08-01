@@ -35,6 +35,8 @@ pub enum Error {
     UnknownVersion(u8),
     /// Version not found in payload
     VersionNotFound,
+    /// Message too long
+    MessageTooLong,
     /// Not found in payload
     NotFound(String),
 }
@@ -51,6 +53,7 @@ impl fmt::Display for Error {
             Self::Utf8Encode => f.write_str("Error while encoding to UTF-8"),
             Self::UnknownVersion(v) => write!(f, "unknown version: {v}"),
             Self::VersionNotFound => f.write_str("Version not found in payload"),
+            Self::MessageTooLong => f.write_str("message too long"),
             Self::NotFound(value) => write!(f, "{value} not found in payload"),
         }
     }
@@ -89,6 +92,32 @@ impl Version {
     pub fn as_u8(&self) -> u8 {
         *self as u8
     }
+
+    fn max_encoded_payload_size(self) -> usize {
+        match self {
+            Self::V2 => v2::MAX_ENCODED_PAYLOAD_SIZE,
+        }
+    }
+
+    fn validate_encoded_payload_size(self, len: usize) -> Result<(), Error> {
+        if len > self.max_encoded_payload_size() {
+            return Err(Error::MessageTooLong);
+        }
+
+        Ok(())
+    }
+}
+
+fn decode_payload_version(payload: &[u8]) -> Result<Version, Error> {
+    // Decode one Base64 quantum so the version-specific limit runs before full allocation.
+    let encoded_prefix = payload.get(..4).unwrap_or(payload);
+    let decoded_prefix = general_purpose::STANDARD.decode(encoded_prefix)?;
+    let version = decoded_prefix
+        .first()
+        .copied()
+        .ok_or(Error::VersionNotFound)?;
+
+    Version::try_from(version)
 }
 
 impl TryFrom<u8> for Version {
@@ -163,13 +192,14 @@ pub fn decrypt_to_bytes<T>(
 where
     T: AsRef<[u8]>,
 {
+    let payload = payload.as_ref();
+    let version = decode_payload_version(payload)?;
+    version.validate_encoded_payload_size(payload.len())?;
+
     // Decode base64 payload
     let payload: Vec<u8> = general_purpose::STANDARD.decode(payload)?;
 
-    // Get version byte
-    let version: u8 = *payload.first().ok_or(Error::VersionNotFound)?;
-
-    match Version::try_from(version)? {
+    match version {
         Version::V2 => {
             let conversation_key: ConversationKey =
                 ConversationKey::derive(secret_key, public_key)?;
@@ -209,5 +239,15 @@ mod tests {
             decrypt(bob_keys.secret_key(), &alice_pk, encrypted_content).unwrap(),
             content
         );
+    }
+
+    #[test]
+    fn test_oversized_base64_payload_is_rejected_before_decoding() {
+        let keys = Keys::generate();
+        let mut payload = vec![b'A'; v2::MAX_ENCODED_PAYLOAD_SIZE + 1];
+        payload[..4].copy_from_slice(b"AgAA");
+
+        let err = decrypt_to_bytes(keys.secret_key(), &keys.public_key(), payload).unwrap_err();
+        assert_eq!(err, Error::MessageTooLong);
     }
 }
