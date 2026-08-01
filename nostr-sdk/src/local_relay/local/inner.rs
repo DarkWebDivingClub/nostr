@@ -8,10 +8,12 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use async_utility::futures_util::stream::{self, SplitSink};
 use async_utility::futures_util::{SinkExt, StreamExt};
-use async_wsocket::native::{self, Message, WebSocketStream};
+use async_wsocket::native;
+use async_wsocket::native::{Message, Role, WebSocketConfig, WebSocketStream};
 use negentropy::{Id, Negentropy, NegentropyStorageVector};
 use nostr::filter::{Alphabet, MatchEventOptions};
 use nostr::message::MachineReadablePrefix;
@@ -20,7 +22,7 @@ use nostr::types::RelayUrlArg;
 use nostr_memory::prelude::*;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpListener;
-use tokio::sync::{Notify, OnceCell, Semaphore, broadcast};
+use tokio::sync::{Notify, OnceCell, OwnedSemaphorePermit, Semaphore, broadcast};
 
 use super::super::builder::{
     LocalRelayBuilder, LocalRelayBuilderMode, LocalRelayBuilderNip42, LocalRelayTestOptions,
@@ -55,6 +57,8 @@ pub(super) struct InnerLocalRelay {
     mode: LocalRelayBuilderMode,
     rate_limit: RateLimit,
     connections_limit: Arc<Semaphore>,
+    max_websocket_message_size: usize,
+    websocket_handshake_timeout: Duration,
     max_subid_length: usize,
     max_negentropy_subscriptions: usize,
     max_filter_limit: Option<usize>,
@@ -83,8 +87,6 @@ impl InnerLocalRelay {
         // Channels
         let (new_event, ..) = broadcast::channel(1024);
 
-        let max_connections: usize = builder.max_connections.unwrap_or(Semaphore::MAX_PERMITS);
-
         let database: Arc<dyn NostrDatabase> = builder.database.unwrap_or_else(|| {
             let max: NonZeroUsize = NonZeroUsize::new(75_000).unwrap();
             Arc::new(MemoryDatabase::bounded(max))
@@ -99,7 +101,9 @@ impl InnerLocalRelay {
             new_event,
             mode: builder.mode,
             rate_limit: builder.rate_limit,
-            connections_limit: Arc::new(Semaphore::new(max_connections)),
+            connections_limit: Arc::new(Semaphore::new(builder.max_connections)),
+            max_websocket_message_size: builder.max_websocket_message_size,
+            websocket_handshake_timeout: builder.websocket_handshake_timeout,
             max_subid_length: builder.max_subid_length,
             max_negentropy_subscriptions: builder.max_negentropy_subscriptions,
             max_filter_limit: builder.max_filter_limit,
@@ -152,9 +156,17 @@ impl InnerLocalRelay {
                     output = listener.accept() => {
                         match output {
                             Ok((stream, addr)) => {
+                                // Acquire before spawning so excess sockets cannot create tasks.
+                                let permit = match r.connections_limit.clone().try_acquire_owned() {
+                                    Ok(permit) => permit,
+                                    Err(e) => {
+                                        tracing::warn!("Rejecting connection from {addr}: {e}");
+                                        continue;
+                                    }
+                                };
                                 let r1: Self = r.clone();
                                 tokio::spawn(async move {
-                                    if let Err(e) = r1.handle_connection(stream, addr).await {
+                                    if let Err(e) = r1.handle_connection(stream, addr, permit).await {
                                         tracing::warn!("{e}");
                                     }
                                 });
@@ -256,20 +268,29 @@ impl InnerLocalRelay {
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
+        // Hold the permit for the complete WebSocket session, including test delays.
+        let permit = self.connections_limit.clone().try_acquire_owned()?;
+
         if let Some(unresponsive_connection) = self.test.unresponsive_connection {
             tokio::time::sleep(unresponsive_connection).await;
         }
 
-        // Accept websocket
-        let ws_stream = native::take_upgraded(stream).await;
+        let ws_stream =
+            WebSocketStream::from_raw_socket(stream, Role::Server, Some(self.websocket_config()))
+                .await;
 
-        self.handle_websocket(ws_stream, addr).await?;
+        self.handle_websocket(ws_stream, addr, permit).await?;
 
         Ok(())
     }
 
     /// Pass bare [TcpStream] for handling
-    async fn handle_connection<S>(self, raw_stream: S, addr: SocketAddr) -> Result<(), Error>
+    async fn handle_connection<S>(
+        self,
+        raw_stream: S,
+        addr: SocketAddr,
+        permit: OwnedSemaphorePermit,
+    ) -> Result<(), Error>
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
@@ -277,10 +298,18 @@ impl InnerLocalRelay {
             tokio::time::sleep(unresponsive_connection).await;
         }
 
-        // Accept websocket
-        let ws_stream = native::accept(raw_stream).await?;
+        // Bound clients that open TCP but never complete the WebSocket handshake.
+        let ws_stream = tokio::time::timeout(
+            self.websocket_handshake_timeout,
+            native::accept_async_with_config(raw_stream, Some(self.websocket_config())),
+        )
+        .await
+        .map_err(|_| {
+            Error::with_static_message(ErrorKind::Transport, "WebSocket handshake timed out")
+        })?
+        .map_err(Error::transport)?;
 
-        self.handle_websocket(ws_stream, addr).await?;
+        self.handle_websocket(ws_stream, addr, permit).await?;
 
         Ok(())
     }
@@ -290,13 +319,11 @@ impl InnerLocalRelay {
         &self,
         ws_stream: WebSocketStream<S>,
         addr: SocketAddr,
+        _permit: OwnedSemaphorePermit,
     ) -> Result<(), Error>
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
-        // Try to acquire connection limit
-        let permit = self.connections_limit.try_acquire()?;
-
         tracing::debug!("WebSocket connection established: {addr}");
 
         let mut new_event = self.new_event.subscribe();
@@ -376,12 +403,15 @@ impl InnerLocalRelay {
             }
         }
 
-        // Drop connection permit
-        drop(permit);
-
         tracing::debug!("WebSocket connection terminated for {addr}");
 
         Ok(())
+    }
+
+    fn websocket_config(&self) -> WebSocketConfig {
+        WebSocketConfig::default()
+            .max_message_size(Some(self.max_websocket_message_size))
+            .max_frame_size(Some(self.max_websocket_message_size))
     }
 
     async fn handle_client_msg<S>(
@@ -1315,6 +1345,33 @@ mod tests {
             },
             tokens: Tokens::new(1),
         }
+    }
+
+    #[test]
+    fn local_relay_defaults_bound_connection_resources() {
+        let relay = InnerLocalRelay::new(LocalRelayBuilder::default());
+        let config = relay.websocket_config();
+
+        assert_eq!(relay.connections_limit.available_permits(), 128);
+        assert_eq!(config.max_message_size, Some(5 * 1024 * 1024));
+        assert_eq!(config.max_frame_size, Some(5 * 1024 * 1024));
+        assert_eq!(relay.websocket_handshake_timeout.as_secs(), 10);
+    }
+
+    #[test]
+    fn local_relay_connection_limits_are_configurable() {
+        let relay = InnerLocalRelay::new(
+            LocalRelayBuilder::default()
+                .max_connections(4)
+                .max_websocket_message_size(1024)
+                .websocket_handshake_timeout(Duration::from_secs(2)),
+        );
+        let config = relay.websocket_config();
+
+        assert_eq!(relay.connections_limit.available_permits(), 4);
+        assert_eq!(config.max_message_size, Some(1024));
+        assert_eq!(config.max_frame_size, Some(1024));
+        assert_eq!(relay.websocket_handshake_timeout.as_secs(), 2);
     }
 
     #[test]

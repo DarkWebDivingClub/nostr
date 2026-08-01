@@ -42,7 +42,7 @@ rust-version = "1.85.0"
 
 [workspace.dependencies]
 async-utility = "0.3"
-async-wsocket = { version = "0.16", default-features = false }
+async-wsocket = { git = "https://github.com/shadowylab/async-wsocket", rev = "fe5c6a1b0730ce11a1627a2643433cfcd3214899", default-features = false }
 atomic-destructor = { version = "0.3", default-features = false }
 base64 = { version = "0.22", default-features = false }
 bitcoin_hashes = { version = "0.14", default-features = false }

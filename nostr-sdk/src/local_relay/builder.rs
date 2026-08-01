@@ -16,6 +16,10 @@ use nostr_database::prelude::*;
 
 use super::local::LocalRelay;
 
+pub(super) const DEFAULT_MAX_CONNECTIONS: usize = 128;
+pub(super) const DEFAULT_MAX_WEBSOCKET_MESSAGE_SIZE: usize = 5 * 1024 * 1024;
+pub(super) const DEFAULT_WEBSOCKET_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
+
 /// Rate limit
 #[derive(Debug, Clone)]
 pub struct RateLimit {
@@ -267,7 +271,11 @@ pub struct LocalRelayBuilder {
     /// NIP42 options
     pub(crate) nip42: Option<LocalRelayBuilderNip42>,
     /// Max connections allowed
-    pub(crate) max_connections: Option<usize>,
+    pub(crate) max_connections: usize,
+    /// Max WebSocket message size
+    pub(crate) max_websocket_message_size: usize,
+    /// WebSocket handshake timeout
+    pub(crate) websocket_handshake_timeout: Duration,
     /// Max subscription ID length
     pub(crate) max_subid_length: usize,
     /// Max active negentropy subscriptions per connection
@@ -310,7 +318,9 @@ impl Default for LocalRelayBuilder {
             mode: LocalRelayBuilderMode::default(),
             rate_limit: RateLimit::default(),
             nip42: None,
-            max_connections: None,
+            max_connections: DEFAULT_MAX_CONNECTIONS,
+            max_websocket_message_size: DEFAULT_MAX_WEBSOCKET_MESSAGE_SIZE,
+            websocket_handshake_timeout: DEFAULT_WEBSOCKET_HANDSHAKE_TIMEOUT,
             max_subid_length: 250,
             max_negentropy_subscriptions: 10,
             max_filter_limit: None,
@@ -371,10 +381,24 @@ impl LocalRelayBuilder {
         self
     }
 
-    /// Set number of max connections allowed
+    /// Set number of max connections allowed. Defaults to 128.
     #[inline]
     pub fn max_connections(mut self, max: usize) -> Self {
-        self.max_connections = Some(max);
+        self.max_connections = max;
+        self
+    }
+
+    /// Set the maximum WebSocket message size in bytes. Defaults to 5 MiB.
+    #[inline]
+    pub fn max_websocket_message_size(mut self, max: usize) -> Self {
+        self.max_websocket_message_size = max;
+        self
+    }
+
+    /// Set the WebSocket handshake timeout. Defaults to 10 seconds.
+    #[inline]
+    pub fn websocket_handshake_timeout(mut self, timeout: Duration) -> Self {
+        self.websocket_handshake_timeout = timeout;
         self
     }
 
