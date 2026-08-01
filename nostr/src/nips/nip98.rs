@@ -40,6 +40,11 @@ use crate::types::Timestamp;
 
 #[cfg(feature = "std")]
 const AUTH_HEADER_PREFIX: &str = "Nostr";
+#[cfg(feature = "std")]
+// NIP-98 events are small metadata; 64 KiB leaves headroom while bounding HTTP input.
+const MAX_AUTH_EVENT_SIZE: usize = 64 * 1024;
+#[cfg(feature = "std")]
+const MAX_ENCODED_AUTH_EVENT_SIZE: usize = MAX_AUTH_EVENT_SIZE.div_ceil(3) * 4;
 const ABSOLUTE_URL: &str = "u";
 const METHOD: &str = "method";
 const PAYLOAD: &str = "payload";
@@ -328,10 +333,25 @@ pub fn verify_auth_header(
         return Err(malformed_authorization_header());
     }
 
+    // Bound attacker-controlled input before Base64 allocates its decoded buffer.
+    if base64_encoded_event.len() > MAX_ENCODED_AUTH_EVENT_SIZE {
+        return Err(Error::with_static_message(
+            ErrorKind::Invalid,
+            "authorization event too large",
+        ));
+    }
+
     // Decode event
     let decoded_event_json: Vec<u8> = general_purpose::STANDARD
         .decode(base64_encoded_event)
         .map_err(Error::malformed)?;
+    // Keep the JSON parser bounded even for non-canonical Base64 representations.
+    if decoded_event_json.len() > MAX_AUTH_EVENT_SIZE {
+        return Err(Error::with_static_message(
+            ErrorKind::Invalid,
+            "authorization event too large",
+        ));
+    }
     let event: Event = Event::from_json(decoded_event_json)?;
 
     // Check event kind
@@ -485,6 +505,30 @@ mod tests {
             ErrorKind::Malformed
         );
         assert_eq!(verify_auth_header("nostr eyJpZCI6ImZlOTY0ZTc1ODkwMzM2MGYyOGQ4NDI0ZDA5MmRhODQ5NGVkMjA3Y2JhODIzMTEwYmUzYTU3ZGZlNGI1Nzg3MzQiLCJwdWJrZXkiOiI2M2ZlNjMxOGRjNTg1ODNjZmUxNjgxMGY4NmRkMDllMThiZmQ3NmFhYmMyNGEwMDgxY2UyODU2ZjMzMDUwNGVkIiwiY29udGVudCI6IiIsImtpbmQiOjI3MjM1LCJjcmVhdGVkX2F0IjoxNjgyMzI3ODUyLCJ0YWdzIjpbWyJ1IiwiaHR0cHM6Ly9hcGkuc25vcnQuc29jaWFsL2FwaS92MS9uNXNwL2xpc3QiXSxbIm1ldGhvZCIsIkdFVCJdXSwic2lnIjoiNWVkOWQ4ZWM5NThiYzg1NGY5OTdiZGMyNGFjMzM3ZDAwNWFmMzcyMzI0NzQ3ZWZlNGEwMGUyNGY0YzMwNDM3ZmY0ZGQ4MzA4Njg0YmVkNDY3ZDlkNmJlM2U1YTUxN2JiNDNiMTczMmNjN2QzMzk0OWEzYWFmODY3MDVjMjIxODQifQ==", &url, HttpMethod::GET, now, None).unwrap_err().kind(), ErrorKind::Malformed);
+    }
+
+    #[test]
+    fn oversized_auth_event_is_rejected_before_decoding() {
+        let url = Url::parse("https://example.com/").unwrap();
+        let encoded = "A".repeat(MAX_ENCODED_AUTH_EVENT_SIZE + 1);
+        let header = format!("{AUTH_HEADER_PREFIX} {encoded}");
+
+        let err =
+            verify_auth_header(&header, &url, HttpMethod::GET, Timestamp::now(), None).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::Invalid);
+        assert_eq!(err.to_string(), "authorization event too large");
+    }
+
+    #[test]
+    fn maximum_sized_auth_event_reaches_json_parser() {
+        let url = Url::parse("https://example.com/").unwrap();
+        let decoded = vec![b' '; MAX_AUTH_EVENT_SIZE];
+        let encoded = general_purpose::STANDARD.encode(decoded);
+        let header = format!("{AUTH_HEADER_PREFIX} {encoded}");
+
+        let err =
+            verify_auth_header(&header, &url, HttpMethod::GET, Timestamp::now(), None).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::Malformed);
     }
 
     #[test]
