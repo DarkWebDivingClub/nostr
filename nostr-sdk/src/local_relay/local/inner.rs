@@ -56,6 +56,7 @@ pub(super) struct InnerLocalRelay {
     rate_limit: RateLimit,
     connections_limit: Arc<Semaphore>,
     max_subid_length: usize,
+    max_negentropy_subscriptions: usize,
     max_filter_limit: Option<usize>,
     default_filter_limit: usize,
     auth_dm: bool,
@@ -100,6 +101,7 @@ impl InnerLocalRelay {
             rate_limit: builder.rate_limit,
             connections_limit: Arc::new(Semaphore::new(max_connections)),
             max_subid_length: builder.max_subid_length,
+            max_negentropy_subscriptions: builder.max_negentropy_subscriptions,
             max_filter_limit: builder.max_filter_limit,
             default_filter_limit: builder.default_filter_limit,
             auth_dm: builder.auth_dm,
@@ -786,6 +788,25 @@ impl InnerLocalRelay {
                 initial_message,
                 ..
             } => {
+                // Reopening an existing ID replaces state and does not consume another slot.
+                if session.negentropy_subscription.len() >= self.max_negentropy_subscriptions
+                    && !session
+                        .negentropy_subscription
+                        .contains_key(&subscription_id)
+                {
+                    return send_msg(
+                        ws_tx,
+                        RelayMessage::NegErr {
+                            subscription_id,
+                            message: Cow::Owned(format!(
+                                "{}: too many negentropy subscriptions",
+                                MachineReadablePrefix::RateLimited
+                            )),
+                        },
+                    )
+                    .await;
+                }
+
                 if self.requires_read_auth(session) {
                     return send_auth_and_neg_err(
                         ws_tx,
@@ -794,8 +815,6 @@ impl InnerLocalRelay {
                     )
                     .await;
                 }
-
-                // TODO: check number of neg subscriptions
 
                 let mut filter = filter.into_owned();
                 match self.gift_wrap_query_access(session, [&filter]) {

@@ -350,6 +350,36 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_negentropy_subscription_limit() {
+        let relay = LocalRelay::builder()
+            .max_negentropy_subscriptions(0)
+            .build();
+        relay.run().await.unwrap();
+
+        let url = Url::parse(relay.url().await.as_str()).unwrap();
+        let mut socket = WebSocket::connect(&url, &ConnectionMode::direct())
+            .await
+            .unwrap();
+        socket
+            .send(Message::Text(r#"["NEG-OPEN","neg",{},""]"#.to_owned()))
+            .await
+            .unwrap();
+
+        let neg_err = socket.next().await.unwrap().unwrap();
+        let Message::Text(neg_err) = neg_err else {
+            panic!("unexpected websocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(neg_err.as_bytes()).unwrap(),
+            RelayMessage::NegErr {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "neg"
+                && message.starts_with("rate-limited:")
+        ));
+    }
+
+    #[tokio::test]
     async fn test_shutdown() {
         let relay = LocalRelay::new();
 

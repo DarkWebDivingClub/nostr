@@ -270,6 +270,8 @@ pub struct LocalRelayBuilder {
     pub(crate) max_connections: Option<usize>,
     /// Max subscription ID length
     pub(crate) max_subid_length: usize,
+    /// Max active negentropy subscriptions per connection
+    pub(crate) max_negentropy_subscriptions: usize,
     /// Max filter's limit
     pub(crate) max_filter_limit: Option<usize>,
     /// Default filter's limit if there is no limit
@@ -310,6 +312,7 @@ impl Default for LocalRelayBuilder {
             nip42: None,
             max_connections: None,
             max_subid_length: 250,
+            max_negentropy_subscriptions: 10,
             max_filter_limit: None,
             default_filter_limit: 500,
             auth_dm: false,
@@ -379,6 +382,14 @@ impl LocalRelayBuilder {
     #[inline]
     pub fn max_subid_length(mut self, max: usize) -> Self {
         self.max_subid_length = max;
+        self
+    }
+
+    /// Sets the maximum number of active negentropy subscriptions per connection.
+    /// Defaults to 10.
+    #[inline]
+    pub fn max_negentropy_subscriptions(mut self, max: usize) -> Self {
+        self.max_negentropy_subscriptions = max;
         self
     }
 
