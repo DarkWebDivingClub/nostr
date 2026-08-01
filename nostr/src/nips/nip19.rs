@@ -64,6 +64,20 @@ fn invalid_tlv() -> Error {
     Error::with_static_message(ErrorKind::Malformed, "invalid TLV")
 }
 
+#[inline]
+fn push_tlv(bytes: &mut Vec<u8>, typ: u8, value: &[u8]) -> Result<(), Error> {
+    // NIP-19 stores the value length in one byte; never truncate a larger value.
+    let len: u8 = value
+        .len()
+        .try_into()
+        .map_err(|_| Error::with_static_message(ErrorKind::Invalid, "TLV value too long"))?;
+
+    bytes.push(typ);
+    bytes.push(len);
+    bytes.extend(value);
+    Ok(())
+}
+
 fn field_missing(field: &'static str) -> Error {
     Error::with_static_message(ErrorKind::Missing, field)
 }
@@ -395,8 +409,8 @@ impl Nip19Event {
                 KIND if kind.is_none() => {
                     // The kind value must be a 32-bit unsigned number according to
                     // https://github.com/nostr-protocol/nips/blob/37f6cbb775126b386414220f783ca0f5f85e7614/19.md#shareable-identifiers-with-extra-metadata
-                    let k: u16 =
-                        u32::from_be_bytes(bytes.try_into().map_err(Error::malformed)?) as u16;
+                    let k: u32 = u32::from_be_bytes(bytes.try_into().map_err(Error::malformed)?);
+                    let k: u16 = k.try_into().map_err(|_| invalid_tlv())?;
                     kind = Some(Kind::from(k));
                 }
                 _ => (),
@@ -448,27 +462,18 @@ impl ToBech32 for Nip19Event {
         let mut bytes: Vec<u8> =
             Vec::with_capacity(FIXED_1_1_32_BYTES_TVL + author_len + relays_len);
 
-        bytes.push(SPECIAL); // Type
-        bytes.push(32); // Len
-        bytes.extend(self.event_id.as_bytes()); // Value
+        push_tlv(&mut bytes, SPECIAL, self.event_id.as_bytes())?;
 
         if let Some(author) = &self.author {
-            bytes.push(AUTHOR); // Type
-            bytes.push(32); // Len
-            bytes.extend(author.to_bytes()); // Value
+            push_tlv(&mut bytes, AUTHOR, author.as_bytes())?;
         }
 
         if let Some(kind) = &self.kind {
-            bytes.push(KIND); // Type
-            bytes.push(4); // Len
-            bytes.extend((kind.as_u16() as u32).to_be_bytes()); // Value
+            push_tlv(&mut bytes, KIND, &(kind.as_u16() as u32).to_be_bytes())?;
         }
 
         for relay in self.relays.iter() {
-            let relay: &str = relay.as_str();
-            bytes.push(RELAY); // Type
-            bytes.push(relay.len() as u8); // Len
-            bytes.extend(relay.as_bytes()); // Value
+            push_tlv(&mut bytes, RELAY, relay.as_str().as_bytes())?;
         }
 
         bech32_encode(HRP_EVENT, &bytes)
@@ -548,15 +553,10 @@ impl ToBech32 for Nip19Profile {
         let relays_len: usize = self.relays.iter().map(|u| 2 + u.as_str().len()).sum();
         let mut bytes: Vec<u8> = Vec::with_capacity(FIXED_1_1_32_BYTES_TVL + relays_len);
 
-        bytes.push(SPECIAL); // Type
-        bytes.push(32); // Len
-        bytes.extend(self.public_key.as_bytes()); // Value
+        push_tlv(&mut bytes, SPECIAL, self.public_key.as_bytes())?;
 
         for relay in self.relays.iter() {
-            let url: &[u8] = relay.as_str().as_bytes();
-            bytes.push(RELAY); // Type
-            bytes.push(url.len() as u8); // Len
-            bytes.extend(url); // Value
+            push_tlv(&mut bytes, RELAY, relay.as_str().as_bytes())?;
         }
 
         bech32_encode(HRP_PROFILE, &bytes)
@@ -631,8 +631,8 @@ impl Nip19Coordinate {
                 KIND if kind.is_none() => {
                     // The kind value must be a 32-bit unsigned number according to
                     // https://github.com/nostr-protocol/nips/blob/37f6cbb775126b386414220f783ca0f5f85e7614/19.md#shareable-identifiers-with-extra-metadata
-                    let k: u16 =
-                        u32::from_be_bytes(bytes.try_into().map_err(Error::malformed)?) as u16;
+                    let k: u32 = u32::from_be_bytes(bytes.try_into().map_err(Error::malformed)?);
+                    let k: u16 = k.try_into().map_err(|_| invalid_tlv())?;
                     kind = Some(Kind::from(k));
                 }
                 _ => (),
@@ -688,24 +688,20 @@ pub(super) fn coordinate_to_bech32<'a>(
     );
 
     // Identifier
-    bytes.push(SPECIAL); // Type
-    bytes.push(identifier.len() as u8); // Len
-    bytes.extend(identifier.as_bytes()); // Value
+    push_tlv(&mut bytes, SPECIAL, identifier.as_bytes())?;
 
     // Author
-    bytes.push(AUTHOR); // Type
-    bytes.push(32); // Len
-    bytes.extend(coordinate.public_key.as_bytes()); // Value
+    push_tlv(&mut bytes, AUTHOR, coordinate.public_key.as_bytes())?;
 
     // Kind
-    bytes.push(KIND); // Type
-    bytes.push(4); // Len
-    bytes.extend((coordinate.kind.as_u16() as u32).to_be_bytes()); // Value
+    push_tlv(
+        &mut bytes,
+        KIND,
+        &(coordinate.kind.as_u16() as u32).to_be_bytes(),
+    )?;
 
     for relay in relays.iter() {
-        bytes.push(RELAY); // Type
-        bytes.push(relay.as_str().len() as u8); // Len
-        bytes.extend(relay.as_str().as_bytes()); // Value
+        push_tlv(&mut bytes, RELAY, relay.as_str().as_bytes())?;
     }
 
     bech32_encode(HRP_COORDINATE, &bytes)
@@ -853,6 +849,41 @@ mod tests {
     fn test_parse_nevent_with_malformed_public_key() {
         let event = Nip19Event::from_bech32("nevent1qqsqye53g5jg5pzw87q6a3nstkf2wu7jph87nala2nvfyw5u3ewlhfspr9mhxue69uhkymmnw3ezumr9vd682unfveujumn9wspyqve5xasnyvehxqunqvryxyukydr9xsmn2d3jxgcn2wf5v5uxyerpxucrvct9x43nwwp4v3jnqwt9x5uk2dpkxq6kvwf3vycrxe35893ska2ytu").unwrap();
         assert!(event.author.is_none());
+    }
+
+    #[test]
+    fn test_oversized_tlv_values_are_rejected() {
+        let public_key =
+            PublicKey::from_str("32e1827635450ebb3c5a7d12c1f8e7b2b514439ac10a67eef3d9fd9c5c68e245")
+                .unwrap();
+        let coordinate = Coordinate::new(Kind::LongFormTextNote, public_key)
+            .identifier("a".repeat(u8::MAX as usize + 1));
+        assert_eq!(
+            coordinate.to_bech32().unwrap_err().to_string(),
+            "TLV value too long"
+        );
+
+        let relay = format!("wss://relay.example.com/{}", "a".repeat(u8::MAX as usize));
+        let relay = RelayUrl::parse(&relay).unwrap();
+        let event = Nip19Event::new(EventId::from_slice(&[1; 32]).unwrap()).relays([relay]);
+        assert_eq!(
+            event.to_bech32().unwrap_err().to_string(),
+            "TLV value too long"
+        );
+    }
+
+    #[test]
+    fn test_out_of_range_kind_is_rejected() {
+        let public_key =
+            PublicKey::from_str("32e1827635450ebb3c5a7d12c1f8e7b2b514439ac10a67eef3d9fd9c5c68e245")
+                .unwrap();
+        let mut bytes = Vec::new();
+        push_tlv(&mut bytes, SPECIAL, b"").unwrap();
+        push_tlv(&mut bytes, AUTHOR, public_key.as_bytes()).unwrap();
+        push_tlv(&mut bytes, KIND, &65_536u32.to_be_bytes()).unwrap();
+        let encoded = bech32_encode(HRP_COORDINATE, &bytes).unwrap();
+
+        assert!(Nip19Coordinate::from_bech32(&encoded).is_err());
     }
 }
 
