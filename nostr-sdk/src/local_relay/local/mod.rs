@@ -413,6 +413,45 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_negentropy_item_limit() {
+        let relay = LocalRelay::builder().max_negentropy_items(2).build();
+        let keys = Keys::generate();
+        for i in 0..3 {
+            relay
+                .add_event(
+                    EventBuilder::new(Kind::TextNote, i.to_string())
+                        .finalize(&keys)
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+        }
+        relay.run().await.unwrap();
+
+        let url = Url::parse(relay.url().await.as_str()).unwrap();
+        let mut socket = WebSocket::connect(&url, &ConnectionMode::direct())
+            .await
+            .unwrap();
+        socket
+            .send(Message::Text(r#"["NEG-OPEN","neg",{},""]"#.to_owned()))
+            .await
+            .unwrap();
+
+        let neg_err = socket.next().await.unwrap().unwrap();
+        let Message::Text(neg_err) = neg_err else {
+            panic!("unexpected websocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(neg_err.as_bytes()).unwrap(),
+            RelayMessage::NegErr {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "neg"
+                && message == "rate-limited: too many negentropy items"
+        ));
+    }
+
+    #[tokio::test]
     async fn test_binary_messages_are_rate_limited() {
         let relay = LocalRelay::builder().messages_per_minute(1).build();
         relay.run().await.unwrap();

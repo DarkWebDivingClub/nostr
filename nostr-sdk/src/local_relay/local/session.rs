@@ -90,12 +90,17 @@ impl Nip42Session {
 pub(super) struct Session<'a> {
     pub subscriptions: HashMap<SubscriptionId, Subscription>,
     pub subscription_bytes: usize,
-    pub negentropy_subscription: HashMap<SubscriptionId, Negentropy<'a, NegentropyStorageVector>>,
+    pub negentropy_subscription: HashMap<SubscriptionId, NegentropySubscription<'a>>,
     pub nip42: Nip42Session,
     pub write_tokens: Tokens,
     pub query_tokens: Tokens,
     pub auth_tokens: Tokens,
     pub message_tokens: Tokens,
+}
+
+pub(super) struct NegentropySubscription<'a> {
+    pub state: Negentropy<'a, NegentropyStorageVector>,
+    pub items: usize,
 }
 
 pub(super) struct Subscription {

@@ -28,7 +28,7 @@ use super::super::builder::{
     LocalRelayBuilder, LocalRelayBuilderMode, LocalRelayBuilderNip42, LocalRelayTestOptions,
     QueryPolicy, QueryPolicyResult, RateLimit, WritePolicy, WritePolicyResult,
 };
-use super::session::{Nip42Session, RateLimiterResponse, Session, Tokens};
+use super::session::{NegentropySubscription, Nip42Session, RateLimiterResponse, Session, Tokens};
 use super::util;
 use crate::client::{Client, ClientNotification, Output, SyncSummary};
 use crate::error::{Error, ErrorKind};
@@ -66,6 +66,7 @@ pub(super) struct InnerLocalRelay {
     max_filters_per_req: usize,
     max_subscription_bytes: usize,
     max_negentropy_subscriptions: usize,
+    max_negentropy_items: usize,
     max_filter_limit: Option<usize>,
     max_query_results: usize,
     default_filter_limit: usize,
@@ -117,6 +118,7 @@ impl InnerLocalRelay {
             max_filters_per_req: builder.max_filters_per_req,
             max_subscription_bytes: builder.max_subscription_bytes,
             max_negentropy_subscriptions: builder.max_negentropy_subscriptions,
+            max_negentropy_items: builder.max_negentropy_items,
             max_filter_limit: builder.max_filter_limit,
             max_query_results: builder.max_query_results,
             default_filter_limit: builder.default_filter_limit,
@@ -943,8 +945,41 @@ impl InnerLocalRelay {
                     }
                 }
 
+                // Reopening the same ID replaces its index, so exclude its old budget.
+                let retained_items: usize = session
+                    .negentropy_subscription
+                    .iter()
+                    .filter(|(id, _)| id.as_str() != subscription_id.as_str())
+                    .fold(0usize, |total, (_, subscription)| {
+                        total.saturating_add(subscription.items)
+                    });
+                let remaining_items = self.max_negentropy_items.saturating_sub(retained_items);
+                // One sentinel item distinguishes an exact fit from a truncated oversized query.
+                let query_limit = remaining_items.saturating_add(1);
+                filter.limit = Some(
+                    filter
+                        .limit
+                        .map_or(query_limit, |limit| limit.min(query_limit)),
+                );
+
                 // Query database
                 let items = self.database.negentropy_items(filter).await?;
+
+                if items.len() > remaining_items {
+                    return send_msg(
+                        ws_tx,
+                        RelayMessage::NegErr {
+                            subscription_id,
+                            message: Cow::Owned(format!(
+                                "{}: too many negentropy items",
+                                MachineReadablePrefix::RateLimited
+                            )),
+                        },
+                    )
+                    .await;
+                }
+
+                let item_count = items.len();
 
                 tracing::debug!(
                     id = %subscription_id,
@@ -984,9 +1019,13 @@ impl InnerLocalRelay {
                 .await?;
 
                 // Update subscriptions
-                session
-                    .negentropy_subscription
-                    .insert(subscription_id.into_owned(), negentropy);
+                session.negentropy_subscription.insert(
+                    subscription_id.into_owned(),
+                    NegentropySubscription {
+                        state: negentropy,
+                        items: item_count,
+                    },
+                );
                 Ok(())
             }
             ClientMessage::NegMsg {
@@ -1000,7 +1039,7 @@ impl InnerLocalRelay {
                 }
 
                 match session.negentropy_subscription.get_mut(&subscription_id) {
-                    Some(negentropy) => {
+                    Some(subscription) => {
                         let Some(size) = message.len().checked_div(2) else {
                             tracing::warn!("Can't divide negentropy message size");
                             return Ok(());
@@ -1009,7 +1048,7 @@ impl InnerLocalRelay {
                         // Reconcile
                         let mut buf: Vec<u8> = vec![0u8; size];
                         faster_hex::hex_decode(message.as_bytes(), &mut buf)?;
-                        let message: Vec<u8> = negentropy.reconcile(&buf)?;
+                        let message: Vec<u8> = subscription.state.reconcile(&buf)?;
 
                         // Reply
                         send_msg(
@@ -1533,6 +1572,7 @@ mod tests {
         assert_eq!(relay.max_filter_limit, Some(500));
         assert_eq!(relay.max_query_results, 500);
         assert_eq!(relay.max_subscription_bytes, 1024 * 1024);
+        assert_eq!(relay.max_negentropy_items, 50_000);
         assert_eq!(config.max_message_size, Some(5 * 1024 * 1024));
         assert_eq!(config.max_frame_size, Some(5 * 1024 * 1024));
         assert_eq!(relay.websocket_handshake_timeout.as_secs(), 10);

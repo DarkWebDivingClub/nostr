@@ -19,6 +19,7 @@ use super::local::LocalRelay;
 pub(super) const DEFAULT_MAX_CONNECTIONS: usize = 128;
 pub(super) const DEFAULT_MAX_FILTERS_PER_REQ: usize = 20;
 pub(super) const DEFAULT_MAX_QUERY_RESULTS: usize = 500;
+pub(super) const DEFAULT_MAX_NEGENTROPY_ITEMS: usize = 50_000;
 pub(super) const DEFAULT_MAX_SUBSCRIPTION_BYTES: usize = 1024 * 1024;
 pub(super) const DEFAULT_MAX_WEBSOCKET_MESSAGE_SIZE: usize = 5 * 1024 * 1024;
 pub(super) const DEFAULT_WEBSOCKET_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -296,6 +297,8 @@ pub struct LocalRelayBuilder {
     pub(crate) max_subscription_bytes: usize,
     /// Max active negentropy subscriptions per connection
     pub(crate) max_negentropy_subscriptions: usize,
+    /// Max total negentropy items retained per connection
+    pub(crate) max_negentropy_items: usize,
     /// Max filter's limit
     pub(crate) max_filter_limit: Option<usize>,
     /// Max aggregate query results
@@ -346,6 +349,7 @@ impl Default for LocalRelayBuilder {
             max_filters_per_req: DEFAULT_MAX_FILTERS_PER_REQ,
             max_subscription_bytes: DEFAULT_MAX_SUBSCRIPTION_BYTES,
             max_negentropy_subscriptions: 10,
+            max_negentropy_items: DEFAULT_MAX_NEGENTROPY_ITEMS,
             max_filter_limit: Some(DEFAULT_MAX_QUERY_RESULTS),
             max_query_results: DEFAULT_MAX_QUERY_RESULTS,
             default_filter_limit: 500,
@@ -477,6 +481,14 @@ impl LocalRelayBuilder {
     #[inline]
     pub fn max_negentropy_subscriptions(mut self, max: usize) -> Self {
         self.max_negentropy_subscriptions = max;
+        self
+    }
+
+    /// Sets the maximum total number of negentropy items retained per connection.
+    /// Defaults to 50,000.
+    #[inline]
+    pub fn max_negentropy_items(mut self, max: usize) -> Self {
+        self.max_negentropy_items = max;
         self
     }
 
