@@ -107,7 +107,7 @@ impl From<ParseError> for Error {
 /// Cashu proof
 ///
 /// <https://github.com/nostr-protocol/nips/blob/master/60.md>
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct CashuProof {
     /// Proof ID
     pub id: String,
@@ -119,15 +119,35 @@ pub struct CashuProof {
     pub c: String,
 }
 
+impl fmt::Debug for CashuProof {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CashuProof")
+            .field("id", &self.id)
+            .field("amount", &self.amount)
+            .field("secret", &"[REDACTED]")
+            .field("c", &self.c)
+            .finish()
+    }
+}
+
 /// Wallet event
 ///
 /// <https://github.com/nostr-protocol/nips/blob/master/60.md>
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WalletEvent {
     /// Private key used to unlock P2PK ecash
     pub privkey: String,
     /// Mint URLs this wallet uses
     pub mints: Vec<Url>,
+}
+
+impl fmt::Debug for WalletEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("WalletEvent")
+            .field("privkey", &"[REDACTED]")
+            .field("mints", &self.mints)
+            .finish()
+    }
 }
 
 impl WalletEvent {
@@ -509,7 +529,7 @@ impl SpendingHistory {
 }
 
 /// Quote event
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct QuoteEvent {
     /// Quote ID
     pub quote_id: String,
@@ -517,6 +537,16 @@ pub struct QuoteEvent {
     pub mint: Url,
     /// Expiration timestamp
     pub expiration: Option<Timestamp>,
+}
+
+impl fmt::Debug for QuoteEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("QuoteEvent")
+            .field("quote_id", &"[REDACTED]")
+            .field("mint", &self.mint)
+            .field("expiration", &self.expiration)
+            .finish()
+    }
 }
 
 impl QuoteEvent {
@@ -697,5 +727,25 @@ mod tests {
         assert_eq!(quote.quote_id, "test_quote_id");
         assert_eq!(quote.mint, mint_url);
         assert!(quote.expiration.is_none());
+    }
+
+    #[test]
+    fn debug_redacts_wallet_credentials() {
+        let mint = Url::parse("https://example.com").unwrap();
+        let wallet = WalletEvent::new("wallet-private-key", vec![mint.clone()]);
+        let proof = CashuProof {
+            id: String::from("proof-id"),
+            amount: 100,
+            secret: String::from("cashu-bearer-secret"),
+            c: String::from("proof-signature"),
+        };
+        let token = TokenEvent::new(mint.clone(), vec![proof]);
+        let quote = QuoteEvent::new("quote-capability", mint);
+
+        let debug = format!("{wallet:?} {token:?} {quote:?}");
+        assert!(debug.contains("[REDACTED]"));
+        assert!(!debug.contains("wallet-private-key"));
+        assert!(!debug.contains("cashu-bearer-secret"));
+        assert!(!debug.contains("quote-capability"));
     }
 }
