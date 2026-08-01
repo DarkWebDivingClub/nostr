@@ -60,6 +60,7 @@ pub(super) struct InnerLocalRelay {
     max_websocket_message_size: usize,
     websocket_handshake_timeout: Duration,
     max_subid_length: usize,
+    max_subscription_bytes: usize,
     max_negentropy_subscriptions: usize,
     max_filter_limit: Option<usize>,
     default_filter_limit: usize,
@@ -105,6 +106,7 @@ impl InnerLocalRelay {
             max_websocket_message_size: builder.max_websocket_message_size,
             websocket_handshake_timeout: builder.websocket_handshake_timeout,
             max_subid_length: builder.max_subid_length,
+            max_subscription_bytes: builder.max_subscription_bytes,
             max_negentropy_subscriptions: builder.max_negentropy_subscriptions,
             max_filter_limit: builder.max_filter_limit,
             default_filter_limit: builder.default_filter_limit,
@@ -332,6 +334,7 @@ impl InnerLocalRelay {
 
         let mut session: Session = Session {
             subscriptions: HashMap::new(),
+            subscription_bytes: 0,
             negentropy_subscription: HashMap::new(),
             nip42: Nip42Session::default(),
             tokens: Tokens::new(self.rate_limit.notes_per_minute),
@@ -345,9 +348,16 @@ impl InnerLocalRelay {
                             match msg {
                                 Message::Text(json) => {
                                     tracing::trace!("Received {json}");
+                                    let message_size = json.len();
                                     match ClientMessage::from_json(json.as_bytes()) {
                                         Ok(msg) => {
-                                            self.handle_client_msg(&mut session, &mut tx, msg, &addr)
+                                            self.handle_client_msg(
+                                                &mut session,
+                                                &mut tx,
+                                                msg,
+                                                &addr,
+                                                message_size,
+                                            )
                                                 .await?;
                                         }
                                         Err(e) => {
@@ -382,8 +392,8 @@ impl InnerLocalRelay {
                 event = new_event.recv() => {
                     if let Ok(event) = event {
                          // Iter subscriptions
-                        'sub_iter: for (subscription_id, filter) in session.subscriptions.iter() {
-                            for filter in filter.iter() {
+                        'sub_iter: for (subscription_id, subscription) in session.subscriptions.iter() {
+                            for filter in subscription.filters.iter() {
                                 // Check if event matches filter
                                 if filter.match_event(&event, MatchEventOptions::new()) {
                                     send_msg(&mut tx, RelayMessage::Event{
@@ -420,6 +430,7 @@ impl InnerLocalRelay {
         ws_tx: &mut WsTx<S>,
         msg: ClientMessage<'_>,
         addr: &SocketAddr,
+        message_size: usize,
     ) -> Result<(), Error>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -724,6 +735,7 @@ impl InnerLocalRelay {
                     addr,
                     subscription_id,
                     filters.into_iter().map(|f| f.into_owned()).collect(),
+                    message_size,
                 )
                 .await
             }
@@ -782,7 +794,7 @@ impl InnerLocalRelay {
                 .await
             }
             ClientMessage::Close(subscription_id) => {
-                session.subscriptions.remove(&subscription_id);
+                session.remove_subscription(&subscription_id);
                 Ok(())
             }
             ClientMessage::Auth(event) => {
@@ -980,6 +992,7 @@ impl InnerLocalRelay {
         addr: &SocketAddr,
         subscription_id: Cow<'_, SubscriptionId>,
         mut filters: Vec<Filter>,
+        request_size: usize,
     ) -> Result<(), Error>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -1011,6 +1024,25 @@ impl InnerLocalRelay {
                     message: Cow::Owned(format!(
                         "{}: too many REQs",
                         MachineReadablePrefix::RateLimited
+                    )),
+                },
+            )
+            .await;
+        }
+
+        if !session.subscription_fits(
+            subscription_id.as_ref(),
+            request_size,
+            self.max_subscription_bytes,
+        ) {
+            return send_msg(
+                ws_tx,
+                RelayMessage::Closed {
+                    subscription_id,
+                    message: Cow::Owned(format!(
+                        "{}: active subscriptions exceed max size {} bytes",
+                        MachineReadablePrefix::RateLimited,
+                        self.max_subscription_bytes
                     )),
                 },
             )
@@ -1146,9 +1178,11 @@ impl InnerLocalRelay {
             // The stored events are all served, but miss some: save the subscription.
             _ => {
                 // Save the subscription
-                session
-                    .subscriptions
-                    .insert(subscription_id.clone().into_owned(), filters);
+                session.insert_subscription(
+                    subscription_id.clone().into_owned(),
+                    filters,
+                    request_size,
+                );
             }
         }
 
@@ -1354,6 +1388,7 @@ mod tests {
     fn session(public_key: Option<PublicKey>) -> Session<'static> {
         Session {
             subscriptions: HashMap::new(),
+            subscription_bytes: 0,
             negentropy_subscription: HashMap::new(),
             nip42: Nip42Session {
                 public_key,
@@ -1369,6 +1404,7 @@ mod tests {
         let config = relay.websocket_config();
 
         assert_eq!(relay.connections_limit.available_permits(), 128);
+        assert_eq!(relay.max_subscription_bytes, 1024 * 1024);
         assert_eq!(config.max_message_size, Some(5 * 1024 * 1024));
         assert_eq!(config.max_frame_size, Some(5 * 1024 * 1024));
         assert_eq!(relay.websocket_handshake_timeout.as_secs(), 10);
@@ -1388,6 +1424,22 @@ mod tests {
         assert_eq!(config.max_message_size, Some(1024));
         assert_eq!(config.max_frame_size, Some(1024));
         assert_eq!(relay.websocket_handshake_timeout.as_secs(), 2);
+    }
+
+    #[test]
+    fn subscription_budget_tracks_replacement_and_removal() {
+        let mut session = session(None);
+        let id = SubscriptionId::new("test");
+
+        session.insert_subscription(id.clone(), vec![Filter::new()], 7);
+        assert_eq!(session.subscription_bytes, 7);
+        assert!(session.subscription_fits(&id, 10, 10));
+
+        session.insert_subscription(id.clone(), vec![Filter::new()], 10);
+        assert_eq!(session.subscription_bytes, 10);
+
+        session.remove_subscription(&id);
+        assert_eq!(session.subscription_bytes, 0);
     }
 
     #[tokio::test]
@@ -1411,6 +1463,7 @@ mod tests {
                 &mut server_tx,
                 ClientMessage::Event(Cow::Owned(event)),
                 &addr,
+                0,
             )
             .await
             .unwrap();
@@ -1427,6 +1480,46 @@ mod tests {
                 ..
             } if message == "blocked: write rejected"
         ));
+    }
+
+    #[tokio::test]
+    async fn oversized_active_subscription_is_rejected() {
+        let relay = InnerLocalRelay::new(LocalRelayBuilder::default().max_subscription_bytes(10));
+        let (server_stream, client_stream) = tokio::io::duplex(16 * 1024);
+        let server = WebSocketStream::from_raw_socket(server_stream, Role::Server, None).await;
+        let mut client = WebSocketStream::from_raw_socket(client_stream, Role::Client, None).await;
+        let (mut server_tx, _) = server.split();
+        let mut session = session(None);
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+
+        relay
+            .handle_client_msg(
+                &mut session,
+                &mut server_tx,
+                ClientMessage::Req {
+                    subscription_id: Cow::Owned(SubscriptionId::new("oversized")),
+                    filters: vec![Cow::Owned(Filter::new())],
+                },
+                &addr,
+                11,
+            )
+            .await
+            .unwrap();
+
+        let response = client.next().await.unwrap().unwrap();
+        let Message::Text(response) = response else {
+            panic!("unexpected WebSocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(response.as_bytes()).unwrap(),
+            RelayMessage::Closed {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "oversized"
+                && message == "rate-limited: active subscriptions exceed max size 10 bytes"
+        ));
+        assert!(session.subscriptions.is_empty());
+        assert_eq!(session.subscription_bytes, 0);
     }
 
     #[test]

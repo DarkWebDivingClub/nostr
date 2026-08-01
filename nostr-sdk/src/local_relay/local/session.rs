@@ -88,10 +88,16 @@ impl Nip42Session {
 }
 
 pub(super) struct Session<'a> {
-    pub subscriptions: HashMap<SubscriptionId, Vec<Filter>>,
+    pub subscriptions: HashMap<SubscriptionId, Subscription>,
+    pub subscription_bytes: usize,
     pub negentropy_subscription: HashMap<SubscriptionId, Negentropy<'a, NegentropyStorageVector>>,
     pub nip42: Nip42Session,
     pub tokens: Tokens,
+}
+
+pub(super) struct Subscription {
+    pub filters: Vec<Filter>,
+    size: usize,
 }
 
 impl Session<'_> {
@@ -128,6 +134,31 @@ impl Session<'_> {
                 self.tokens.last = Some(Instant::now());
                 RateLimiterResponse::Allowed
             }
+        }
+    }
+
+    pub fn subscription_fits(&self, id: &SubscriptionId, size: usize, max_size: usize) -> bool {
+        // Replacements release their old budget; overflow is treated as exceeding the limit.
+        let replaced_size = self.subscriptions.get(id).map_or(0, |sub| sub.size);
+        self.subscription_bytes
+            .saturating_sub(replaced_size)
+            .checked_add(size)
+            .is_some_and(|total| total <= max_size)
+    }
+
+    pub fn insert_subscription(&mut self, id: SubscriptionId, filters: Vec<Filter>, size: usize) {
+        if let Some(previous) = self
+            .subscriptions
+            .insert(id, Subscription { filters, size })
+        {
+            self.subscription_bytes = self.subscription_bytes.saturating_sub(previous.size);
+        }
+        self.subscription_bytes = self.subscription_bytes.saturating_add(size);
+    }
+
+    pub fn remove_subscription(&mut self, id: &SubscriptionId) {
+        if let Some(subscription) = self.subscriptions.remove(id) {
+            self.subscription_bytes = self.subscription_bytes.saturating_sub(subscription.size);
         }
     }
 }

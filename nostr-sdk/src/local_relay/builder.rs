@@ -17,6 +17,7 @@ use nostr_database::prelude::*;
 use super::local::LocalRelay;
 
 pub(super) const DEFAULT_MAX_CONNECTIONS: usize = 128;
+pub(super) const DEFAULT_MAX_SUBSCRIPTION_BYTES: usize = 1024 * 1024;
 pub(super) const DEFAULT_MAX_WEBSOCKET_MESSAGE_SIZE: usize = 5 * 1024 * 1024;
 pub(super) const DEFAULT_WEBSOCKET_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -278,6 +279,8 @@ pub struct LocalRelayBuilder {
     pub(crate) websocket_handshake_timeout: Duration,
     /// Max subscription ID length
     pub(crate) max_subid_length: usize,
+    /// Max total bytes retained by active subscriptions per connection
+    pub(crate) max_subscription_bytes: usize,
     /// Max active negentropy subscriptions per connection
     pub(crate) max_negentropy_subscriptions: usize,
     /// Max filter's limit
@@ -322,6 +325,7 @@ impl Default for LocalRelayBuilder {
             max_websocket_message_size: DEFAULT_MAX_WEBSOCKET_MESSAGE_SIZE,
             websocket_handshake_timeout: DEFAULT_WEBSOCKET_HANDSHAKE_TIMEOUT,
             max_subid_length: 250,
+            max_subscription_bytes: DEFAULT_MAX_SUBSCRIPTION_BYTES,
             max_negentropy_subscriptions: 10,
             max_filter_limit: None,
             default_filter_limit: 500,
@@ -406,6 +410,14 @@ impl LocalRelayBuilder {
     #[inline]
     pub fn max_subid_length(mut self, max: usize) -> Self {
         self.max_subid_length = max;
+        self
+    }
+
+    /// Sets the maximum total bytes retained by active subscriptions per connection.
+    /// Defaults to 1 MiB.
+    #[inline]
+    pub fn max_subscription_bytes(mut self, max: usize) -> Self {
+        self.max_subscription_bytes = max;
         self
     }
 
