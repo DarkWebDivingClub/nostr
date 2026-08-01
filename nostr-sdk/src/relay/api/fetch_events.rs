@@ -8,6 +8,7 @@ use nostr_database::Events;
 
 use crate::error::Error;
 use crate::future::BoxedFuture;
+use crate::relay::constants::DEFAULT_FETCH_EVENTS_LIMIT;
 use crate::relay::{Relay, ReqExitPolicy};
 
 /// Fetch events
@@ -17,6 +18,7 @@ pub struct FetchEvents<'relay> {
     filters: Vec<Filter>,
     timeout: Option<Duration>,
     policy: ReqExitPolicy,
+    max_events: usize,
 }
 
 impl<'relay> FetchEvents<'relay> {
@@ -26,6 +28,7 @@ impl<'relay> FetchEvents<'relay> {
             filters,
             timeout: None,
             policy: ReqExitPolicy::ExitOnEOSE,
+            max_events: DEFAULT_FETCH_EVENTS_LIMIT,
         }
     }
 
@@ -42,6 +45,13 @@ impl<'relay> FetchEvents<'relay> {
     #[inline]
     pub fn policy(mut self, policy: ReqExitPolicy) -> Self {
         self.policy = policy;
+        self
+    }
+
+    /// Set the maximum number of unique events to buffer (default: 10,000).
+    #[inline]
+    pub fn max_events(mut self, max: usize) -> Self {
+        self.max_events = max;
         self
     }
 }
@@ -85,6 +95,11 @@ impl<'relay> IntoFuture for FetchEvents<'relay> {
                 // Events::force_insert automatically increases the capacity if needed, without discarding events.
                 //
                 // LOOKUP_ID: EVENTS_FORCE_INSERT
+                // Duplicates do not grow the set; reject new events before insertion.
+                if events.len() >= self.max_events && !events.contains(&event) {
+                    return Err(Error::limit_exceeded("too many fetched events"));
+                }
+
                 events.force_insert(event);
             }
 
@@ -246,6 +261,20 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(events.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_events_enforces_buffer_limit() {
+        let (relay, _mock) = setup_event_fetching_relay(5).await;
+
+        let err = relay
+            .fetch_events(Filter::new().kind(Kind::TextNote))
+            .max_events(3)
+            .timeout(Duration::from_secs(5))
+            .await
+            .unwrap_err();
+
+        assert_eq!(err.kind(), crate::error::ErrorKind::LimitExceeded);
     }
 
     #[tokio::test]

@@ -30,6 +30,7 @@ mod status;
 pub use self::api::*;
 pub use self::builder::*;
 pub use self::capabilities::*;
+pub(crate) use self::constants::DEFAULT_FETCH_EVENTS_LIMIT;
 use self::inner::InnerRelay;
 pub use self::limits::*;
 pub use self::notification::*;

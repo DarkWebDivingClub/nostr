@@ -8,7 +8,7 @@ use super::req_target::ReqTarget;
 use super::stream_events::StreamEvents;
 use crate::client::{Client, Error};
 use crate::future::BoxedFuture;
-use crate::relay::ReqExitPolicy;
+use crate::relay::{DEFAULT_FETCH_EVENTS_LIMIT, ReqExitPolicy};
 
 /// Fetch events
 #[must_use = "Does nothing unless you await!"]
@@ -22,6 +22,7 @@ pub struct FetchEvents<'client, 'url> {
     target: ReqTarget<'url>,
     timeout: Option<Duration>,
     policy: ReqExitPolicy,
+    max_events: usize,
 }
 
 impl<'client, 'url> FetchEvents<'client, 'url> {
@@ -31,6 +32,7 @@ impl<'client, 'url> FetchEvents<'client, 'url> {
             target,
             timeout: None,
             policy: ReqExitPolicy::ExitOnEOSE,
+            max_events: DEFAULT_FETCH_EVENTS_LIMIT,
         }
     }
 
@@ -47,6 +49,13 @@ impl<'client, 'url> FetchEvents<'client, 'url> {
     #[inline]
     pub fn policy(mut self, policy: ReqExitPolicy) -> Self {
         self.policy = policy;
+        self
+    }
+
+    /// Set the maximum number of unique events to buffer (default: 10,000).
+    #[inline]
+    pub fn max_events(mut self, max: usize) -> Self {
+        self.max_events = max;
         self
     }
 }
@@ -80,6 +89,12 @@ where
                 match result {
                     Ok(event) => {
                         // To find out more about why the `force_insert` was used, search for EVENTS_FORCE_INSERT in the code.
+                        // Duplicates do not grow the set; reject new events before insertion.
+                        if events.len() >= self.max_events && !events.contains(&event) {
+                            // TODO: break the stream instead of returnin an error?
+                            return Err(Error::limit_exceeded("too many fetched events"));
+                        }
+
                         events.force_insert(event);
                     }
                     Err(e) => {
@@ -102,6 +117,8 @@ mod tests {
     use nostr::key::Keys;
 
     use crate::authenticator::SignerAuthenticator;
+    use crate::error::ErrorKind;
+    use crate::local_relay::LocalRelay;
     use crate::test_utils::{
         setup_client, setup_client_with_authenticator, setup_nip42_read_local_relay,
     };
@@ -153,5 +170,29 @@ mod tests {
 
         assert_eq!(events.len(), 1);
         assert_eq!(events.first().map(|event| event.id), Some(expected.id));
+    }
+
+    #[tokio::test]
+    async fn test_client_fetch_events_enforces_buffer_limit() {
+        let local = LocalRelay::new();
+        local.run().await.unwrap();
+        let keys = Keys::generate();
+
+        for i in 0..5 {
+            let event = EventBuilder::new(Kind::TextNote, i.to_string())
+                .finalize(&keys)
+                .unwrap();
+            local.add_event(event).await.unwrap();
+        }
+
+        let client = setup_client(local.url().await).await;
+        let err = client
+            .fetch_events(Filter::new().kind(Kind::TextNote))
+            .max_events(3)
+            .timeout(Duration::from_secs(5))
+            .await
+            .unwrap_err();
+
+        assert_eq!(err.kind(), ErrorKind::LimitExceeded);
     }
 }

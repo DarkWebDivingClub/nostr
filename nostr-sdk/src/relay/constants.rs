@@ -4,6 +4,9 @@ use core::time::Duration;
 /// Relay default notification channel size
 pub(super) const DEFAULT_NOTIFICATION_CHANNEL_SIZE: usize = 2048;
 
+// Keep default fetch memory bounded; callers can explicitly select another limit.
+pub(crate) const DEFAULT_FETCH_EVENTS_LIMIT: usize = 10_000;
+
 /// Max relay size
 pub(super) const MAX_MESSAGE_SIZE: u32 = 5 * 1024 * 1024; // 5 MB
 

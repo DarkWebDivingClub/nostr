@@ -885,6 +885,7 @@ impl Client {
     ///
     /// - [`FetchEvents::timeout`]: set a maximum duration for the stream
     /// - [`FetchEvents::policy`]: control when the stream terminates
+    /// - [`FetchEvents::max_events`]: set the maximum number of events buffered in memory
     ///
     /// # Target Resolution, Event Semantics and Termination
     ///
