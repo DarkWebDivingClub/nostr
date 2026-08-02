@@ -34,6 +34,7 @@
 - Remove `Backend::is_persistent` method (https://github.com/nostrdevkit/nostr/pull/1138)
 - Use `NonZeroUsize` for bounded capacities instead of `usize` (https://github.com/nostrdevkit/nostr/pull/1139)
 - Move `MemoryDatabase` to `nostr-memory` crate (https://github.com/nostrdevkit/nostr/pull/1263)
+- Remove `flatbuf` feature and remove `flatbuffers` module
 
 ### Changed
 

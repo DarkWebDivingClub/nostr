@@ -4,6 +4,7 @@
 
 //! Nostr Database
 
+#![forbid(unsafe_code)]
 #![warn(missing_docs)]
 #![warn(rustdoc::bare_urls)]
 #![warn(clippy::large_futures)]
@@ -26,15 +27,11 @@ use nostr::prelude::*;
 mod collections;
 pub mod error;
 pub mod ext;
-#[cfg(feature = "flatbuf")]
-pub mod flatbuffers;
 pub mod prelude;
 pub mod profile;
 
 pub use self::collections::events::Events;
 use self::error::Error;
-#[cfg(feature = "flatbuf")]
-pub use self::flatbuffers::{FlatBufferBuilder, FlatBufferDecode, FlatBufferEncode};
 pub use self::profile::Profile;
 
 /// NIP65 relays map

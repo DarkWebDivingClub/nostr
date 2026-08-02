@@ -12,11 +12,12 @@
 
 use std::{iter, thread};
 
+use flatbuffers::FlatBufferBuilder;
 use flume::{Receiver, Sender};
 use heed::RwTxn;
 use nostr::event::Event;
 use nostr::filter::Filter;
-use nostr_database::{FlatBufferBuilder, SaveEventStatus};
+use nostr_database::SaveEventStatus;
 use tokio::sync::oneshot;
 
 use super::error::StoreError;

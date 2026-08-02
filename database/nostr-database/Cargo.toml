@@ -15,13 +15,8 @@ keywords = ["nostr", "database"]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
-[features]
-default = []
-flatbuf = ["dep:flatbuffers"]
-
 [dependencies]
 btreecap.workspace = true
-flatbuffers = { version = "25.12", optional = true }
 nostr = { workspace = true, features = ["std"] }
 opaquerr = { workspace = true, features = ["alloc"] }
 

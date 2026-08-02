@@ -3,10 +3,11 @@
 // Copyright (c) 2023-2025 Rust Nostr Developers
 // Distributed under the MIT software license
 
+use std::num::TryFromIntError;
 use std::{fmt, io};
 
 use async_utility::tokio::task::JoinError;
-use nostr_database::flatbuffers;
+use flatbuffers::InvalidFlatbuffer;
 use tokio::sync::oneshot;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -36,15 +37,44 @@ impl fmt::Display for MigrationError {
     }
 }
 
+/// Missing field
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) enum MissingField {
+    /// ID
+    Id,
+    /// Public key
+    Pubkey,
+    /// Tags
+    Tags,
+    /// Content
+    Content,
+    /// Signature
+    Sig,
+}
+
+impl fmt::Display for MissingField {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Id => write!(f, "id"),
+            Self::Pubkey => write!(f, "pubkey"),
+            Self::Tags => write!(f, "tags"),
+            Self::Content => write!(f, "content"),
+            Self::Sig => write!(f, "sig"),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub(crate) enum StoreError {
     Protocol(nostr::error::Error),
     Io(io::Error),
     Heed(heed::Error),
-    FlatBuffers(flatbuffers::Error),
     Thread(JoinError),
+    FlatBuffer(InvalidFlatbuffer),
+    TryFromInt(TryFromIntError),
     OneshotRecv(oneshot::error::RecvError),
     Migration(MigrationError),
+    FlatBufFieldNotFound(MissingField),
     FlumeSend,
     WrongEventKind,
     NotFound,
@@ -59,10 +89,12 @@ impl fmt::Display for StoreError {
             Self::Protocol(e) => e.fmt(f),
             Self::Io(e) => write!(f, "{e}"),
             Self::Heed(e) => write!(f, "{e}"),
-            Self::FlatBuffers(e) => write!(f, "{e}"),
+            Self::FlatBuffer(e) => write!(f, "{e}"),
+            Self::TryFromInt(e) => write!(f, "{e}"),
             Self::Thread(e) => write!(f, "{e}"),
             Self::OneshotRecv(e) => write!(f, "{e}"),
             Self::Migration(e) => write!(f, "Migration error: {e}"),
+            Self::FlatBufFieldNotFound(field) => write!(f, "flatbuffer '{field}' field not found"),
             Self::FlumeSend => write!(f, "flume channel send error"),
             Self::NotFound => write!(f, "Not found"),
             Self::WrongEventKind => write!(f, "Wrong event kind"),
@@ -89,15 +121,21 @@ impl From<heed::Error> for StoreError {
     }
 }
 
-impl From<flatbuffers::Error> for StoreError {
-    fn from(e: flatbuffers::Error) -> Self {
-        Self::FlatBuffers(e)
-    }
-}
-
 impl From<JoinError> for StoreError {
     fn from(e: JoinError) -> Self {
         Self::Thread(e)
+    }
+}
+
+impl From<InvalidFlatbuffer> for StoreError {
+    fn from(e: InvalidFlatbuffer) -> Self {
+        Self::FlatBuffer(e)
+    }
+}
+
+impl From<TryFromIntError> for StoreError {
+    fn from(e: TryFromIntError) -> Self {
+        Self::TryFromInt(e)
     }
 }
 

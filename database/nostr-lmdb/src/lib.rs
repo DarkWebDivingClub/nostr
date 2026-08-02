@@ -17,6 +17,7 @@ use std::pin::Pin;
 use nostr_database::error::Error;
 use nostr_database::prelude::*;
 
+mod fbs;
 pub mod prelude;
 mod store;
 

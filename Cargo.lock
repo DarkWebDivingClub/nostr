@@ -1868,7 +1868,6 @@ name = "nostr-database"
 version = "0.45.0-alpha.8"
 dependencies = [
  "btreecap",
- "flatbuffers 25.12.19",
  "nostr",
  "opaquerr",
 ]
@@ -1940,6 +1939,7 @@ name = "nostr-lmdb"
 version = "0.45.0-alpha.8"
 dependencies = [
  "async-utility",
+ "flatbuffers 25.12.19",
  "flume",
  "futures",
  "heed",

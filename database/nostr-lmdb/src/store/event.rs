@@ -7,12 +7,15 @@ use core::hash::{Hash, Hasher};
 use std::borrow::Cow;
 use std::str::FromStr;
 
+use flatbuffers::FlatBufferBuilder;
 use nostr::error::{Error, ErrorKind};
 use nostr::event::{Event, EventId, Kind, Signature, Tag, Tags};
 use nostr::filter::SingleLetterTag;
 use nostr::key::PublicKey;
 use nostr::types::Timestamp;
-use nostr_database::flatbuffers::{self, FlatBufferDecodeBorrowed, MissingField, event_fbs};
+
+use super::error::{MissingField, StoreError};
+use crate::fbs::event_fbs;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct DatabaseTag<'a> {
@@ -126,7 +129,81 @@ impl Hash for DatabaseEvent<'_> {
     }
 }
 
-impl DatabaseEvent<'_> {
+impl<'a> DatabaseEvent<'a> {
+    pub(crate) fn from_flatbuf(buf: &'a [u8]) -> Result<Self, StoreError> {
+        let ev = event_fbs::root_as_event(buf)?;
+
+        let fb_tags = ev
+            .tags()
+            .ok_or(StoreError::FlatBufFieldNotFound(MissingField::Tags))?;
+        let mut tags = Vec::with_capacity(fb_tags.len());
+
+        for tag in fb_tags.iter().filter_map(|t| t.data()) {
+            tags.push(DatabaseTag::parse(
+                tag.into_iter().map(Cow::Borrowed).collect(),
+            )?);
+        }
+
+        Ok(Self {
+            id: &ev
+                .id()
+                .ok_or(StoreError::FlatBufFieldNotFound(MissingField::Id))?
+                .0,
+            pubkey: &ev
+                .pubkey()
+                .ok_or(StoreError::FlatBufFieldNotFound(MissingField::Pubkey))?
+                .0,
+            created_at: Timestamp::from_secs(ev.created_at()),
+            kind: ev.kind().try_into()?,
+            tags,
+            content: ev
+                .content()
+                .ok_or(StoreError::FlatBufFieldNotFound(MissingField::Content))?,
+            sig: &ev
+                .sig()
+                .ok_or(StoreError::FlatBufFieldNotFound(MissingField::Sig))?
+                .0,
+        })
+    }
+
+    pub(crate) fn encode_flatbuf<'f>(&self, fbb: &'f mut FlatBufferBuilder) -> &'f [u8] {
+        fbb.reset();
+
+        let id = event_fbs::Fixed32Bytes::new(self.id);
+        let pubkey = event_fbs::Fixed32Bytes::new(self.pubkey);
+        let sig = event_fbs::Fixed64Bytes::new(self.sig);
+        let tags = self
+            .tags
+            .iter()
+            .map(|t| {
+                let tags = t
+                    .buf
+                    .iter()
+                    .map(|t| fbb.create_string(t))
+                    .collect::<Vec<_>>();
+                let args = event_fbs::StringVectorArgs {
+                    data: Some(fbb.create_vector(&tags)),
+                };
+                event_fbs::StringVector::create(fbb, &args)
+            })
+            .collect::<Vec<_>>();
+        let args = event_fbs::EventArgs {
+            id: Some(&id),
+            pubkey: Some(&pubkey),
+            created_at: self.created_at.as_secs(),
+            kind: self.kind as u64,
+            tags: Some(fbb.create_vector(&tags)),
+            content: Some(fbb.create_string(self.content)),
+            sig: Some(&sig),
+        };
+
+        let offset = event_fbs::Event::create(fbb, &args);
+
+        event_fbs::finish_event_buffer(fbb, offset);
+
+        fbb.finished_data()
+    }
+
     /// Into owned event
     pub fn into_owned(self) -> Event {
         Event::new(
@@ -153,43 +230,5 @@ impl<'a> From<&'a Event> for DatabaseEvent<'a> {
             content: &event.content,
             sig: event.sig.as_ref(),
         }
-    }
-}
-
-impl<'a> FlatBufferDecodeBorrowed<'a> for DatabaseEvent<'a> {
-    fn decode(buf: &'a [u8]) -> Result<Self, flatbuffers::Error> {
-        let ev = event_fbs::root_as_event(buf)?;
-
-        let fb_tags = ev
-            .tags()
-            .ok_or(flatbuffers::Error::FieldNotFound(MissingField::Tags))?;
-        let mut tags = Vec::with_capacity(fb_tags.len());
-
-        for tag in fb_tags.iter().filter_map(|t| t.data()) {
-            tags.push(DatabaseTag::parse(
-                tag.into_iter().map(Cow::Borrowed).collect(),
-            )?);
-        }
-
-        Ok(Self {
-            id: &ev
-                .id()
-                .ok_or(flatbuffers::Error::FieldNotFound(MissingField::Id))?
-                .0,
-            pubkey: &ev
-                .pubkey()
-                .ok_or(flatbuffers::Error::FieldNotFound(MissingField::Pubkey))?
-                .0,
-            created_at: Timestamp::from_secs(ev.created_at()),
-            kind: ev.kind() as u16, // TODO: should use try_into
-            tags,
-            content: ev
-                .content()
-                .ok_or(flatbuffers::Error::FieldNotFound(MissingField::Content))?,
-            sig: &ev
-                .sig()
-                .ok_or(flatbuffers::Error::FieldNotFound(MissingField::Sig))?
-                .0,
-        })
     }
 }

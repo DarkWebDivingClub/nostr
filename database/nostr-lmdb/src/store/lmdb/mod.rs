@@ -8,12 +8,12 @@ use std::collections::BTreeSet;
 use std::iter;
 use std::ops::Bound;
 
+use flatbuffers::FlatBufferBuilder;
 use heed::byteorder::NativeEndian;
 use heed::types::{Bytes, U64, Unit};
 use heed::{Database, Env, EnvFlags, EnvOpenOptions, RoRange, RoTxn, RwTxn};
 use nostr::prelude::*;
-use nostr_database::flatbuffers::FlatBufferDecodeBorrowed;
-use nostr_database::{FlatBufferBuilder, FlatBufferEncode, RejectedReason, SaveEventStatus};
+use nostr_database::{RejectedReason, SaveEventStatus};
 
 mod index;
 
@@ -277,7 +277,7 @@ impl Lmdb {
                 let (_id, event_bytes) = result?;
 
                 // Decode event
-                if let Ok(event) = DatabaseEvent::decode(event_bytes) {
+                if let Ok(event) = DatabaseEvent::from_flatbuf(event_bytes) {
                     // Build just the kc_index key
                     let kc_index_key =
                         index::make_kc_index_key(event.kind, event.created_at, event.id);
@@ -317,14 +317,12 @@ impl Lmdb {
         &self,
         txn: &mut RwTxn,
         fbb: &mut FlatBufferBuilder,
-        event: &Event,
+        event: DatabaseEvent<'_>,
     ) -> Result<(), StoreError> {
         // Store event
-        self.events
-            .put(txn, event.id.as_bytes(), event.encode(fbb))?;
+        self.events.put(txn, event.id, event.encode_flatbuf(fbb))?;
 
         // Index event
-        let event: DatabaseEvent = DatabaseEvent::from(event);
         let index: EventIndexKeys = EventIndexKeys::new(event);
         self.index_event(txn, index)
     }
@@ -415,7 +413,7 @@ impl Lmdb {
             let (_id, event) = result?;
 
             // Decode event
-            if let Ok(event) = DatabaseEvent::decode(event) {
+            if let Ok(event) = DatabaseEvent::from_flatbuf(event) {
                 // Build indexes
                 let index: EventIndexKeys = EventIndexKeys::new(event);
                 indexes.push(index);
@@ -516,6 +514,7 @@ impl Lmdb {
             self.handle_request_to_vanish(txn, &event.pubkey)?;
         }
 
+        let event: DatabaseEvent = DatabaseEvent::from(event);
         self.store(txn, fbb, event)?;
 
         Ok(SaveEventStatus::Success)
@@ -528,7 +527,7 @@ impl Lmdb {
         event_id: &[u8],
     ) -> Result<Option<DatabaseEvent<'a>>, StoreError> {
         match self.events.get(txn, event_id)? {
-            Some(bytes) => Ok(Some(DatabaseEvent::decode(bytes)?)),
+            Some(bytes) => Ok(Some(DatabaseEvent::from_flatbuf(bytes)?)),
             None => Ok(None),
         }
     }
@@ -1451,14 +1450,21 @@ mod tests {
 
             // Insert some test events with different kinds
             let event1 = create_test_event(1, 1000);
-            let event2 = create_test_event(1, 1001);
-            let event3 = create_test_event(3, 1002);
-            let event4 = create_test_event(5, 1003);
+            let event1 = DatabaseEvent::from(&event1);
 
-            lmdb.store(&mut txn, &mut fbb, &event1).unwrap();
-            lmdb.store(&mut txn, &mut fbb, &event2).unwrap();
-            lmdb.store(&mut txn, &mut fbb, &event3).unwrap();
-            lmdb.store(&mut txn, &mut fbb, &event4).unwrap();
+            let event2 = create_test_event(1, 1001);
+            let event2 = DatabaseEvent::from(&event2);
+
+            let event3 = create_test_event(3, 1002);
+            let event3 = DatabaseEvent::from(&event3);
+
+            let event4 = create_test_event(5, 1003);
+            let event4 = DatabaseEvent::from(&event4);
+
+            lmdb.store(&mut txn, &mut fbb, event1).unwrap();
+            lmdb.store(&mut txn, &mut fbb, event2).unwrap();
+            lmdb.store(&mut txn, &mut fbb, event3).unwrap();
+            lmdb.store(&mut txn, &mut fbb, event4).unwrap();
 
             // Manually clear kc_index and set version to 1 to simulate v1 database
             lmdb.kc_index.clear(&mut txn).unwrap();

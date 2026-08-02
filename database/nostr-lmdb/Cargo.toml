@@ -13,9 +13,10 @@ keywords = ["nostr", "database", "lmdb"]
 
 [dependencies]
 async-utility.workspace = true
+flatbuffers = "25.12"
 flume = "0.12"
 nostr = { workspace = true, features = ["std"] }
-nostr-database = { workspace = true, features = ["flatbuf"] }
+nostr-database.workspace = true
 tokio = { workspace = true, features = ["sync"] }
 tracing.workspace = true
 
