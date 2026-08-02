@@ -489,7 +489,7 @@ mod tests {
             .await
             .unwrap();
 
-        socket.send(Message::Binary(vec![1].into())).await.unwrap();
+        socket.send(Message::Binary(vec![1])).await.unwrap();
         let notice = time::timeout(Duration::from_secs(1), socket.next())
             .await
             .expect("relay did not answer the first binary message")
@@ -504,7 +504,7 @@ mod tests {
                 )
         ));
 
-        socket.send(Message::Binary(vec![2].into())).await.unwrap();
+        socket.send(Message::Binary(vec![2])).await.unwrap();
         let closed = time::timeout(Duration::from_secs(1), socket.next())
             .await
             .expect("connection did not close after rate limit");
