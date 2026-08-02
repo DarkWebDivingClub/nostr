@@ -508,22 +508,6 @@ impl InnerLocalRelay {
                     .await;
                 }
 
-                // Check if the event is expired
-                if event.is_expired() {
-                    return send_msg(
-                        ws_tx,
-                        RelayMessage::Ok {
-                            event_id: event.id,
-                            status: false,
-                            message: Cow::Owned(format!(
-                                "{}: event is expired",
-                                MachineReadablePrefix::Blocked
-                            )),
-                        },
-                    )
-                    .await;
-                }
-
                 // Check POW
                 if let Some(difficulty) = self.min_pow {
                     if !event.id.check_pow(difficulty) {
@@ -540,6 +524,22 @@ impl InnerLocalRelay {
                         )
                         .await;
                     }
+                }
+
+                // Check if the event is expired
+                if event.is_expired() {
+                    return send_msg(
+                        ws_tx,
+                        RelayMessage::Ok {
+                            event_id: event.id,
+                            status: false,
+                            message: Cow::Owned(format!(
+                                "{}: event is expired",
+                                MachineReadablePrefix::Blocked
+                            )),
+                        },
+                    )
+                    .await;
                 }
 
                 if event.kind == Kind::GiftWrap {
