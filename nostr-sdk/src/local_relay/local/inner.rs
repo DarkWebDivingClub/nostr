@@ -1684,13 +1684,14 @@ mod tests {
         let mut session = session(None);
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
+        let message_size = event.as_json().len() + 10;
         relay
             .handle_client_msg(
                 &mut session,
                 &mut server_tx,
                 ClientMessage::Event(Cow::Owned(event)),
                 &addr,
-                0,
+                message_size,
             )
             .await
             .unwrap();
