@@ -22,9 +22,11 @@ use serde_json::Value;
 use super::util::{invalid_uri, unexpected_result, unsupported_method};
 use super::{nip04, nip44};
 use crate::error::{Error, ErrorKind};
-use crate::event::{Event, Kind, Tag, TagCodec};
+#[cfg(feature = "std")]
+use crate::event::{Event, Kind};
 #[cfg(all(feature = "std", feature = "os-rng"))]
 use crate::event::{EventBuilder, FinalizeEvent};
+use crate::event::{Tag, TagCodec};
 #[cfg(all(feature = "std", feature = "os-rng"))]
 use crate::key::Keys;
 use crate::key::{PublicKey, SecretKey};
@@ -40,6 +42,7 @@ fn error_code(code: NIP47Error) -> Error {
     Error::new(ErrorKind::Other, code.to_string())
 }
 
+#[cfg(feature = "std")]
 fn validate_wallet_event(
     uri: &NostrWalletConnectUri,
     event: &Event,
@@ -67,7 +70,6 @@ fn validate_wallet_event(
         ));
     }
 
-    #[cfg(feature = "std")]
     if !event.verify_signature() {
         return Err(Error::with_static_message(
             ErrorKind::Invalid,
@@ -1128,6 +1130,7 @@ struct ResponseTemplate {
 impl Response {
     /// Deserialize from [Event]
     #[inline]
+    #[cfg(feature = "std")]
     pub fn from_event(
         uri: &NostrWalletConnectUri,
         event: &Event,
@@ -1518,6 +1521,7 @@ pub struct NotificationTemplate {
 impl Notification {
     /// Deserialize from [Event]
     #[inline]
+    #[cfg(feature = "std")]
     pub fn from_event(uri: &NostrWalletConnectUri, event: &Event) -> Result<Self, Error> {
         validate_wallet_event(
             uri,

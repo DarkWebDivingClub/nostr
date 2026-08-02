@@ -11,34 +11,50 @@ use core::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "std")]
 use super::nip44;
 use crate::error::{Error, ErrorKind};
-use crate::event::{Event, EventId, Kind};
+use crate::event::EventId;
+#[cfg(feature = "std")]
+use crate::event::{Event, Kind};
 #[cfg(all(feature = "std", feature = "os-rng"))]
 use crate::event::{EventBuilder, IntoEventBuilder, Tag};
+#[cfg(feature = "std")]
 use crate::key::{PublicKey, SecretKey};
 use crate::types::time::Timestamp;
 use crate::types::url::Url;
+#[cfg(feature = "std")]
 use crate::util::parse_json;
 
+#[cfg(feature = "std")]
 const E_TAG_STR: &str = "e";
+#[cfg(feature = "std")]
 const PRIVKEY: &str = "privkey";
+#[cfg(feature = "std")]
 const MINT: &str = "mint";
+#[cfg(feature = "std")]
 const DIRECTION: &str = "direction";
+#[cfg(feature = "std")]
 const AMOUNT: &str = "amount";
+#[cfg(feature = "std")]
 const EVENT_MARKER_CREATED: &str = "created";
+#[cfg(feature = "std")]
 const EVENT_MARKER_DESTROYED: &str = "destroyed";
+#[cfg(feature = "std")]
 const EVENT_MARKER_REDEEMED: &str = "redeemed";
 
 #[inline]
+#[cfg(feature = "std")]
 fn found_multiple_priv_keys() -> Error {
     Error::with_static_message(ErrorKind::Invalid, "found multiple private keys")
 }
 
+#[cfg(feature = "std")]
 fn missing_field(field: &'static str) -> Error {
     Error::with_static_message(ErrorKind::Missing, field)
 }
 
+#[cfg(feature = "std")]
 fn validate_wallet_event(
     wallet_public_key: &PublicKey,
     event: &Event,
@@ -66,7 +82,6 @@ fn validate_wallet_event(
         ));
     }
 
-    #[cfg(feature = "std")]
     if !event.verify_signature() {
         return Err(Error::with_static_message(
             ErrorKind::Invalid,
@@ -138,6 +153,7 @@ impl WalletEvent {
     /// Parse from wallet event.
     ///
     /// `wallet_public_key` must be the trusted public key of the wallet author.
+    #[cfg(feature = "std")]
     pub fn from_wallet_event(
         secret_key: &SecretKey,
         wallet_public_key: &PublicKey,
@@ -241,6 +257,7 @@ impl TokenEvent {
     /// Parse from token event.
     ///
     /// `wallet_public_key` must be the trusted public key of the wallet author.
+    #[cfg(feature = "std")]
     pub fn from_token_event(
         secret_key: &SecretKey,
         wallet_public_key: &PublicKey,
@@ -351,6 +368,7 @@ impl SpendingHistory {
     /// Parse from spending history event.
     ///
     /// `wallet_public_key` must be the trusted public key of the wallet author.
+    #[cfg(feature = "std")]
     pub fn from_spending_history_event(
         secret_key: &SecretKey,
         wallet_public_key: &PublicKey,
@@ -524,6 +542,7 @@ impl QuoteEvent {
     /// Parse from quote event.
     ///
     /// `wallet_public_key` must be the trusted public key of the wallet author.
+    #[cfg(feature = "std")]
     pub fn from_quote_event(
         secret_key: &SecretKey,
         wallet_public_key: &PublicKey,
