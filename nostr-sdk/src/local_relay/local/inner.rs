@@ -543,6 +543,27 @@ impl InnerLocalRelay {
                     }
                 }
 
+                if event.kind == Kind::GiftWrap {
+                    let mut pkeys = event.tags.public_keys();
+                    // Ensure exactly one recipient public key: the first
+                    // `next()` must return Some (key exists), and the second
+                    // must return None (no extra keys).
+                    if pkeys.next().is_none() || pkeys.next().is_some() {
+                        return send_msg(
+                            ws_tx,
+                            RelayMessage::Ok {
+                                event_id: event.id,
+                                status: false,
+                                message: Cow::Owned(format!(
+                                    "{}: GiftWrap must contain exactly one recipient public key",
+                                    MachineReadablePrefix::Blocked,
+                                )),
+                            },
+                        )
+                        .await;
+                    }
+                }
+
                 if !event.verify_signature() {
                     return send_msg(
                         ws_tx,

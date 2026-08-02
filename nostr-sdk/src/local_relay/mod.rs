@@ -19,7 +19,8 @@ mod tests {
 
     use nostr::event::{EventBuilder, FinalizeEvent, Kind, Tag};
     use nostr::filter::Filter;
-    use nostr::key::Keys;
+    use nostr::key::{Keys, PublicKey};
+    use nostr::nips::nip17::PrivateDirectMessageBuilder;
     use nostr_memory::MemoryDatabase;
 
     use super::*;
@@ -112,5 +113,43 @@ mod tests {
             "blocked: kind `1` is not accepted by this relay",
             output.failed.values().next().unwrap()
         )
+    }
+
+    #[tokio::test]
+    async fn invalid_gift_wrap() {
+        let relay = LocalRelay::builder()
+            .database(MemoryDatabase::unbounded())
+            .blacklist_kinds(&[Kind::TextNote])
+            .build();
+        relay.run().await.unwrap();
+
+        let keys = Keys::generate();
+        let client = Client::default();
+
+        client
+            .add_relay(relay.url().await)
+            .and_connect()
+            .await
+            .unwrap();
+        let event = PrivateDirectMessageBuilder::new(keys.public_key(), "Hey")
+            .extra_tags([Tag::public_key(PublicKey::from_slice(&[0; 32]).unwrap())])
+            .finalize(&keys)
+            .unwrap();
+        let output = client.send_event(&event).await.unwrap();
+
+        assert_eq!(
+            "blocked: GiftWrap must contain exactly one recipient public key",
+            output.failed.values().next().unwrap()
+        );
+
+        let event = EventBuilder::new(Kind::GiftWrap, "Hey")
+            .finalize(&keys)
+            .unwrap();
+        let output = client.send_event(&event).await.unwrap();
+
+        assert_eq!(
+            "blocked: GiftWrap must contain exactly one recipient public key",
+            output.failed.values().next().unwrap()
+        );
     }
 }
