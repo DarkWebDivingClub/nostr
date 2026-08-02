@@ -116,6 +116,10 @@
 - Optimize NIP-21 URI parsing in `PublicKey::parse` (https://github.com/nostrdevkit/nostr/pull/1308)
 - Optimize event serialization by ~73% (https://github.com/nostrdevkit/nostr/pull/1319)
 
+### Security
+
+- Zeroize normalized passwords, scrypt-derived keys, and decrypted plaintext buffers used by NIP-49
+
 ## v0.44.3 - 2026/05/19
 
 ### Fixed
