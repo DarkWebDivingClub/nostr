@@ -1,9 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use nostr::filter::Filter;
-use nostr::types::{RelayUrl, RelayUrlArg};
+use nostr::types::RelayUrl;
 
 use super::req_target::{InnerReqTarget, ReqTarget};
+use crate::client::url::RelayUrlArg;
 use crate::client::{Client, Error};
 use crate::pool::RelayPool;
 

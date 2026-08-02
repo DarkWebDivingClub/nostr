@@ -22,7 +22,6 @@ use nostr::nips::nip47::{
     ListTransactionsRequest, LookupInvoiceRequest, MakeInvoiceRequest, Nip47Ciphers, Nip47Tag,
     NostrWalletConnectUri, Notification, PayInvoiceRequest, PayKeysendRequest, Request, Response,
 };
-use nostr::types::RelayUrlArg;
 use nostr_sdk::prelude::*;
 
 mod api;

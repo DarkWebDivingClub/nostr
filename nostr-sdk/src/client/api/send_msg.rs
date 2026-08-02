@@ -3,9 +3,10 @@ use std::future::IntoFuture;
 use std::time::Duration;
 
 use nostr::message::ClientMessage;
-use nostr::types::{RelayUrl, RelayUrlArg};
+use nostr::types::RelayUrl;
 
 use super::output::Output;
+use crate::client::url::RelayUrlArg;
 use crate::client::{Client, Error};
 use crate::future::BoxedFuture;
 use crate::relay::RelayCapabilities;

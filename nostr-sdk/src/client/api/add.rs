@@ -2,9 +2,10 @@ use std::borrow::Cow;
 use std::future::IntoFuture;
 use std::time::Duration;
 
-use nostr::types::url::{RelayUrl, RelayUrlArg};
+use nostr::types::url::RelayUrl;
 
 use crate::client::Client;
+use crate::client::url::RelayUrlArg;
 use crate::error::Error;
 use crate::future::BoxedFuture;
 #[cfg(not(target_arch = "wasm32"))]

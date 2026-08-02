@@ -1,8 +1,9 @@
 use std::borrow::Cow;
 use std::future::IntoFuture;
 
-use nostr::types::url::{RelayUrl, RelayUrlArg};
+use nostr::types::url::RelayUrl;
 
+use crate::client::url::RelayUrlArg;
 use crate::client::{Client, Error};
 use crate::future::BoxedFuture;
 

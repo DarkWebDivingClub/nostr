@@ -18,7 +18,6 @@ use negentropy::{Id, Negentropy, NegentropyStorageVector};
 use nostr::filter::{Alphabet, MatchEventOptions};
 use nostr::message::MachineReadablePrefix;
 use nostr::prelude::*;
-use nostr::types::RelayUrlArg;
 use nostr_memory::prelude::*;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpListener;
@@ -30,7 +29,7 @@ use super::super::builder::{
 };
 use super::session::{NegentropySubscription, Nip42Session, RateLimiterResponse, Session, Tokens};
 use super::util;
-use crate::client::{Client, ClientNotification, Output, SyncSummary};
+use crate::client::{Client, ClientNotification, Output, RelayUrlArg, SyncSummary};
 use crate::error::{Error, ErrorKind};
 use crate::relay::SyncOptions;
 

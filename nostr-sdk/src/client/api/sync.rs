@@ -3,9 +3,10 @@ use std::future::IntoFuture;
 
 use nostr::event::EventId;
 use nostr::filter::Filter;
-use nostr::types::{RelayUrl, RelayUrlArg, Timestamp};
+use nostr::types::{RelayUrl, Timestamp};
 
 use super::output::Output;
+use crate::client::url::RelayUrlArg;
 use crate::client::{Client, Error};
 use crate::future::BoxedFuture;
 use crate::relay::{RelayCapabilities, SyncOptions, SyncSummary as RelaySyncSummary};

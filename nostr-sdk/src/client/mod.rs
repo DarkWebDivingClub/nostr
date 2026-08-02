@@ -19,11 +19,13 @@ mod api;
 mod builder;
 mod gossip;
 mod notification;
+mod url;
 
 pub use self::api::*;
 pub use self::builder::*;
 use self::gossip::*;
 pub use self::notification::*;
+pub use self::url::*;
 use crate::error::Error;
 use crate::monitor::Monitor;
 use crate::pool::{RelayPool, RelayPoolBuilder};

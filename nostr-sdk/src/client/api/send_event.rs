@@ -5,10 +5,11 @@ use std::time::Duration;
 
 use nostr::event::{Event, EventId, Kind};
 use nostr::key::PublicKey;
-use nostr::types::{RelayUrl, RelayUrlArg};
+use nostr::types::RelayUrl;
 use nostr_gossip::{BestRelaySelection, GossipListKind};
 
 use crate::client::gossip::Gossip;
+use crate::client::url::RelayUrlArg;
 use crate::client::{Client, Output};
 use crate::error::Error;
 use crate::future::BoxedFuture;

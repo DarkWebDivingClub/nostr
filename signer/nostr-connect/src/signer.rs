@@ -12,7 +12,6 @@ use nostr::nips::nip46::{
     NostrConnectUri, ResponseResult,
 };
 use nostr::nips::{nip04, nip44};
-use nostr::types::RelayUrlArg;
 use nostr_sdk::prelude::*;
 
 use crate::error::Error;

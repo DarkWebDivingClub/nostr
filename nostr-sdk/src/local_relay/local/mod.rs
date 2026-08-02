@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use nostr::event::Event;
 use nostr::filter::Filter;
-use nostr::types::{RelayUrl, RelayUrlArg};
+use nostr::types::RelayUrl;
 use nostr_database::SaveEventStatus;
 use tokio::io::{AsyncRead, AsyncWrite};
 
@@ -18,7 +18,7 @@ mod util;
 
 use self::inner::InnerLocalRelay;
 use super::builder::LocalRelayBuilder;
-use crate::client::{Output, SyncSummary};
+use crate::client::{Output, RelayUrlArg, SyncSummary};
 use crate::error::Error;
 use crate::relay::SyncOptions;
 
