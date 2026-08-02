@@ -440,7 +440,7 @@ mod tests {
 
         assert_zeroize_on_drop(&bytes);
         let mut out = [0u8; 64];
-        faster_hex::hex_encode(&*bytes, &mut out).unwrap();
+        faster_hex::hex_encode(&bytes, &mut out).unwrap();
         let hex_out = unsafe { str::from_utf8_unchecked(&out) };
         assert_eq!(hex_out, SECRET_KEY);
     }
