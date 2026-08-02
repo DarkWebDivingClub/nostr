@@ -6,18 +6,10 @@
 
 use core::fmt;
 use core::num::{ParseIntError, TryFromIntError};
-#[cfg(feature = "rand")]
-use core::ops::Range;
 use core::ops::{Add, Sub};
 use core::str::{self, FromStr};
 use core::time::Duration;
 
-#[cfg(all(feature = "std", feature = "os-rng"))]
-use rand::rand_core::UnwrapErr;
-#[cfg(all(feature = "std", feature = "os-rng"))]
-use rand::rngs::SysRng;
-#[cfg(feature = "rand")]
-use rand::{Rng, RngExt};
 use universal_time::{SystemTime, UNIX_EPOCH};
 
 /// Unix timestamp in seconds
@@ -56,46 +48,6 @@ impl Timestamp {
             .unwrap_or_default()
             .as_secs();
         Self::from_secs(ts)
-    }
-
-    /// Get tweaked UNIX timestamp
-    ///
-    /// Remove a random number of seconds from now
-    #[cfg(all(feature = "std", feature = "os-rng"))]
-    pub fn tweaked(range: Range<u64>) -> Self {
-        let mut now: Timestamp = Self::now();
-        now.tweak(range);
-        now
-    }
-
-    /// Get tweaked UNIX timestamp
-    ///
-    /// Remove a random number of seconds from now
-    #[cfg(feature = "rand")]
-    pub fn tweaked_with_rng<R>(rng: &mut R, range: Range<u64>) -> Self
-    where
-        R: Rng,
-    {
-        let mut now: Timestamp = Self::now();
-        now.tweak_with_rng(rng, range);
-        now
-    }
-
-    /// Remove a random number of seconds from [`Timestamp`]
-    #[inline]
-    #[cfg(all(feature = "std", feature = "os-rng"))]
-    pub fn tweak(&mut self, range: Range<u64>) {
-        self.tweak_with_rng(&mut UnwrapErr(SysRng), range);
-    }
-
-    /// Remove a random number of seconds from [`Timestamp`]
-    #[cfg(feature = "rand")]
-    pub fn tweak_with_rng<R>(&mut self, rng: &mut R, range: Range<u64>)
-    where
-        R: Rng,
-    {
-        let secs: u64 = rng.random_range(range);
-        self.0 = self.0.saturating_sub(secs);
     }
 
     /// Get timestamp as seconds

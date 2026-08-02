@@ -18,6 +18,12 @@ use core::ops::Range;
 use core::pin::Pin;
 use core::time::Duration;
 
+#[cfg(all(feature = "std", feature = "os-rng"))]
+use rand::RngExt;
+#[cfg(all(feature = "std", feature = "os-rng"))]
+use rand::rand_core::UnwrapErr;
+#[cfg(all(feature = "std", feature = "os-rng"))]
+use rand::rngs::SysRng;
 use secp256k1::{Secp256k1, Verification};
 
 use crate::error::{Error, ErrorKind};
@@ -361,7 +367,7 @@ fn make_gift_wrap(
     tags.push(Tag::public_key(receiver));
 
     // Use a tweaked timestamp to thwart time-analysis attacks
-    let created_at: Timestamp = Timestamp::tweaked(RANGE_RANDOM_TIMESTAMP_TWEAK);
+    let created_at: Timestamp = tweaked_timestamp();
 
     // Anchor the NIP-40 expiration to the tweaked `created_at` so we don't
     // leak the real creation time.
@@ -430,8 +436,17 @@ fn build_seal(mut rumor: UnsignedEvent, content: String) -> EventBuilder {
     rumor.ensure_id();
 
     // Compose builder
-    EventBuilder::new(Kind::Seal, content)
-        .custom_created_at(Timestamp::tweaked(RANGE_RANDOM_TIMESTAMP_TWEAK))
+    EventBuilder::new(Kind::Seal, content).custom_created_at(tweaked_timestamp())
+}
+
+#[cfg(all(feature = "std", feature = "os-rng"))]
+fn tweaked_timestamp() -> Timestamp {
+    let now: Timestamp = Timestamp::now();
+
+    let secs: u64 = UnwrapErr(SysRng).random_range(RANGE_RANDOM_TIMESTAMP_TWEAK);
+    let new_timestamp: u64 = now.as_secs().saturating_sub(secs);
+
+    Timestamp::from_secs(new_timestamp)
 }
 
 #[cfg(test)]
