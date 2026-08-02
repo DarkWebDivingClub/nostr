@@ -60,6 +60,7 @@ pub(super) struct InnerLocalRelay {
     messages_per_minute: u32,
     connections_limit: Arc<Semaphore>,
     max_websocket_message_size: usize,
+    max_event_size: usize,
     websocket_handshake_timeout: Duration,
     max_subid_length: usize,
     max_filters_per_req: usize,
@@ -112,6 +113,7 @@ impl InnerLocalRelay {
             messages_per_minute: builder.messages_per_minute,
             connections_limit: Arc::new(Semaphore::new(builder.max_connections)),
             max_websocket_message_size: builder.max_websocket_message_size,
+            max_event_size: builder.max_event_size,
             websocket_handshake_timeout: builder.websocket_handshake_timeout,
             max_subid_length: builder.max_subid_length,
             max_filters_per_req: builder.max_filters_per_req,
@@ -470,6 +472,24 @@ impl InnerLocalRelay {
                             message: Cow::Owned(format!(
                                 "{}: slow down",
                                 MachineReadablePrefix::RateLimited
+                            )),
+                        },
+                    )
+                    .await;
+                }
+
+                // Check the event size. The `-10` for `["EVENT",]`
+                if (message_size - 10) > self.max_event_size {
+                    return send_msg(
+                        ws_tx,
+                        RelayMessage::Ok {
+                            event_id: event.id,
+                            status: false,
+                            message: Cow::Owned(format!(
+                                "{}: event size ({} bytes) exceeds maximum allowed size ({} bytes)",
+                                MachineReadablePrefix::Blocked,
+                                message_size - 10,
+                                self.max_event_size
                             )),
                         },
                     )

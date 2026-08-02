@@ -18,6 +18,7 @@ use super::local::LocalRelay;
 
 pub(super) const DEFAULT_MAX_CONNECTIONS: usize = 128;
 pub(super) const DEFAULT_MAX_FILTERS_PER_REQ: usize = 20;
+pub(super) const DEFAULT_MAX_EVENT_SIZE: usize = 64 * 1024;
 pub(super) const DEFAULT_MAX_QUERY_RESULTS: usize = 500;
 pub(super) const DEFAULT_MAX_NEGENTROPY_ITEMS: usize = 50_000;
 pub(super) const DEFAULT_MAX_SUBSCRIPTION_BYTES: usize = 1024 * 1024;
@@ -287,6 +288,8 @@ pub struct LocalRelayBuilder {
     pub(crate) max_connections: usize,
     /// Max WebSocket message size
     pub(crate) max_websocket_message_size: usize,
+    /// Max event size in bytes
+    pub(crate) max_event_size: usize,
     /// WebSocket handshake timeout
     pub(crate) websocket_handshake_timeout: Duration,
     /// Max subscription ID length in UTF-8 bytes
@@ -344,6 +347,7 @@ impl Default for LocalRelayBuilder {
             nip42: None,
             max_connections: DEFAULT_MAX_CONNECTIONS,
             max_websocket_message_size: DEFAULT_MAX_WEBSOCKET_MESSAGE_SIZE,
+            max_event_size: DEFAULT_MAX_EVENT_SIZE,
             websocket_handshake_timeout: DEFAULT_WEBSOCKET_HANDSHAKE_TIMEOUT,
             max_subid_length: 250,
             max_filters_per_req: DEFAULT_MAX_FILTERS_PER_REQ,
@@ -444,6 +448,13 @@ impl LocalRelayBuilder {
     #[inline]
     pub fn max_websocket_message_size(mut self, max: usize) -> Self {
         self.max_websocket_message_size = max;
+        self
+    }
+
+    /// Sets the maximum accepted event size in bytes. Defaults to 64KB.
+    #[inline]
+    pub fn max_event_size(mut self, max: usize) -> Self {
+        self.max_event_size = max;
         self
     }
 

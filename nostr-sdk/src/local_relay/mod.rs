@@ -152,4 +152,49 @@ mod tests {
             output.failed.values().next().unwrap()
         );
     }
+
+    #[tokio::test]
+    async fn event_size() {
+        const MAX_SIZE: usize = 500;
+
+        let relay = LocalRelay::builder()
+            .max_event_size(MAX_SIZE)
+            .database(MemoryDatabase::unbounded())
+            .build();
+        relay.run().await.unwrap();
+
+        let keys = Keys::generate();
+        let client = Client::default();
+
+        client
+            .add_relay(relay.url().await)
+            .and_connect()
+            .await
+            .unwrap();
+
+        let base_event_size = EventBuilder::new(Kind::TextNote, "")
+            .finalize(&keys)
+            .unwrap()
+            .as_json()
+            .len();
+
+        let equal_max_size =
+            EventBuilder::new(Kind::TextNote, ".".repeat(MAX_SIZE - base_event_size))
+                .finalize(&keys)
+                .unwrap();
+        let greater_max_size =
+            EventBuilder::new(Kind::TextNote, ".".repeat((MAX_SIZE - base_event_size) + 1))
+                .finalize(&keys)
+                .unwrap();
+
+        let output = client.send_event(&equal_max_size).await.unwrap();
+        dbg!(&output);
+        assert!(!output.success.is_empty());
+
+        let output = client.send_event(&greater_max_size).await.unwrap();
+        assert_eq!(
+            "blocked: event size (501 bytes) exceeds maximum allowed size (500 bytes)",
+            output.failed.values().next().unwrap()
+        );
+    }
 }

@@ -99,6 +99,7 @@
 - Add `Authenticator` and `SignerAuthenticator` for NIP-42 relay authentication (https://github.com/nostrdevkit/nostr/pull/1340)
 - local_relay: support event kind blacklisting via `LocalRelayBuilder::blacklist_kinds` (https://github.com/nostrdevkit/nostr/pull/1401)
 - local_relay: reject gift wraps that p-tag more or less than one key (https://github.com/nostrdevkit/nostr/pull/1411)
+- local_relay: support max event size (https://github.com/nostrdevkit/nostr/pull/1412)
 
 ### Fixed
 
