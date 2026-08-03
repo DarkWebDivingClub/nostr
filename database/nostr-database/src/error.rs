@@ -41,6 +41,14 @@ impl Error {
         Self::new(ErrorKind::Storage, error)
     }
 
+    /// I/O error
+    pub fn io<E>(error: E) -> Self
+    where
+        E: Into<Box<dyn std::error::Error + Send + Sync>>,
+    {
+        Self::new(ErrorKind::IO, error)
+    }
+
     /// Migration error
     pub fn migration<E>(error: E) -> Self
     where
