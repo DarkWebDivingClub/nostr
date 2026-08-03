@@ -100,15 +100,21 @@ impl EventBuilder {
 
     /// Add tag
     #[inline]
-    pub fn tag(mut self, tag: Tag) -> Self {
-        self.tags.push(tag);
+    pub fn tag<T>(mut self, tag: T) -> Self
+    where
+        T: Into<Tag>,
+    {
+        self.tags.push(tag.into());
         self
     }
 
     /// Add tag if `Some`.
-    pub fn tag_maybe(mut self, tag: Option<Tag>) -> Self {
+    pub fn tag_maybe<T>(mut self, tag: Option<T>) -> Self
+    where
+        T: Into<Tag>,
+    {
         if let Some(tag) = tag {
-            self.tags.push(tag);
+            self.tags.push(tag.into());
         }
         self
     }
@@ -117,11 +123,12 @@ impl EventBuilder {
     ///
     /// This method extends the current tags.
     #[inline]
-    pub fn tags<I>(mut self, tags: I) -> Self
+    pub fn tags<I, T>(mut self, tags: I) -> Self
     where
-        I: IntoIterator<Item = Tag>,
+        I: IntoIterator<Item = T>,
+        T: Into<Tag>,
     {
-        self.tags.extend(tags);
+        self.tags.extend(tags.into_iter().map(Into::into));
         self
     }
 
