@@ -14,12 +14,12 @@ use core::str::FromStr;
 use bitcoin_hashes::sha256::Hash as Sha256Hash;
 use url::Url;
 
+pub use super::image::ImageDimensions;
 use super::util::{missing_tag_kind, take_and_parse_from_str, take_string, unknown_tag};
 use crate::error::{Error, ErrorKind};
 use crate::event::{
     EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
 };
-use crate::types::ImageDimensions;
 
 const URL: &str = "url";
 const MIME_TYPE: &str = "m";

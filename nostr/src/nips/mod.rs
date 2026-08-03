@@ -6,6 +6,7 @@
 //!
 //! See all at <https://github.com/nostr-protocol/nips>
 
+mod image;
 pub mod nip01;
 pub mod nip02;
 pub mod nip04;

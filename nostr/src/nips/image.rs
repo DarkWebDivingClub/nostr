@@ -2,8 +2,6 @@
 // Copyright (c) 2023-2025 Rust Nostr Developers
 // Distributed under the MIT software license
 
-//! Image
-
 use core::fmt;
 use core::str::{FromStr, Split};
 

@@ -10,6 +10,7 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 
+pub use super::image::ImageDimensions;
 use super::nip01::{Coordinate, Nip01Tag};
 use super::util::{
     missing_tag_kind, take_and_parse_from_str, take_and_parse_optional_from_str, take_string,
@@ -20,8 +21,7 @@ use crate::event::{
     Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
 };
 use crate::key::PublicKey;
-use crate::types::url::Url;
-use crate::types::{ImageDimensions, RelayUrl};
+use crate::types::{RelayUrl, Url};
 
 const IDENTIFIER: &str = "d";
 const NAME: &str = "name";
