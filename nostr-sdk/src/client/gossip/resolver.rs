@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use nostr::prelude::*;
 use nostr_gossip::{BestRelaySelection, GossipAllowedRelays, NostrGossip};
 
-use super::{GossipFilterPattern, P_TAG};
+use super::GossipFilterPattern;
 use crate::client::{Error, GossipRelayLimits};
 
 #[derive(Debug)]
@@ -98,11 +98,14 @@ impl GossipRelayResolver {
         allowed: GossipAllowedRelays,
     ) -> Result<BrokenDownFilters, Error> {
         // Extract `p` tag from generic tags and parse public key hex
-        let p_tag: Option<BTreeSet<PublicKey>> = filter.generic_tags.get(&P_TAG).map(|s| {
-            s.iter()
-                .filter_map(|p| PublicKey::from_hex(p).ok())
-                .collect()
-        });
+        let p_tag: Option<BTreeSet<PublicKey>> = filter
+            .generic_tags
+            .get(&SingleLetterTag::LOWERCASE_P)
+            .map(|s| {
+                s.iter()
+                    .filter_map(|p| PublicKey::from_hex(p).ok())
+                    .collect()
+            });
 
         // Match pattern
         match (&filter.authors, &p_tag) {
@@ -243,9 +246,10 @@ impl GossipRelayResolver {
                 for (relay, pk_set) in inbox.into_iter() {
                     // Clone filter and change p tags
                     let mut new_filter: Filter = filter.clone();
-                    new_filter
-                        .generic_tags
-                        .insert(P_TAG, pk_set.into_iter().map(|p| p.to_string()).collect());
+                    new_filter.generic_tags.insert(
+                        SingleLetterTag::LOWERCASE_P,
+                        pk_set.into_iter().map(|p| p.to_string()).collect(),
+                    );
 
                     // Update map
                     map.insert(relay, new_filter);

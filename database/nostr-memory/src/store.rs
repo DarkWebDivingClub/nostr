@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use btreecap::{BTreeCapSet, Capacity, Insert, OverCapacityPolicy};
 use nostr::event::{Event, EventId, Kind};
-use nostr::filter::{Alphabet, Filter, MatchEventOptions, SingleLetterTag};
+use nostr::filter::{Filter, MatchEventOptions, SingleLetterTag};
 use nostr::key::PublicKey;
 use nostr::nips::nip01::Coordinate;
 use nostr::nips::nip62;
@@ -93,7 +93,7 @@ impl From<Filter> for QueryPattern {
         let generic_tags_len: usize = filter.generic_tags.len();
         let identifier = filter
             .generic_tags
-            .get(&SingleLetterTag::lowercase(Alphabet::D))
+            .get(&SingleLetterTag::LOWERCASE_D)
             .and_then(|v| v.iter().next().cloned());
 
         match (

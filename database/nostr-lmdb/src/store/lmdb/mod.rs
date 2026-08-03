@@ -1053,7 +1053,7 @@ impl Lmdb {
         let iter = self.atc_iter(
             txn,
             addr.public_key.as_bytes(),
-            &SingleLetterTag::lowercase(Alphabet::D),
+            &SingleLetterTag::LOWERCASE_D,
             &addr.identifier,
             Timestamp::min(),
             Timestamp::max(),
@@ -1127,7 +1127,7 @@ impl Lmdb {
         let iter = self.atc_iter(
             txn,
             coordinate.public_key.as_bytes(),
-            &SingleLetterTag::lowercase(Alphabet::D),
+            &SingleLetterTag::LOWERCASE_D,
             &coordinate.identifier,
             Timestamp::min(),
             until,

@@ -15,7 +15,7 @@ use async_utility::futures_util::{SinkExt, StreamExt};
 use async_wsocket::native;
 use async_wsocket::native::{Message, Role, WebSocketConfig, WebSocketStream};
 use negentropy::{Id, Negentropy, NegentropyStorageVector};
-use nostr::filter::{Alphabet, MatchEventOptions};
+use nostr::filter::{MatchEventOptions, SingleLetterTag};
 use nostr::message::MachineReadablePrefix;
 use nostr::prelude::*;
 use nostr_memory::prelude::*;
@@ -34,7 +34,6 @@ use crate::error::{Error, ErrorKind};
 use crate::relay::SyncOptions;
 
 type WsTx<S> = SplitSink<WebSocketStream<S>, Message>;
-const P_TAG: SingleLetterTag = SingleLetterTag::lowercase(Alphabet::P);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GiftWrapQueryAccess {
@@ -1399,7 +1398,7 @@ impl InnerLocalRelay {
 
         let public_key = public_key.to_hex();
         for filter in gift_wrap_filters {
-            let Some(public_keys) = filter.generic_tags.get(&P_TAG) else {
+            let Some(public_keys) = filter.generic_tags.get(&SingleLetterTag::LOWERCASE_P) else {
                 return GiftWrapQueryAccess::Forbidden;
             };
             if public_keys.len() != 1 || !public_keys.contains(&public_key) {

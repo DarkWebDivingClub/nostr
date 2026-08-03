@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use nostr::event::Kind;
-use nostr::filter::{Alphabet, Filter, SingleLetterTag};
+use nostr::filter::{Filter, SingleLetterTag};
 use nostr_gossip::NostrGossip;
 
 mod refresher;
@@ -12,8 +12,6 @@ mod updater;
 use self::refresher::*;
 pub(super) use self::resolver::*;
 pub(super) use self::semaphore::*;
-
-const P_TAG: SingleLetterTag = SingleLetterTag::lowercase(Alphabet::P);
 
 pub(super) enum GossipFilterPattern {
     Nip65,
@@ -36,7 +34,9 @@ pub(super) fn find_filter_pattern(filter: &Filter) -> GossipFilterPattern {
         Some(kinds) => (false, kinds.contains(&Kind::GiftWrap)),
         None => (true, false),
     };
-    let has_p_tags: bool = filter.generic_tags.contains_key(&P_TAG);
+    let has_p_tags: bool = filter
+        .generic_tags
+        .contains_key(&SingleLetterTag::LOWERCASE_P);
 
     // TODO: use both also if there are only IDs?
 
