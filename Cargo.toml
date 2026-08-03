@@ -27,7 +27,6 @@ members = [
 
     # Others
     "nostr-blossom",
-    "nostr-keyring",
     "nwc",
 ]
 resolver = "2"

@@ -57,8 +57,6 @@ jobs:
           - nostr-ndb
           - nostr-sqlite
           - nostr-sqlite --target wasm32-unknown-unknown
-          - nostr-keyring
-          - nostr-keyring --features async
           - nostr-sdk
           - nostr-sdk --features local-relay
           - nostr-sdk --target wasm32-unknown-unknown

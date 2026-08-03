@@ -31,8 +31,6 @@ buildargs=(
     "-p nostr-sqlite"
     "-p nostr-sqlite --target wasm32-unknown-unknown"
     "-p nostr-ndb"
-    "-p nostr-keyring"
-    "-p nostr-keyring --features async"
     "-p nostr-sdk"
     "-p nostr-sdk --features local-relay"
     "-p nostr-sdk --target wasm32-unknown-unknown"
