@@ -60,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Received {} events.", events.len());
 
     assert_eq!(events.len(), 1);
-    assert_eq!(events.first_owned().unwrap().pubkey, public_key);
+    assert_eq!(events.first().unwrap().pubkey, public_key);
 
     Ok(())
 }

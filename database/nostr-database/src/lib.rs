@@ -9,71 +9,25 @@
 #![warn(rustdoc::bare_urls)]
 #![warn(clippy::large_futures)]
 #![cfg_attr(bench, feature(test))]
-#![allow(clippy::mutable_key_type)] // TODO: remove when possible. Needed to suppress false positive for `BTreeSet<Event>`
 
 #[cfg(bench)]
 extern crate test;
 
 use std::any::Any;
-use std::collections::HashMap;
+use std::collections::BTreeSet;
 use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-pub use nostr;
-use nostr::prelude::*;
+use nostr::event::{Event, EventId};
+use nostr::filter::Filter;
+use nostr::types::Timestamp;
 
-mod collections;
 pub mod error;
-pub mod ext;
 pub mod prelude;
-pub mod profile;
 
-pub use self::collections::events::Events;
 use self::error::Error;
-pub use self::profile::Profile;
-
-/// NIP65 relays map
-pub type RelaysMap = HashMap<RelayUrl, Option<RelayMetadata>>;
-
-/// Backend type
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Backend {
-    /// In-memory (RAM)
-    Memory,
-    /// Lightning Memory-Mapped Database
-    LMDB,
-    /// SQLite
-    SQLite,
-    /// Postgres
-    Postgres,
-    /// MySQL (i.e., MariaDB)
-    MySql,
-    /// RocksDB
-    RocksDB,
-    /// IndexedDB
-    IndexedDB,
-    /// MongoDB
-    MongoDB,
-    /// Redis
-    Redis,
-    /// Apache Cassandra
-    Cassandra,
-    /// Custom
-    Custom(String),
-}
-
-impl Backend {
-    /// Custom backend type
-    #[inline]
-    pub fn custom<T>(name: T) -> Self
-    where
-        T: Into<String>,
-    {
-        Self::Custom(name.into())
-    }
-}
 
 /// Backend features
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -178,7 +132,7 @@ where
 /// Nostr (Events) Database
 pub trait NostrDatabase: Any + Debug + Send + Sync {
     /// Name of the backend database used
-    fn backend(&self) -> Backend;
+    fn backend(&self) -> &'static str;
 
     /// Get backend features
     fn features(&self) -> Features;
@@ -217,7 +171,7 @@ pub trait NostrDatabase: Any + Debug + Send + Sync {
     fn query(
         &self,
         filter: Filter,
-    ) -> Pin<Box<dyn Future<Output = Result<Events, Error>> + Send + '_>>;
+    ) -> Pin<Box<dyn Future<Output = Result<BTreeSet<Event>, Error>> + Send + '_>>;
 
     /// Get `negentropy` items
     #[allow(clippy::type_complexity)]
@@ -226,12 +180,12 @@ pub trait NostrDatabase: Any + Debug + Send + Sync {
         filter: Filter,
     ) -> Pin<Box<dyn Future<Output = Result<Vec<(EventId, Timestamp)>, Error>> + Send + '_>> {
         Box::pin(async move {
-            let events: Events = self.query(filter).await?;
+            let events: BTreeSet<Event> = self.query(filter).await?;
             Ok(events.into_iter().map(|e| (e.id, e.created_at)).collect())
         })
     }
 
-    /// Delete all events that match the [Filter]
+    /// Delete all events that match the [`Filter`]
     fn delete(
         &self,
         filter: Filter,

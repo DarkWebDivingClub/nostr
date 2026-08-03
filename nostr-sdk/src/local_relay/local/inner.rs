@@ -3,7 +3,7 @@
 // Distributed under the MIT software license
 
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::num::NonZeroUsize;
 use std::sync::Arc;
@@ -1301,8 +1301,8 @@ impl InnerLocalRelay {
             .sum();
 
         // Query database
-        let events: Events = if self.test.send_random_events {
-            let mut events: Events = Events::default();
+        let events: BTreeSet<Event> = if self.test.send_random_events {
+            let mut events: BTreeSet<Event> = BTreeSet::new();
 
             let keys = Keys::generate();
 
@@ -1312,9 +1312,9 @@ impl InnerLocalRelay {
 
             events
         } else if self.max_query_results == 0 {
-            Events::default()
+            BTreeSet::new()
         } else {
-            let mut events: Events = Events::new(&Filter::new().limit(self.max_query_results));
+            let mut events: BTreeSet<Event> = BTreeSet::new();
 
             for filter in filters.iter() {
                 let res = self.database.query(filter.clone()).await?;

@@ -58,9 +58,6 @@ tokio = { workspace = true, features = ["full"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 [[example]]
-name = "aggregated-query"
-
-[[example]]
 name = "blacklist"
 
 [[example]]

@@ -917,7 +917,7 @@ impl Client {
     /// #   let client = Client::default();
     /// let filter = Filter::new().kind(Kind::TextNote).limit(10);
     ///
-    /// let events: Events = client
+    /// let events = client
     ///     .fetch_events(filter)
     ///     .timeout(Duration::from_secs(10)) // Custom timeout
     ///     .policy(ReqExitPolicy::WaitForEvents(10)) // Custom policy
@@ -949,7 +949,7 @@ impl Client {
     ///     vec![Filter::new().kind(Kind::Metadata).limit(5)],
     /// );
     ///
-    /// let events: Events = client
+    /// let events = client
     ///     .fetch_events(targets)
     ///     .timeout(Duration::from_secs(10))
     ///     .await?;

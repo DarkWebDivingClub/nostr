@@ -4,7 +4,6 @@ use std::time::Duration;
 
 use futures::StreamExt;
 use nostr::prelude::*;
-use nostr_database::prelude::*;
 use nostr_gossip::prelude::*;
 
 use super::{
@@ -178,7 +177,7 @@ impl Client {
         gossip: &Arc<dyn NostrGossip>,
         gossip_kinds: &[GossipListKind],
         outdated_public_keys: BTreeSet<PublicKey>,
-    ) -> Result<(Output<SyncSummary>, Events), Error> {
+    ) -> Result<(Output<SyncSummary>, BTreeSet<Event>), Error> {
         let mut kinds: Vec<Kind> = Vec::with_capacity(gossip_kinds.len());
 
         for gossip_kind in gossip_kinds {
@@ -204,7 +203,7 @@ impl Client {
             .direction(SyncDirection::Down);
         let output: Output<SyncSummary> = self.sync(filter.clone()).with(urls).opts(opts).await?;
 
-        let stored_events: Events = self.database().query(filter).await?;
+        let stored_events: BTreeSet<Event> = self.database().query(filter).await?;
 
         for event in stored_events.iter() {
             for gossip_kind in gossip_kinds {
@@ -229,7 +228,7 @@ impl Client {
         gossip: &Arc<dyn NostrGossip>,
         gossip_kinds: &[GossipListKind],
         output: &Output<SyncSummary>,
-        stored_events: &Events,
+        stored_events: &BTreeSet<Event>,
         missing_public_keys: &mut BTreeSet<PublicKey>,
     ) -> Result<(), Error> {
         let mut filters: Vec<Filter> = Vec::new();

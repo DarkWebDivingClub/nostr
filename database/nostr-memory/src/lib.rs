@@ -4,12 +4,12 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::bare_urls)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
-#![allow(clippy::mutable_key_type)] // TODO: remove when possible. Needed to suppress false positive for `BTreeSet<Event>`
 #![doc = include_str!("../README.md")]
 
 use core::future::Future;
 use core::num::NonZeroUsize;
 use core::pin::Pin;
+use std::collections::BTreeSet;
 
 use nostr::prelude::*;
 use nostr_database::error::Error;
@@ -63,8 +63,9 @@ impl MemoryDatabase {
 }
 
 impl NostrDatabase for MemoryDatabase {
-    fn backend(&self) -> Backend {
-        Backend::Memory
+    #[inline]
+    fn backend(&self) -> &'static str {
+        "in-memory"
     }
 
     fn features(&self) -> Features {
@@ -126,12 +127,10 @@ impl NostrDatabase for MemoryDatabase {
     fn query(
         &self,
         filter: Filter,
-    ) -> Pin<Box<dyn Future<Output = Result<Events, Error>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<BTreeSet<Event>, Error>> + Send + '_>> {
         Box::pin(async move {
             let store = self.store.read().await;
-            let mut events = Events::new(&filter);
-            events.extend(store.query(filter).cloned());
-            Ok(events)
+            Ok(store.query(filter).cloned().collect())
         })
     }
 

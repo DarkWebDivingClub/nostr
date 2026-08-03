@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::future::Future;
 use std::num::NonZeroUsize;
 use std::pin::Pin;
@@ -25,8 +26,9 @@ impl Default for MemoryEventsTracker {
 }
 
 impl NostrDatabase for MemoryEventsTracker {
-    fn backend(&self) -> Backend {
-        Backend::Custom(String::from("nostr-memory-events-tracker"))
+    #[inline]
+    fn backend(&self) -> &'static str {
+        "in-memory-events-tracker"
     }
 
     fn features(&self) -> Features {
@@ -82,9 +84,9 @@ impl NostrDatabase for MemoryEventsTracker {
 
     fn query(
         &self,
-        filter: Filter,
-    ) -> Pin<Box<dyn Future<Output = Result<Events, Error>> + Send + '_>> {
-        Box::pin(async move { Ok(Events::new(&filter)) })
+        _filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<BTreeSet<Event>, Error>> + Send + '_>> {
+        Box::pin(async move { Ok(BTreeSet::new()) })
     }
 
     fn negentropy_items(

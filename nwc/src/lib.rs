@@ -10,7 +10,7 @@
 #![warn(rustdoc::bare_urls)]
 #![allow(clippy::arc_with_non_send_sync)]
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -195,9 +195,11 @@ impl NostrWalletConnect {
     async fn get_wallet_cipher(&self) -> Option<Nip47Ciphers> {
         let filter = Filter::new()
             .kind(Kind::WalletConnectInfo)
-            .author(self.uri.public_key);
+            .author(self.uri.public_key)
+            .limit(1);
 
-        let info_event = self.client.fetch_events(filter).await.ok()?.first_owned()?;
+        let events: BTreeSet<Event> = self.client.fetch_events(filter).max_events(1).await.ok()?;
+        let info_event: Event = events.into_iter().next()?;
 
         info_event
             .tags
@@ -478,7 +480,8 @@ mod tests {
             .policy(ReqExitPolicy::WaitForEvents(1))
             .await
             .unwrap()
-            .first_owned()
+            .into_iter()
+            .next()
             .unwrap();
 
         let cipher = request

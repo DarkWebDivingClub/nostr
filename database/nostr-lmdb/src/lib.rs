@@ -8,8 +8,8 @@
 
 #![warn(missing_docs)]
 #![warn(rustdoc::bare_urls)]
-#![allow(clippy::mutable_key_type)]
 
+use std::collections::BTreeSet;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -173,8 +173,8 @@ impl NostrLmdb {
 
 impl NostrDatabase for NostrLmdb {
     #[inline]
-    fn backend(&self) -> Backend {
-        Backend::LMDB
+    fn backend(&self) -> &'static str {
+        "LMDB"
     }
 
     fn features(&self) -> Features {
@@ -217,7 +217,7 @@ impl NostrDatabase for NostrLmdb {
     fn query(
         &self,
         filter: Filter,
-    ) -> Pin<Box<dyn Future<Output = Result<Events, Error>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<BTreeSet<Event>, Error>> + Send + '_>> {
         Box::pin(async move { Ok(self.db.query(filter).await?) })
     }
 

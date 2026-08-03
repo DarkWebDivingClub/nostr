@@ -1837,7 +1837,6 @@ dependencies = [
 name = "nostr-database"
 version = "0.45.0-alpha.8"
 dependencies = [
- "btreecap",
  "nostr",
  "opaquerr",
 ]

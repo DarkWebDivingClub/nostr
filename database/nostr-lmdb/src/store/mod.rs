@@ -3,6 +3,7 @@
 // Copyright (c) 2023-2025 Rust Nostr Developers
 // Distributed under the MIT software license
 
+use std::collections::BTreeSet;
 use std::fs;
 
 use async_utility::task;
@@ -115,9 +116,9 @@ impl Store {
     }
 
     // Lookup ID: EVENT_ORD_IMPL
-    pub(super) async fn query(&self, filter: Filter) -> Result<Events, StoreError> {
+    pub(super) async fn query(&self, filter: Filter) -> Result<BTreeSet<Event>, StoreError> {
         self.interact(move |db| {
-            let mut events: Events = Events::new(&filter);
+            let mut events: BTreeSet<Event> = BTreeSet::new();
 
             let txn: RoTxn = db.read_txn()?;
             let output = db.query(&txn, filter)?;

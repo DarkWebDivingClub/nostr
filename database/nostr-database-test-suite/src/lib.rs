@@ -6,7 +6,7 @@ pub extern crate tokio;
 #[macro_export]
 macro_rules! database_unit_tests {
     ($store_type:ty, $setup_fn:expr, $setup_with_relay_url:expr) => {
-        use std::collections::HashSet;
+        use std::collections::{BTreeSet, HashSet};
         use std::ops::Deref;
         use std::time::Duration;
 
@@ -518,7 +518,7 @@ macro_rules! database_unit_tests {
                 .query(Filter::new().author(keys.public_key()).kind(Kind::Metadata))
                 .await
                 .expect("Failed to query events");
-            assert_eq!(events.to_vec(), vec![expected_event.clone()]);
+            assert_eq!(events, BTreeSet::from([expected_event.clone()]));
 
             // Check if number of events in database match the expected
             assert_eq!(count_all(&store).await, added_events + 1);
@@ -544,7 +544,7 @@ macro_rules! database_unit_tests {
                 .query(Filter::new().author(keys.public_key()).kind(Kind::Metadata))
                 .await
                 .unwrap();
-            assert_eq!(events.to_vec(), vec![new_expected_event]);
+            assert_eq!(events, BTreeSet::from([new_expected_event]));
 
             // Check if number of events in database match the expected
             assert_eq!(count_all(&store).await, added_events + 1);
@@ -573,7 +573,7 @@ macro_rules! database_unit_tests {
 
             // Test filter query
             let events = store.query(coordinate.clone().into()).await.unwrap();
-            assert_eq!(events.to_vec(), vec![expected_event.clone()]);
+            assert_eq!(events, BTreeSet::from([expected_event.clone()]));
 
             // Check if number of events in database match the expected
             assert_eq!(count_all(&store).await, added_events + 1);
@@ -598,7 +598,7 @@ macro_rules! database_unit_tests {
 
             // Test filter query
             let events = store.query(coordinate.into()).await.unwrap();
-            assert_eq!(events.to_vec(), vec![new_expected_event]);
+            assert_eq!(events, BTreeSet::from([new_expected_event]));
 
             // Check if number of events in database match the expected
             assert_eq!(count_all(&store).await, added_events + 1);
@@ -663,7 +663,7 @@ macro_rules! database_unit_tests {
 
             // Expected output after applying NIP-09 deletion validation
             // Events 7 and 11 are rejected for invalid deletion attempts
-            let expected_output = vec![
+            let expected_output = BTreeSet::from([
                 Event::from_json(EVENTS[13]).unwrap(), // Kind:30333 latest
                 Event::from_json(EVENTS[12]).unwrap(), // Kind:5 deletion
                 Event::from_json(EVENTS[8]).unwrap(),  // Kind:5 coordinate deletion
@@ -672,9 +672,9 @@ macro_rules! database_unit_tests {
                 Event::from_json(EVENTS[4]).unwrap(),  // Kind:32122 from different author
                 Event::from_json(EVENTS[1]).unwrap(),  // Kind:32121
                 Event::from_json(EVENTS[0]).unwrap(),  // Kind:1 text note
-            ];
+            ]);
 
-            let actual = store.query(Filter::new()).await.unwrap().to_vec();
+            let actual = store.query(Filter::new()).await.unwrap();
             assert_eq!(actual, expected_output);
             assert_eq!(count_all(&store).await, 8); // 8 events after deletion validation
         }

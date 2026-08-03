@@ -7,9 +7,9 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 #![warn(rustdoc::bare_urls)]
-#![allow(clippy::mutable_key_type)] // TODO: remove when possible. Needed to suppress false positive for async_trait
 
 use std::borrow::Cow;
+use std::collections::BTreeSet;
 use std::future::Future;
 use std::ops::{Deref, DerefMut};
 use std::path::Path;
@@ -75,8 +75,9 @@ impl From<Ndb> for NdbDatabase {
 }
 
 impl NostrDatabase for NdbDatabase {
-    fn backend(&self) -> Backend {
-        Backend::LMDB
+    #[inline]
+    fn backend(&self) -> &'static str {
+        "nostrdb (LMDB)"
     }
 
     fn features(&self) -> Features {
@@ -151,16 +152,14 @@ impl NostrDatabase for NdbDatabase {
     fn query(
         &self,
         filter: Filter,
-    ) -> Pin<Box<dyn Future<Output = Result<Events, Error>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<BTreeSet<Event>, Error>> + Send + '_>> {
         Box::pin(async move {
             let txn: Transaction = Transaction::new(&self.db).map_err(Error::storage)?;
-            let mut events: Events = Events::new(&filter);
             let res: Vec<QueryResult> = ndb_query(&self.db, &txn, &filter)?;
-            events.extend(
-                res.into_iter()
-                    .filter_map(|r| ndb_note_to_event(r.note).ok()),
-            );
-            Ok(events)
+            Ok(res
+                .into_iter()
+                .filter_map(|r| ndb_note_to_event(r.note).ok())
+                .collect())
         })
     }
 

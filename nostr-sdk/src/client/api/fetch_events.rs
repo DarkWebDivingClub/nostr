@@ -1,8 +1,9 @@
+use std::collections::BTreeSet;
 use std::future::IntoFuture;
 use std::time::Duration;
 
 use futures::StreamExt;
-use nostr_database::Events;
+use nostr::event::Event;
 
 use super::req_target::ReqTarget;
 use super::stream_events::StreamEvents;
@@ -64,7 +65,7 @@ impl<'client, 'url> IntoFuture for FetchEvents<'client, 'url>
 where
     'url: 'client,
 {
-    type Output = Result<Events, Error>;
+    type Output = Result<BTreeSet<Event>, Error>;
     type IntoFuture = BoxedFuture<'client, Self::Output>;
 
     fn into_future(self) -> Self::IntoFuture {
@@ -81,21 +82,20 @@ where
             // Execute stream
             let mut stream = stream.await?;
 
-            let mut events: Events = Events::default();
+            // Lookup ID: EVENT_ORD_IMPL
+            let mut events: BTreeSet<Event> = BTreeSet::new();
 
             // Collect events
             while let Some((url, result)) = stream.next().await {
                 // NOTE: not propagate the error here! A single error by any of the relays would stop the entire fetching process.
                 match result {
                     Ok(event) => {
-                        // To find out more about why the `force_insert` was used, search for EVENTS_FORCE_INSERT in the code.
-                        // Duplicates do not grow the set; reject new events before insertion.
                         if events.len() >= self.max_events && !events.contains(&event) {
                             // TODO: break the stream instead of returnin an error?
                             return Err(Error::limit_exceeded("too many fetched events"));
                         }
 
-                        events.force_insert(event);
+                        events.insert(event);
                     }
                     Err(e) => {
                         tracing::error!(url = %url, error = %e, "Failed to handle streamed event");

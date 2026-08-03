@@ -1,6 +1,7 @@
 //! Nostr SQLite database
 
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
 use std::future::Future;
 use std::path::Path;
 #[cfg(not(target_arch = "wasm32"))]
@@ -510,8 +511,9 @@ impl NostrSqlite {
 }
 
 impl NostrDatabase for NostrSqlite {
-    fn backend(&self) -> Backend {
-        Backend::SQLite
+    #[inline]
+    fn backend(&self) -> &'static str {
+        "SQLite"
     }
 
     fn features(&self) -> Features {
@@ -594,13 +596,13 @@ impl NostrDatabase for NostrSqlite {
     fn query(
         &self,
         filter: Filter,
-    ) -> Pin<Box<dyn Future<Output = Result<Events, Error>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<BTreeSet<Event>, Error>> + Send + '_>> {
         Box::pin(async move {
             let filter = with_limit(filter, EVENTS_QUERY_LIMIT);
             Ok(self
                 .pool
                 .interact(move |conn| {
-                    let mut events = Events::new(&filter);
+                    let mut events: BTreeSet<Event> = BTreeSet::new();
                     let query = build_filter(&filter, SqlSelectClause::Select);
                     let mut stmt = conn.prepare(&query.sql)?;
                     let rows = stmt.query_map(params_from_iter(query.params), EventDb::from_row)?;

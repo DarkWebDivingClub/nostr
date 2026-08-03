@@ -1,10 +1,10 @@
+use std::collections::BTreeSet;
 use std::future::IntoFuture;
 use std::time::Duration;
 
 use futures::StreamExt;
 use nostr::event::Event;
 use nostr::filter::Filter;
-use nostr_database::Events;
 
 use crate::error::Error;
 use crate::future::BoxedFuture;
@@ -57,20 +57,13 @@ impl<'relay> FetchEvents<'relay> {
 }
 
 impl<'relay> IntoFuture for FetchEvents<'relay> {
-    type Output = Result<Events, Error>;
+    type Output = Result<BTreeSet<Event>, Error>;
     type IntoFuture = BoxedFuture<'relay, Self::Output>;
 
     fn into_future(self) -> Self::IntoFuture {
         Box::pin(async move {
-            // Construct a new events collection
-            let mut events: Events = if self.filters.len() == 1 {
-                // SAFETY: this can't panic because the filters are already verified that list isn't empty.
-                let filter: &Filter = &self.filters[0];
-                Events::new(filter)
-            } else {
-                // More than a filter, so we can't ensure to respect the limit -> construct a default collection.
-                Events::default()
-            };
+            // Lookup ID: EVENT_ORD_IMPL
+            let mut events: BTreeSet<Event> = BTreeSet::new();
 
             // Stream events
             let mut stream = self
@@ -84,23 +77,11 @@ impl<'relay> IntoFuture for FetchEvents<'relay> {
                 // Get event from the result
                 let event: Event = res?;
 
-                // Use force insert here!
-                // Due to the configurable REQ exit policy, the user may want to wait for events after EOSE.
-                // If the filter has a limit, the force insert allows adding events post-EOSE.
-                //
-                // For example, if we use `Events::insert` here,
-                // if the filter is '{"kinds":[1],"limit":3}' and the policy `ReqExitPolicy::WaitForEventsAfterEOSE(1)`,
-                // the events collection will discard 1 event because the filter limit is 3 and the total received events are 4.
-                //
-                // Events::force_insert automatically increases the capacity if needed, without discarding events.
-                //
-                // LOOKUP_ID: EVENTS_FORCE_INSERT
-                // Duplicates do not grow the set; reject new events before insertion.
                 if events.len() >= self.max_events && !events.contains(&event) {
                     return Err(Error::limit_exceeded("too many fetched events"));
                 }
 
-                events.force_insert(event);
+                events.insert(event);
             }
 
             Ok(events)
