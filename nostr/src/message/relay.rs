@@ -676,6 +676,16 @@ mod tests {
             RelayMessage::event(SubscriptionId::new("random_string"), event)
         );
     }
+
+    /// A test to make sure we can parse NIP-67.
+    #[test]
+    fn parse_nip67() {
+        const MSG: &str = r#"["EOSE", "sub", ["finish"]]"#;
+        assert_eq!(
+            RelayMessage::EndOfStoredEvents(Cow::Owned(SubscriptionId::new("sub"))),
+            RelayMessage::from_json(MSG).unwrap()
+        );
+    }
 }
 
 #[cfg(bench)]
