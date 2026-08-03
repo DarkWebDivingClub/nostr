@@ -218,10 +218,25 @@ version = "2.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90dbd31c98227229239363921e60fcf5e558e43ec69094d46fc4996f08d1d5bc"
 dependencies = [
- "bitcoin_hashes",
+ "bitcoin_hashes 0.14.1",
  "serde",
  "unicode-normalization",
 ]
+
+[[package]]
+name = "bitcoin-consensus-encoding"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "207311705279250ba465076a1bac4b1ac982855fff73fc5f67e22158ac58cdc9"
+dependencies = [
+ "bitcoin-internals",
+]
+
+[[package]]
+name = "bitcoin-internals"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d573f4cf32996a8dce612e4348cece65a241f1882ed594047c9ba348e8869fa5"
 
 [[package]]
 name = "bitcoin-io"
@@ -236,7 +251,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26ec84b80c482df901772e931a9a681e26a1b9ee2302edeff23cb30328745c8b"
 dependencies = [
  "bitcoin-io",
- "hex-conservative",
+ "hex-conservative 0.2.2",
+]
+
+[[package]]
+name = "bitcoin_hashes"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a67800fcf7f3ca52f7796d4466948a424326b225950c79d1e76d0458760bb25d"
+dependencies = [
+ "bitcoin-consensus-encoding",
+ "bitcoin-internals",
+ "hex-conservative 1.2.0",
  "serde",
 ]
 
@@ -1091,6 +1117,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hex-conservative"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35431185f361ccf3ffc58254628af5f1f5d5f28531da2e02e5d6c82bbc282a10"
+dependencies = [
+ "arrayvec",
+]
+
+[[package]]
 name = "hmac"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1718,7 +1753,7 @@ dependencies = [
  "base64",
  "bech32",
  "bip39",
- "bitcoin_hashes",
+ "bitcoin_hashes 1.1.0",
  "cbc",
  "chacha20",
  "chacha20poly1305",
@@ -1742,7 +1777,7 @@ name = "nostr-blossom"
 version = "0.45.0-alpha.8"
 dependencies = [
  "base64",
- "bitcoin_hashes",
+ "bitcoin_hashes 1.1.0",
  "clap",
  "nostr",
  "opaquerr",
@@ -1902,7 +1937,7 @@ dependencies = [
  "async-utility",
  "async-wsocket",
  "base64",
- "bitcoin_hashes",
+ "bitcoin_hashes 1.1.0",
  "faster-hex",
  "futures",
  "hyper",
@@ -2678,7 +2713,7 @@ version = "0.30.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b50c5943d326858130af85e049f2661ba3c78b26589b8ab98e65e80ae44a1252"
 dependencies = [
- "bitcoin_hashes",
+ "bitcoin_hashes 0.14.1",
  "rand 0.8.5",
  "secp256k1-sys",
 ]

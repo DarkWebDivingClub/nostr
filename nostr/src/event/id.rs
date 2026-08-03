@@ -8,7 +8,6 @@ use alloc::string::{String, ToString};
 use core::fmt;
 use core::str::{self, FromStr};
 
-use bitcoin_hashes::Hash;
 use bitcoin_hashes::sha256::Hash as Sha256Hash;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Value, json};

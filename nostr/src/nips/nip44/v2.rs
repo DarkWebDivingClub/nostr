@@ -12,7 +12,7 @@ use core::fmt;
 use core::ops::{Deref, Range};
 
 use bitcoin_hashes::hmac::{Hmac, HmacEngine};
-use bitcoin_hashes::sha256::Hash as Sha256Hash;
+use bitcoin_hashes::sha256::{self, Hash as Sha256Hash};
 use bitcoin_hashes::{Hash, HashEngine};
 use chacha20::ChaCha20;
 use chacha20::cipher::{KeyIvInit, StreamCipher};
@@ -141,9 +141,13 @@ impl ConversationKey {
     /// Compose Conversation Key from bytes
     #[inline]
     pub fn from_slice(slice: &[u8]) -> Result<Self, Error> {
-        Ok(Self(
-            Hmac::from_slice(slice).map_err(Error::malformed_display)?,
-        ))
+        let bytes: [u8; 32] = slice.try_into().map_err(|_| {
+            Error::with_static_message(
+                ErrorKind::Malformed,
+                "conversation key must be 32 bytes long",
+            )
+        })?;
+        Ok(Self(Hmac::from_byte_array(bytes)))
     }
 
     /// Get Conversation Key as bytes
@@ -174,10 +178,10 @@ pub fn encrypt_to_bytes_with_nonce(
     cipher.apply_keystream(&mut buffer);
 
     // HMAC-SHA256
-    let mut engine: HmacEngine<Sha256Hash> = HmacEngine::new(keys.auth());
+    let mut engine: HmacEngine<sha256::HashEngine> = HmacEngine::new(keys.auth());
     engine.input(&nonce);
     engine.input(&buffer);
-    let hmac: [u8; 32] = Hmac::from_engine(engine).to_byte_array();
+    let hmac: [u8; 32] = engine.finalize().to_byte_array();
 
     // Compose payload
     let mut payload: Vec<u8> = vec![2]; // Version
@@ -220,10 +224,10 @@ pub fn decrypt_to_bytes(
     let keys: MessageKeys = get_message_keys(conversation_key, nonce)?;
 
     // Check HMAC-SHA256
-    let mut engine: HmacEngine<Sha256Hash> = HmacEngine::new(keys.auth());
+    let mut engine: HmacEngine<sha256::HashEngine> = HmacEngine::new(keys.auth());
     engine.input(nonce);
     engine.input(buffer);
-    let calculated_mac: [u8; HMAC_SIZE] = Hmac::from_engine(engine).to_byte_array();
+    let calculated_mac: [u8; HMAC_SIZE] = engine.finalize().to_byte_array();
     if mac != calculated_mac.as_slice() {
         return Err(ErrorV2::InvalidHmac.into());
     }
@@ -632,10 +636,10 @@ mod tests {
         let ciphertext: Vec<u8> = vec![0u8; ciphertext_len];
 
         // Produce a valid MAC, as a legitimate conversation participant can do.
-        let mut engine: HmacEngine<Sha256Hash> = HmacEngine::new(keys.auth());
+        let mut engine: HmacEngine<sha256::HashEngine> = HmacEngine::new(keys.auth());
         engine.input(&nonce);
         engine.input(&ciphertext);
-        let mac: [u8; 32] = Hmac::from_engine(engine).to_byte_array();
+        let mac: [u8; 32] = engine.finalize().to_byte_array();
 
         let mut payload: Vec<u8> = Vec::with_capacity(65 + ciphertext_len);
         payload.push(2); // NIP-44 v2
@@ -700,5 +704,18 @@ mod tests {
             decrypt_to_bytes(&conversation_key, &payload).unwrap(),
             plaintext
         );
+    }
+
+    #[test]
+    fn test_conversation_key_from_slice() {
+        let bytes: [u8; 32] = [0x42; 32];
+        let conversation_key = ConversationKey::from_slice(&bytes).unwrap();
+        assert_eq!(conversation_key.as_bytes(), &bytes[..]);
+
+        for len in [0, 31, 33, 64] {
+            let err = ConversationKey::from_slice(&vec![0x42; len]).unwrap_err();
+            assert_eq!(err.kind(), ErrorKind::Malformed);
+            assert_eq!(err.to_string(), "conversation key must be 32 bytes long");
+        }
     }
 }

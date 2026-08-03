@@ -123,9 +123,9 @@ pub struct Xpriv {
 impl Xpriv {
     /// Constructs a new master key from a seed value
     pub fn new_master(seed: &[u8]) -> Result<Xpriv, Error> {
-        let mut hmac_engine: HmacEngine<sha512::Hash> = HmacEngine::new(b"Bitcoin seed");
+        let mut hmac_engine: HmacEngine<sha512::HashEngine> = HmacEngine::new(b"Bitcoin seed");
         hmac_engine.input(seed);
-        let hmac_result: Hmac<sha512::Hash> = Hmac::from_engine(hmac_engine);
+        let hmac_result: Hmac<sha512::Hash> = hmac_engine.finalize();
 
         Ok(Xpriv {
             depth: 0,
@@ -149,7 +149,7 @@ impl Xpriv {
 
     /// Private->Private child key derivation
     fn ckd_priv<C: Signing>(&self, secp: &Secp256k1<C>, i: ChildNumber) -> Xpriv {
-        let mut hmac_engine: HmacEngine<sha512::Hash> = HmacEngine::new(&self.chain_code.0);
+        let mut hmac_engine: HmacEngine<sha512::HashEngine> = HmacEngine::new(&self.chain_code.0);
         match i {
             ChildNumber::Normal { .. } => {
                 // Non-hardened key: compute public data and use that
@@ -164,7 +164,7 @@ impl Xpriv {
         }
 
         hmac_engine.input(&i.as_u32().to_be_bytes());
-        let hmac_result: Hmac<sha512::Hash> = Hmac::from_engine(hmac_engine);
+        let hmac_result: Hmac<sha512::Hash> = hmac_engine.finalize();
         let sk = SecretKey::from_slice(&hmac_result.as_byte_array()[..32])
             .expect("statistically impossible to hit");
         let tweaked = sk

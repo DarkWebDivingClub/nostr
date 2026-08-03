@@ -115,6 +115,7 @@
 
 - Optimize NIP-21 URI parsing in `PublicKey::parse` (https://github.com/nostrdevkit/nostr/pull/1308)
 - Optimize event serialization by ~73% (https://github.com/nostrdevkit/nostr/pull/1319)
+- Hardware-accelerate SHA-256 where available (https://github.com/nostrdevkit/nostr/pull/1419)
 
 ### Security
 

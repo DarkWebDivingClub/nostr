@@ -7,15 +7,15 @@
 use alloc::vec::Vec;
 
 use bitcoin_hashes::hmac::{Hmac, HmacEngine};
-use bitcoin_hashes::sha256::Hash as Sha256Hash;
+use bitcoin_hashes::sha256::{self, Hash as Sha256Hash};
 use bitcoin_hashes::{Hash, HashEngine};
 
 /// HKDF extract
 #[inline]
 pub fn extract(salt: &[u8], input_key_material: &[u8]) -> Hmac<Sha256Hash> {
-    let mut engine: HmacEngine<Sha256Hash> = HmacEngine::new(salt);
+    let mut engine: HmacEngine<sha256::HashEngine> = HmacEngine::new(salt);
     engine.input(input_key_material);
-    Hmac::from_engine(engine)
+    engine.finalize()
 }
 
 /// HKDF expand
@@ -25,7 +25,7 @@ pub fn expand(prk: &[u8], info: &[u8], output_len: usize) -> Vec<u8> {
 
     let mut i: u8 = 1u8;
     while output.len() < output_len {
-        let mut engine: HmacEngine<Sha256Hash> = HmacEngine::new(prk);
+        let mut engine: HmacEngine<sha256::HashEngine> = HmacEngine::new(prk);
 
         if !t.is_empty() {
             engine.input(&t);
@@ -34,7 +34,7 @@ pub fn expand(prk: &[u8], info: &[u8], output_len: usize) -> Vec<u8> {
         engine.input(info);
         engine.input(&[i]);
 
-        t = Hmac::from_engine(engine).to_byte_array().to_vec();
+        t = engine.finalize().to_byte_array().to_vec();
         output.extend_from_slice(&t);
 
         i += 1;

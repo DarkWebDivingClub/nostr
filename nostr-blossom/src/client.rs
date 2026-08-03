@@ -4,7 +4,6 @@ use std::time::Duration;
 
 use base64::Engine;
 use base64::engine::general_purpose;
-use bitcoin_hashes::Hash;
 use bitcoin_hashes::sha256::Hash as Sha256Hash;
 use nostr::prelude::*;
 use nostr::types::Url;

@@ -17,8 +17,6 @@ use core::str::FromStr;
 
 #[cfg(feature = "std")]
 use base64::engine::{Engine, general_purpose};
-#[cfg(feature = "std")]
-use bitcoin_hashes::Hash;
 use bitcoin_hashes::sha256::Hash as Sha256Hash;
 use url::Url;
 

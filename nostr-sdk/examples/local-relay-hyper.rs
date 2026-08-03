@@ -7,8 +7,8 @@ use std::net::SocketAddr;
 use std::pin::Pin;
 
 use base64::prelude::*;
+use bitcoin_hashes::HashEngine;
 use bitcoin_hashes::sha1::Hash as Sha1Hash;
-use bitcoin_hashes::{Hash, HashEngine};
 use hyper::body::Incoming;
 use hyper::header::{CONNECTION, SEC_WEBSOCKET_ACCEPT, UPGRADE};
 use hyper::server::conn::http1;
