@@ -25,8 +25,8 @@ use crate::event::{
     Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
 };
 use crate::key::PublicKey;
+use crate::types::Timestamp;
 use crate::types::url::{RelayUrl, Url};
-use crate::types::{ImageDimensions, Timestamp};
 
 const TITLE: &str = "title";
 const SUMMARY: &str = "summary";
@@ -180,7 +180,7 @@ pub enum Nip53Tag {
     /// Summary
     Summary(String),
     /// Image
-    Image(Url, Option<ImageDimensions>),
+    Image(Url),
     /// Hashtag
     Hashtag(String),
     /// Streaming URL
@@ -231,9 +231,7 @@ impl TagCodec for Nip53Tag {
             SUMMARY => Ok(Self::Summary(take_string(&mut iter, "summary")?)),
             IMAGE => {
                 let image: Url = take_and_parse_from_str(&mut iter, "image URL")?;
-                let dimensions: Option<ImageDimensions> =
-                    take_and_parse_optional_from_str(&mut iter)?;
-                Ok(Self::Image(image, dimensions))
+                Ok(Self::Image(image))
             }
             "t" => {
                 let hashtag: String = take_string(&mut iter, "hashtag")?;
@@ -301,13 +299,7 @@ impl TagCodec for Nip53Tag {
         match self {
             Self::Title(title) => Tag::new(vec![String::from(TITLE), title.clone()]),
             Self::Summary(summary) => Tag::new(vec![String::from(SUMMARY), summary.clone()]),
-            Self::Image(image, dimensions) => {
-                let mut tag = vec![String::from(IMAGE), image.to_string()];
-                if let Some(dimensions) = dimensions {
-                    tag.push(dimensions.to_string());
-                }
-                Tag::new(tag)
-            }
+            Self::Image(image) => Tag::new(vec![String::from(IMAGE), image.to_string()]),
             Self::Hashtag(hashtag) => Tag::new(vec![String::from("t"), hashtag.clone()]),
             Self::Streaming(url) => Tag::new(vec![String::from(STREAMING), url.to_string()]),
             Self::Recording(url) => Tag::new(vec![String::from(RECORDING), url.to_string()]),
@@ -448,7 +440,7 @@ pub struct LiveEvent {
     /// Event summary
     pub summary: Option<String>,
     /// Event image
-    pub image: Option<(Url, Option<ImageDimensions>)>,
+    pub image: Option<Url>,
     /// Hashtags
     pub hashtags: Vec<String>,
     /// Streaming URL
@@ -595,7 +587,7 @@ impl LiveEvent {
         match tag {
             Nip53Tag::Title(title) => self.title = Some(title),
             Nip53Tag::Summary(summary) => self.summary = Some(summary),
-            Nip53Tag::Image(image, dim) => self.image = Some((image, dim)),
+            Nip53Tag::Image(image) => self.image = Some(image),
             Nip53Tag::Hashtag(hashtag) => self.hashtags.push(hashtag),
             Nip53Tag::Streaming(url) => self.streaming = Some(url),
             Nip53Tag::Recording(url) => self.recording = Some(url),
@@ -699,8 +691,8 @@ impl From<LiveEvent> for Vec<Tag> {
             tags.push(Nip53Tag::Summary(summary).to_tag());
         }
 
-        if let Some((image, dim)) = image {
-            tags.push(Nip53Tag::Image(image, dim).to_tag());
+        if let Some(image) = image {
+            tags.push(Nip53Tag::Image(image).to_tag());
         }
 
         for hashtag in hashtags.into_iter() {

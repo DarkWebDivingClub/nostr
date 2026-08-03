@@ -8,16 +8,14 @@
 
 use alloc::string::{String, ToString};
 use alloc::vec;
-use alloc::vec::Vec;
 
 use crate::error::Error;
 use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
 use crate::nips::util::{
-    missing_tag_kind, take_and_parse_from_str, take_and_parse_optional_from_str, take_string,
-    take_timestamp, unknown_tag,
+    missing_tag_kind, take_and_parse_from_str, take_string, take_timestamp, unknown_tag,
 };
+use crate::types::Timestamp;
 use crate::types::url::Url;
-use crate::types::{ImageDimensions, Timestamp};
 
 const TITLE: &str = "title";
 const IMAGE: &str = "image";
@@ -33,7 +31,7 @@ pub enum Nip23Tag {
     /// `title` tag
     Title(String),
     /// `image` tag
-    Image(Url, Option<ImageDimensions>),
+    Image(Url),
     /// `summary` tag
     Summary(String),
     /// `published_at` tag
@@ -57,8 +55,8 @@ impl TagCodec for Nip23Tag {
         match kind.as_ref() {
             TITLE => Ok(Self::Title(take_string(&mut iter, "title")?)),
             IMAGE => {
-                let (url, dimensions) = parse_image_tag(iter)?;
-                Ok(Self::Image(url, dimensions))
+                let url = parse_image_tag(iter)?;
+                Ok(Self::Image(url))
             }
             SUMMARY => Ok(Self::Summary(take_string(&mut iter, "summary")?)),
             PUBLISHED_AT => {
@@ -75,15 +73,7 @@ impl TagCodec for Nip23Tag {
     fn to_tag(&self) -> Tag {
         match self {
             Self::Title(title) => Tag::new(vec![String::from(TITLE), title.clone()]),
-            Self::Image(url, dimensions) => {
-                let mut tag: Vec<String> = Vec::with_capacity(2 + dimensions.is_some() as usize);
-                tag.push(String::from(IMAGE));
-                tag.push(url.to_string());
-                if let Some(dimensions) = dimensions {
-                    tag.push(dimensions.to_string());
-                }
-                Tag::new(tag)
-            }
+            Self::Image(url) => Tag::new(vec![String::from(IMAGE), url.to_string()]),
             Self::Summary(summary) => Tag::new(vec![String::from(SUMMARY), summary.clone()]),
             Self::PublishedAt(timestamp) => {
                 Tag::new(vec![String::from(PUBLISHED_AT), timestamp.to_string()])
@@ -95,15 +85,13 @@ impl TagCodec for Nip23Tag {
 
 impl_tag_codec_conversions!(Nip23Tag);
 
-fn parse_image_tag<T, S>(mut iter: T) -> Result<(Url, Option<ImageDimensions>), Error>
+fn parse_image_tag<T, S>(mut iter: T) -> Result<Url, Error>
 where
     T: Iterator<Item = S>,
     S: AsRef<str>,
 {
     let url: Url = take_and_parse_from_str(&mut iter, "image URL")?;
-    let dimensions: Option<ImageDimensions> = take_and_parse_optional_from_str(&mut iter)?;
-
-    Ok((url, dimensions))
+    Ok(url)
 }
 
 #[cfg(test)]
@@ -120,14 +108,11 @@ mod tests {
 
     #[test]
     fn test_parse_image_tag() {
-        let tag = vec!["image", "https://example.com/image.jpg", "1024x768"];
+        let tag = vec!["image", "https://example.com/image.jpg"];
         let parsed = Nip23Tag::parse(&tag).unwrap();
         assert_eq!(
             parsed,
-            Nip23Tag::Image(
-                Url::parse("https://example.com/image.jpg").unwrap(),
-                Some(ImageDimensions::new(1024, 768))
-            )
+            Nip23Tag::Image(Url::parse("https://example.com/image.jpg").unwrap())
         );
         assert_eq!(parsed.to_tag(), Tag::parse(tag).unwrap());
     }
