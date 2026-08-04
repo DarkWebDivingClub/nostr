@@ -160,6 +160,7 @@ mod tests {
 
     use async_wsocket::{ConnectionMode, Message, Url, WebSocket};
     use futures::{SinkExt, StreamExt};
+    use negentropy::{Negentropy, NegentropyStorageVector};
     use nostr::event::{EventBuilder, FinalizeEvent, Kind};
     use nostr::filter::Filter;
     use nostr::key::Keys;
@@ -256,6 +257,153 @@ mod tests {
         })
         .await
         .expect("timed out waiting for EOSE");
+    }
+
+    #[tokio::test]
+    async fn test_malformed_negentropy_messages_do_not_close_connection() {
+        let relay = LocalRelay::new();
+        relay.run().await.unwrap();
+
+        let url = Url::parse(relay.url().await.as_str()).unwrap();
+        let mut socket = WebSocket::connect(&url, &ConnectionMode::direct())
+            .await
+            .unwrap();
+
+        socket
+            .send(Message::Text(
+                r#"["NEG-OPEN","neg-odd",{},"abc"]"#.to_owned(),
+            ))
+            .await
+            .unwrap();
+        socket
+            .send(Message::Text(
+                r#"["NEG-OPEN","neg-nonhex",{},"zz"]"#.to_owned(),
+            ))
+            .await
+            .unwrap();
+        socket
+            .send(Message::Text(r#"["NEG-MSG","neg-msg","abc"]"#.to_owned()))
+            .await
+            .unwrap();
+        socket
+            .send(Message::Text(r#"["REQ","valid",{}]"#.to_owned()))
+            .await
+            .unwrap();
+
+        time::timeout(Duration::from_secs(1), async {
+            let mut neg_errors: usize = 0;
+
+            loop {
+                let message = socket
+                    .next()
+                    .await
+                    .expect("WebSocket connection terminated")
+                    .unwrap();
+
+                if let Message::Text(json) = message {
+                    match RelayMessage::from_json(json.as_bytes()).unwrap() {
+                        RelayMessage::NegErr { message, .. } => {
+                            assert_eq!(message, "error: invalid negentropy message");
+                            neg_errors += 1;
+                        }
+                        RelayMessage::EndOfStoredEvents(subscription_id)
+                            if subscription_id.as_str() == "valid" =>
+                        {
+                            assert_eq!(neg_errors, 3);
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        })
+        .await
+        .expect("timed out waiting for EOSE");
+    }
+
+    #[tokio::test]
+    async fn test_invalid_neg_msg_terminates_only_the_negentropy_subscription() {
+        let relay = LocalRelay::new();
+        relay.run().await.unwrap();
+
+        let url = Url::parse(relay.url().await.as_str()).unwrap();
+        let mut socket = WebSocket::connect(&url, &ConnectionMode::direct())
+            .await
+            .unwrap();
+
+        // Open a valid negentropy subscription
+        let mut storage = NegentropyStorageVector::new();
+        storage.seal().unwrap();
+        let mut negentropy = Negentropy::owned(storage, 60_000).unwrap();
+        let initial_message = faster_hex::hex_string(&negentropy.initiate().unwrap());
+        socket
+            .send(Message::Text(format!(
+                r#"["NEG-OPEN","neg",{{}},"{initial_message}"]"#
+            )))
+            .await
+            .unwrap();
+
+        let reply = socket.next().await.unwrap().unwrap();
+        let Message::Text(reply) = reply else {
+            panic!("unexpected websocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(reply.as_bytes()).unwrap(),
+            RelayMessage::NegMsg { .. }
+        ));
+
+        // A malformed payload must terminate only this negentropy subscription
+        socket
+            .send(Message::Text(r#"["NEG-MSG","neg","zz"]"#.to_owned()))
+            .await
+            .unwrap();
+
+        let neg_err = socket.next().await.unwrap().unwrap();
+        let Message::Text(neg_err) = neg_err else {
+            panic!("unexpected websocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(neg_err.as_bytes()).unwrap(),
+            RelayMessage::NegErr {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "neg"
+                && message == "error: invalid negentropy message"
+        ));
+
+        // The subscription is gone, but the connection keeps serving requests
+        socket
+            .send(Message::Text(r#"["NEG-MSG","neg","6100"]"#.to_owned()))
+            .await
+            .unwrap();
+
+        let neg_err = socket.next().await.unwrap().unwrap();
+        let Message::Text(neg_err) = neg_err else {
+            panic!("unexpected websocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(neg_err.as_bytes()).unwrap(),
+            RelayMessage::NegErr {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "neg"
+                && message == "error: subscription not found"
+        ));
+
+        socket
+            .send(Message::Text(r#"["REQ","valid",{}]"#.to_owned()))
+            .await
+            .unwrap();
+
+        let eose = socket.next().await.unwrap().unwrap();
+        let Message::Text(eose) = eose else {
+            panic!("unexpected websocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(eose.as_bytes()).unwrap(),
+            RelayMessage::EndOfStoredEvents(subscription_id)
+                if subscription_id.as_str() == "valid"
+        ));
     }
 
     #[tokio::test]

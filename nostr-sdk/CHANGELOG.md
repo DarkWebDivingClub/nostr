@@ -104,6 +104,7 @@
 ### Fixed
 
 - Fix subscription verification for multi-filter REQs (https://github.com/nostrdevkit/nostr/pull/1349)
+- Keep the local relay WebSocket open and reply with a subscription-scoped `NEG-ERR` when a `NEG-OPEN` or `NEG-MSG` payload is malformed
 
 ## v0.44.1 - 2025/11/09
 

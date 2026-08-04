@@ -999,6 +999,13 @@ impl InnerLocalRelay {
                     }
                 }
 
+                // Decode the initial message before any database work so a
+                // malformed payload is rejected with a subscription-scoped
+                // error before consuming query resources.
+                let Some(initial_message) = decode_negentropy_message(&initial_message) else {
+                    return send_invalid_negentropy_msg_err(ws_tx, subscription_id).await;
+                };
+
                 // Reopening the same ID replaces its index, so exclude its old budget.
                 let retained_items: usize = session
                     .negentropy_subscription
@@ -1052,15 +1059,16 @@ impl InnerLocalRelay {
                 // Construct negentropy client
                 let mut negentropy = Negentropy::owned(storage, 60_000)?;
 
-                let Some(size) = initial_message.len().checked_div(2) else {
-                    tracing::warn!("Can't divide initial negentropy message size");
-                    return Ok(());
-                };
-
                 // Reconcile
-                let mut buf: Vec<u8> = vec![0u8; size];
-                faster_hex::hex_decode(initial_message.as_bytes(), &mut buf)?;
-                let message: Vec<u8> = negentropy.reconcile(&buf)?;
+                // The payload is client-controlled: a reconciliation failure
+                // must terminate only this subscription, not the connection.
+                let message: Vec<u8> = match negentropy.reconcile(&initial_message) {
+                    Ok(message) => message,
+                    Err(e) => {
+                        tracing::debug!(id = %subscription_id, "Negentropy reconciliation failed: {e}");
+                        return send_invalid_negentropy_msg_err(ws_tx, subscription_id).await;
+                    }
+                };
 
                 // Reply
                 send_msg(
@@ -1092,17 +1100,27 @@ impl InnerLocalRelay {
                     return send_negentropy_rate_limit_error(ws_tx, subscription_id).await;
                 }
 
+                let Some(buf) = decode_negentropy_message(&message) else {
+                    // The failed round trip leaves the reconciliation state
+                    // unusable, so drop the subscription but keep the socket.
+                    session.negentropy_subscription.remove(&subscription_id);
+                    return send_invalid_negentropy_msg_err(ws_tx, subscription_id).await;
+                };
+
                 match session.negentropy_subscription.get_mut(&subscription_id) {
                     Some(subscription) => {
-                        let Some(size) = message.len().checked_div(2) else {
-                            tracing::warn!("Can't divide negentropy message size");
-                            return Ok(());
-                        };
-
                         // Reconcile
-                        let mut buf: Vec<u8> = vec![0u8; size];
-                        faster_hex::hex_decode(message.as_bytes(), &mut buf)?;
-                        let message: Vec<u8> = subscription.state.reconcile(&buf)?;
+                        // The payload is client-controlled: a reconciliation
+                        // failure must terminate only this subscription.
+                        let message: Vec<u8> = match subscription.state.reconcile(&buf) {
+                            Ok(message) => message,
+                            Err(e) => {
+                                tracing::debug!(id = %subscription_id, "Negentropy reconciliation failed: {e}");
+                                session.negentropy_subscription.remove(&subscription_id);
+                                return send_invalid_negentropy_msg_err(ws_tx, subscription_id)
+                                    .await;
+                            }
+                        };
 
                         // Reply
                         send_msg(
@@ -1557,6 +1575,40 @@ where
             subscription_id,
             message: Cow::Owned(format!(
                 "{}: you cannot request another user's gift wrap",
+                MachineReadablePrefix::Error
+            )),
+        },
+    )
+    .await
+}
+
+/// Decode a hex-encoded negentropy payload.
+///
+/// `faster_hex::hex_decode` requires a caller-sized output buffer, so
+/// odd-length input must be rejected explicitly before halving the length.
+fn decode_negentropy_message(message: &str) -> Option<Vec<u8>> {
+    let size: usize = message.len().checked_div(2)?;
+
+    let mut buf: Vec<u8> = vec![0u8; size];
+    faster_hex::hex_decode(message.as_bytes(), &mut buf).ok()?;
+
+    Some(buf)
+}
+
+#[inline]
+async fn send_invalid_negentropy_msg_err<S>(
+    tx: &mut WsTx<S>,
+    subscription_id: Cow<'_, SubscriptionId>,
+) -> Result<(), Error>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    send_msg(
+        tx,
+        RelayMessage::NegErr {
+            subscription_id,
+            message: Cow::Owned(format!(
+                "{}: invalid negentropy message",
                 MachineReadablePrefix::Error
             )),
         },
