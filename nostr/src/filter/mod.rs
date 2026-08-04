@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 mod single_letter;
 
 pub use self::single_letter::SingleLetterTag;
-use crate::event::{Event, EventId, Kind, Tag, TagsIndexes};
+use crate::event::{Event, EventId, Kind, Tag};
 use crate::key::PublicKey;
 use crate::nips::nip01::Coordinate;
 use crate::types::Timestamp;
@@ -625,8 +625,18 @@ impl Filter {
             return false;
         }
 
-        // Get tag indexes
-        let indexes: &TagsIndexes = event.tags.indexes();
+        // Make indexes
+        let mut indexes: BTreeMap<SingleLetterTag, BTreeSet<String>> = BTreeMap::new();
+        for (single_letter_tag, content) in event
+            .tags
+            .iter()
+            .filter_map(|t| Some((t.single_letter_tag()?, t.content()?)))
+        {
+            indexes
+                .entry(single_letter_tag)
+                .or_default()
+                .insert(content.to_string());
+        }
 
         // Match
         self.generic_tags.iter().all(|(tag_name, set)| {

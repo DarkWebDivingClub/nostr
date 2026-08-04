@@ -5,12 +5,9 @@
 //! Tags (tag list)
 
 #[cfg(not(feature = "std"))]
-use alloc::collections::btree_map::Entry;
-use alloc::collections::{BTreeMap, BTreeSet};
-use alloc::string::{String, ToString};
+use alloc::collections::btree_map::{BTreeMap, Entry};
+use alloc::string::String;
 use alloc::vec::{IntoIter, Vec};
-#[cfg(not(feature = "std"))]
-use core::cell::OnceCell;
 use core::cmp::Ordering;
 use core::fmt;
 use core::hash::{Hash, Hasher};
@@ -18,23 +15,17 @@ use core::ops::{Index, IndexMut};
 use core::slice::Iter;
 #[cfg(feature = "std")]
 use std::collections::hash_map::{Entry, HashMap};
-#[cfg(feature = "std")]
-use std::sync::OnceLock as OnceCell;
 
 use serde::ser::SerializeSeq;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::{Error, Tag};
 use crate::event::EventId;
-use crate::filter::SingleLetterTag;
 use crate::key::PublicKey;
 use crate::nips::nip01::{Coordinate, Nip01Tag};
 use crate::nips::nip40::Nip40Tag;
 use crate::nips::nip42::Nip42Tag;
 use crate::types::Timestamp;
-
-/// Tags Indexes
-pub type TagsIndexes = BTreeMap<SingleLetterTag, BTreeSet<String>>;
 
 struct DedupVal {
     // First index where the tag was seen
@@ -57,7 +48,6 @@ impl DedupVal {
 #[derive(Clone, Default)]
 pub struct Tags {
     list: Vec<Tag>,
-    indexes: OnceCell<TagsIndexes>,
 }
 
 impl fmt::Debug for Tags {
@@ -110,10 +100,7 @@ impl Tags {
     /// Construct a new empty collection.
     #[inline]
     pub fn new() -> Self {
-        Self {
-            list: Vec::new(),
-            indexes: OnceCell::new(),
-        }
+        Self { list: Vec::new() }
     }
 
     /// Constructs a new, empty collection with at least the specified capacity.
@@ -123,16 +110,12 @@ impl Tags {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             list: Vec::with_capacity(capacity),
-            indexes: OnceCell::new(),
         }
     }
 
     /// Construct the collection from a list of tags.
     pub fn from_list(list: Vec<Tag>) -> Self {
-        Self {
-            list,
-            indexes: OnceCell::new(),
-        }
+        Self { list }
     }
 
     /// Parse tags
@@ -167,26 +150,14 @@ impl Tags {
     /// Appends a [`Tag`] to the back of the collection.
     ///
     /// Check [`Vec::push`] doc to learn more.
-    ///
-    /// This erases the [`TagsIndexes`].
     pub fn push(&mut self, tag: Tag) {
-        // Erase indexes
-        self.erase_indexes();
-
-        // Append
         self.list.push(tag);
     }
 
     /// Removes the last [`Tag`] and returns it, or `None` if it's empty.
     ///
     /// Check [`Vec::pop`] doc to learn more.
-    ///
-    /// This erases the [`TagsIndexes`].
     pub fn pop(&mut self) -> Option<Tag> {
-        // Erase indexes
-        self.erase_indexes();
-
-        // Pop last item
         self.list.pop()
     }
 
@@ -197,16 +168,11 @@ impl Tags {
     /// Returns `false` if `index > len`.
     ///
     /// Check [`Vec::insert`] doc to learn more.
-    ///
-    /// This erases the [`TagsIndexes`].
     pub fn insert(&mut self, index: usize, tag: Tag) -> bool {
         // Check if `index` is bigger than collection len
         if index > self.list.len() {
             return false;
         }
-
-        // Erase indexes
-        self.erase_indexes();
 
         // Insert at position
         self.list.insert(index, tag);
@@ -219,16 +185,11 @@ impl Tags {
     /// shifting all tags after it to the left.
     ///
     /// Check [`Vec::remove`] doc to learn more.
-    ///
-    /// This erases the [`TagsIndexes`].
     pub fn remove(&mut self, index: usize) -> Option<Tag> {
         // Check if `index` is bigger than collection len
         if index > self.list.len() {
             return None;
         }
-
-        // Erase indexes
-        self.erase_indexes();
 
         // Remove from collection
         Some(self.list.remove(index))
@@ -237,16 +198,10 @@ impl Tags {
     /// Extends the collection.
     ///
     /// Check [`Vec::extend`] doc to learn more.
-    ///
-    /// This erases the [`TagsIndexes`].
     pub fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = Tag>,
     {
-        // Erase indexes
-        self.erase_indexes();
-
-        // Extend list
         self.list.extend(iter);
     }
 
@@ -255,16 +210,10 @@ impl Tags {
     /// In other words, remove all elements e for which `f(&e)` returns `false`.
     ///
     /// Check [`Vec::retain`] doc to learn more.
-    ///
-    /// This erases the [`TagsIndexes`].
     pub fn retain<F>(&mut self, mut f: F)
     where
         F: FnMut(&Tag) -> bool,
     {
-        // Erase indexes
-        self.erase_indexes();
-
-        // Retain tags
         self.list.retain(|t| f(t));
     }
 
@@ -302,9 +251,6 @@ impl Tags {
     /// assert_eq!(tags, expected_tags);
     /// ```
     pub fn dedup(&mut self) {
-        // Erase indexes
-        self.erase_indexes();
-
         // If there are no tags, nothing to do
         if self.list.is_empty() {
             return;
@@ -475,32 +421,6 @@ impl Tags {
 
             t.content()
         })
-    }
-
-    fn build_indexes(&self) -> TagsIndexes {
-        let mut idx: TagsIndexes = TagsIndexes::new();
-        for (single_letter_tag, content) in self
-            .iter()
-            .filter_map(|t| Some((t.single_letter_tag()?, t.content()?)))
-        {
-            idx.entry(single_letter_tag)
-                .or_default()
-                .insert(content.to_string());
-        }
-        idx
-    }
-
-    #[inline]
-    fn erase_indexes(&mut self) {
-        if self.indexes.get().is_some() {
-            self.indexes = OnceCell::new();
-        }
-    }
-
-    /// Get indexes
-    #[inline]
-    pub fn indexes(&self) -> &TagsIndexes {
-        self.indexes.get_or_init(|| self.build_indexes())
     }
 }
 
