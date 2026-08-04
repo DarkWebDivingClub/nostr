@@ -23,6 +23,7 @@ use super::secret_key::SecretKey;
 use crate::error::{Error, ErrorKind};
 use crate::nips::nip19::{FromBech32, PREFIX_BECH32_PROFILE, PREFIX_BECH32_PUBLIC_KEY};
 use crate::nips::nip21::{FromNostrUri, SCHEME_WITH_COLON};
+use crate::util;
 
 /// Get public key
 pub trait GetPublicKey: Any + Debug + Send + Sync {
@@ -121,8 +122,7 @@ impl PublicKey {
 
     /// Parse from hex string
     pub fn from_hex(hex: &str) -> Result<Self, Error> {
-        let mut bytes: [u8; Self::LEN] = [0u8; Self::LEN];
-        faster_hex::hex_decode(hex.as_bytes(), &mut bytes).map_err(Error::malformed_display)?;
+        let bytes: [u8; Self::LEN] = util::hex_decode(hex)?;
         Ok(Self::from_byte_array(bytes))
     }
 

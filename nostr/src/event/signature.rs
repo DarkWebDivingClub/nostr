@@ -5,6 +5,7 @@ use core::str::{self, FromStr};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::error::{Error, ErrorKind};
+use crate::util;
 
 const LEN: usize = 64;
 
@@ -21,8 +22,7 @@ impl Signature {
 
     /// Parse from hex string
     pub fn from_hex(hex: &str) -> Result<Self, Error> {
-        let mut bytes: [u8; LEN] = [0u8; LEN];
-        faster_hex::hex_decode(hex.as_bytes(), &mut bytes).map_err(Error::malformed_display)?;
+        let bytes: [u8; LEN] = util::hex_decode(hex)?;
         Ok(Self::from_byte_array(bytes))
     }
 

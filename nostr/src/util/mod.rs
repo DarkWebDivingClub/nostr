@@ -25,7 +25,6 @@ mod json;
 pub(crate) mod sha256;
 
 pub(crate) use self::json::{impl_json_methods, parse_json, parse_json_from_value};
-#[cfg(any(feature = "nip04", feature = "nip44"))]
 use crate::error::Error;
 #[cfg(any(feature = "nip04", feature = "nip44"))]
 use crate::key::{PublicKey, SecretKey};
@@ -56,6 +55,13 @@ where
 {
     let bytes: [u8; N] = random_bytes(rng);
     faster_hex::hex_string(&bytes)
+}
+
+#[inline]
+pub(crate) fn hex_decode<const SIZE: usize>(hex: &str) -> Result<[u8; SIZE], Error> {
+    let mut bytes: [u8; SIZE] = [0u8; SIZE];
+    faster_hex::hex_decode(hex.as_bytes(), &mut bytes).map_err(Error::malformed_display)?;
+    Ok(bytes)
 }
 
 /// Generate shared key

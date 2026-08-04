@@ -5,6 +5,7 @@ use core::str::{self, FromStr};
 use bitcoin_hashes::sha256;
 use serde::{Deserialize, Deserializer, Serialize};
 
+use super::hex_decode;
 use crate::error::Error;
 
 const SIZE: usize = 32;
@@ -23,8 +24,7 @@ impl Sha256Hash {
 
     /// Parse from hex string
     pub fn from_hex(hex: &str) -> Result<Self, Error> {
-        let mut bytes: [u8; SIZE] = [0u8; SIZE];
-        faster_hex::hex_decode(hex.as_bytes(), &mut bytes).map_err(Error::malformed_display)?;
+        let bytes: [u8; SIZE] = hex_decode(hex)?;
         Ok(Self::from_byte_array(bytes))
     }
 
