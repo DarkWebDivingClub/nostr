@@ -11,10 +11,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use super::util::{missing_tag_kind, take_string, unknown_tag};
-use crate::error::Error;
-use crate::event::{
-    EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
-};
+use crate::event::{EventBuilder, IntoEventBuilder, Kind, Tag, impl_tag_codec_conversions};
 
 const LANGUAGE: &str = "l";
 const NAME: &str = "name";
@@ -48,14 +45,9 @@ pub enum NipC0Tag {
     Repository(String),
 }
 
-impl TagCodec for NipC0Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    NipC0Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
 
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
@@ -75,7 +67,7 @@ impl TagCodec for NipC0Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::Language(language) => {
                 Tag::new(vec![String::from(LANGUAGE), language.to_lowercase()])
@@ -98,8 +90,6 @@ impl TagCodec for NipC0Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(NipC0Tag);
 
 /// Code snippet
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

@@ -13,7 +13,7 @@ use alloc::vec::Vec;
 use super::nip01::Coordinate;
 use super::util::{missing_tag_kind, take_string, unknown_tag};
 use crate::error::Error;
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{Tag, impl_tag_codec_conversions};
 use crate::types::url::RelayUrl;
 
 const CLIENT: &str = "client";
@@ -32,14 +32,9 @@ pub enum Nip89Tag {
     },
 }
 
-impl TagCodec for Nip89Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip89Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
 
@@ -52,7 +47,7 @@ impl TagCodec for Nip89Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::Client { name, address } => {
                 let mut tag: Vec<String> = vec![CLIENT.to_string(), name.clone()];
@@ -74,8 +69,6 @@ impl TagCodec for Nip89Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip89Tag);
 
 #[allow(clippy::type_complexity)]
 fn parse_client_tag<T, S>(

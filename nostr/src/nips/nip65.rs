@@ -12,9 +12,7 @@ use core::fmt;
 use core::str::FromStr;
 
 use crate::error::{Error, ErrorKind};
-use crate::event::{
-    Event, EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
-};
+use crate::event::{Event, EventBuilder, IntoEventBuilder, Kind, Tag, impl_tag_codec_conversions};
 use crate::nips::util::{missing_tag_kind, take_relay_url, unknown_tag};
 use crate::types::RelayUrl;
 
@@ -118,14 +116,9 @@ pub enum Nip65Tag {
     },
 }
 
-impl TagCodec for Nip65Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip65Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
 
@@ -147,7 +140,7 @@ impl TagCodec for Nip65Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::RelayMetadata {
                 relay_url,
@@ -167,8 +160,6 @@ impl TagCodec for Nip65Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip65Tag);
 
 /// Extracts the relay info (url, optional read/write flag) from the event
 #[inline]

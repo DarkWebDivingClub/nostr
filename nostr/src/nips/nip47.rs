@@ -26,7 +26,7 @@ use crate::error::{Error, ErrorKind};
 use crate::event::{Event, Kind};
 #[cfg(all(feature = "std", feature = "os-rng"))]
 use crate::event::{EventBuilder, FinalizeEvent};
-use crate::event::{Tag, TagCodec};
+use crate::event::{Tag, impl_tag_codec_conversions};
 #[cfg(all(feature = "std", feature = "os-rng"))]
 use crate::key::Keys;
 use crate::key::{PublicKey, SecretKey};
@@ -318,14 +318,9 @@ pub enum Nip47Tag {
     Encryption(Nip47Ciphers),
 }
 
-impl TagCodec for Nip47Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip47Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
 
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
@@ -339,14 +334,12 @@ impl TagCodec for Nip47Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Nip47Tag::Encryption(et) => Tag::new(vec![String::from(ENCRYPTION), et.to_string()]),
         }
     }
 }
-
-crate::impl_tag_codec_conversions!(Nip47Tag);
 
 /// Method
 #[derive(Debug, Clone)]

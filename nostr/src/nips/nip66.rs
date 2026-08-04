@@ -14,7 +14,7 @@ use core::time::Duration;
 
 use super::util::{missing_tag_kind, missing_value, take_string, unknown_tag};
 use crate::error::Error;
-use crate::event::{Kind, Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{Kind, Tag, impl_tag_codec_conversions};
 use crate::util::UnwrapInfallible;
 
 const RTT_OPEN: &str = "rtt-open";
@@ -65,14 +65,9 @@ pub enum Nip66Tag {
     Geohash(String),
 }
 
-impl TagCodec for Nip66Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip66Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
         match kind.as_ref() {
@@ -114,7 +109,7 @@ impl TagCodec for Nip66Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::RttOpen(time) => {
                 Tag::new(vec![RTT_OPEN.to_owned(), time.as_millis().to_string()])
@@ -376,8 +371,6 @@ impl<'a> BoolTag<'a> {
         format!("{}{value}", if yes { "" } else { Self::NEGATION })
     }
 }
-
-impl_tag_codec_conversions!(Nip66Tag);
 
 #[cfg(test)]
 mod tests {

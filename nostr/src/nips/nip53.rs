@@ -22,7 +22,7 @@ use super::util::{
 };
 use crate::error::{Error, ErrorKind};
 use crate::event::{
-    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, impl_tag_codec_conversions,
 };
 use crate::key::PublicKey;
 use crate::types::Timestamp;
@@ -215,14 +215,9 @@ pub enum Nip53Tag {
     Hand(bool),
 }
 
-impl TagCodec for Nip53Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip53Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
 
@@ -295,7 +290,7 @@ impl TagCodec for Nip53Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::Title(title) => Tag::new(vec![String::from(TITLE), title.clone()]),
             Self::Summary(summary) => Tag::new(vec![String::from(SUMMARY), summary.clone()]),
@@ -360,8 +355,6 @@ impl TagCodec for Nip53Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip53Tag);
 
 fn parse_p_tag<T, S>(mut iter: T) -> Result<Nip53Tag, Error>
 where
@@ -514,13 +507,10 @@ impl IntoEventBuilder for LiveEventMessageBuilder {
     fn into_event_builder(self) -> EventBuilder {
         let coordinate =
             Coordinate::new(Kind::LiveEvent, self.live_event_host).identifier(self.live_event_id);
-        EventBuilder::new(Kind::LiveEventMessage, self.content).tag(
-            Nip01Tag::Coordinate {
-                coordinate,
-                relay_hint: self.relay_hint,
-            }
-            .to_tag(),
-        )
+        EventBuilder::new(Kind::LiveEventMessage, self.content).tag(Nip01Tag::Coordinate {
+            coordinate,
+            relay_hint: self.relay_hint,
+        })
     }
 }
 

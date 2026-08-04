@@ -13,7 +13,7 @@ use core::str::FromStr;
 
 use super::util::{missing_tag_kind, take_string, unknown_tag};
 use crate::error::{Error, ErrorKind};
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{Tag, impl_tag_codec_conversions};
 
 const IDENTITY: &str = "i";
 
@@ -113,14 +113,9 @@ pub enum Nip39Tag {
     Identity(Identity),
 }
 
-impl TagCodec for Nip39Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip39Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
 
@@ -135,7 +130,7 @@ impl TagCodec for Nip39Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::Identity(identity) => Tag::new(vec![
                 String::from(IDENTITY),
@@ -145,8 +140,6 @@ impl TagCodec for Nip39Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip39Tag);
 
 #[cfg(test)]
 mod tests {

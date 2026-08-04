@@ -3,7 +3,7 @@
 use std::fmt;
 
 use bitcoin_hashes::sha256::Hash as Sha256Hash;
-use nostr::event::{EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec};
+use nostr::event::{EventBuilder, IntoEventBuilder, Kind, Tag};
 use nostr::nips::nipb7::NipB7Tag;
 use nostr::types::{Timestamp, Url};
 
@@ -97,7 +97,7 @@ impl IntoEventBuilder for BlossomAuthorization {
                 }
             }
             BlossomAuthorizationScope::ServerUrl(url) => {
-                tags.push(NipB7Tag::Server(url).to_tag());
+                tags.push(NipB7Tag::Server(url).into());
             }
         }
 

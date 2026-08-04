@@ -13,9 +13,8 @@ use super::nip30::Nip30Tag;
 use super::util::{
     missing_tag_kind, take_event_id, take_public_key, take_relay_url, take_string, unknown_tag,
 };
-use crate::error::Error;
 use crate::event::{
-    EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+    EventBuilder, EventId, IntoEventBuilder, Kind, Tag, impl_tag_codec_conversions,
 };
 use crate::key::PublicKey;
 use crate::types::url::{RelayUrl, Url};
@@ -43,14 +42,9 @@ pub enum Nip51Tag {
     Word(String),
 }
 
-impl TagCodec for Nip51Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip51Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
 
@@ -76,7 +70,7 @@ impl TagCodec for Nip51Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::PublicKey(public_key) => {
                 Tag::new(vec![String::from(PUBLIC_KEY), public_key.to_hex()])
@@ -88,8 +82,6 @@ impl TagCodec for Nip51Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip51Tag);
 
 /// Things the user doesn't want to see in their feeds
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -353,7 +345,7 @@ impl BlockedRelays {
 impl IntoEventBuilder for BlockedRelays {
     fn into_event_builder(self) -> EventBuilder {
         EventBuilder::new(Kind::BlockedRelays, "")
-            .tags(self.relays.into_iter().map(Nip51Tag::Relay).map(Into::into))
+            .tags(self.relays.into_iter().map(Nip51Tag::Relay))
     }
 }
 
@@ -377,8 +369,7 @@ impl SearchRelays {
 
 impl IntoEventBuilder for SearchRelays {
     fn into_event_builder(self) -> EventBuilder {
-        EventBuilder::new(Kind::SearchRelays, "")
-            .tags(self.relays.into_iter().map(Nip51Tag::Relay).map(Into::into))
+        EventBuilder::new(Kind::SearchRelays, "").tags(self.relays.into_iter().map(Nip51Tag::Relay))
     }
 }
 

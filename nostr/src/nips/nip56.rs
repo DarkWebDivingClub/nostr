@@ -15,7 +15,7 @@ use super::util::{
     missing_tag_kind, take_and_parse_from_str, take_event_id, take_public_key, unknown_tag,
 };
 use crate::error::{Error, ErrorKind};
-use crate::event::{EventId, Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{EventId, Tag, impl_tag_codec_conversions};
 use crate::key::PublicKey;
 
 #[inline]
@@ -103,14 +103,9 @@ pub enum Nip56Tag {
     },
 }
 
-impl TagCodec for Nip56Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip56Tag,
+    fn parse(tag) {
         // Take iterator
         let mut iter = tag.into_iter();
 
@@ -131,7 +126,7 @@ impl TagCodec for Nip56Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::Event { id, report } => {
                 Tag::new(vec![String::from("e"), id.to_hex(), report.to_string()])
@@ -144,8 +139,6 @@ impl TagCodec for Nip56Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip56Tag);
 
 fn parse_e_tag<T, S>(mut iter: T) -> Result<(EventId, Report), Error>
 where

@@ -26,9 +26,7 @@ use crate::error::{Error, ErrorKind};
 use crate::event::Event;
 #[cfg(all(feature = "std", feature = "rand"))]
 use crate::event::{AsyncSignEvent, FinalizeEventAsync};
-use crate::event::{
-    EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
-};
+use crate::event::{EventBuilder, IntoEventBuilder, Kind, Tag, impl_tag_codec_conversions};
 #[cfg(all(feature = "std", feature = "rand"))]
 use crate::key::AsyncGetPublicKey;
 #[cfg(feature = "std")]
@@ -173,14 +171,9 @@ pub enum Nip98Tag {
     Payload(Sha256Hash),
 }
 
-impl TagCodec for Nip98Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip98Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
 
@@ -201,7 +194,7 @@ impl TagCodec for Nip98Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::AbsoluteURL(url) => Tag::new(vec![String::from(ABSOLUTE_URL), url.to_string()]),
             Self::Method(method) => Tag::new(vec![String::from(METHOD), method.to_string()]),
@@ -209,8 +202,6 @@ impl TagCodec for Nip98Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip98Tag);
 
 impl HttpData {
     /// New [`HttpData`]

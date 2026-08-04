@@ -24,15 +24,14 @@ use super::nip44::{AsyncNip44, Nip44};
 #[cfg(all(feature = "std", feature = "os-rng", feature = "nip59"))]
 use super::nip59::GiftWrapBuilder;
 use super::util::{missing_tag_kind, take_relay_url, unknown_tag};
+#[cfg(all(feature = "std", feature = "os-rng", feature = "nip59"))]
 use crate::error::Error;
 #[cfg(all(feature = "std", feature = "os-rng", feature = "nip59"))]
 use crate::event::{
     AsyncSignEvent, FinalizeEvent, FinalizeEventAsync, FinalizeUnsignedEvent, SignEvent,
     UnsignedEvent,
 };
-use crate::event::{
-    Event, EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
-};
+use crate::event::{Event, EventBuilder, IntoEventBuilder, Kind, Tag, impl_tag_codec_conversions};
 use crate::key::PublicKey;
 #[cfg(all(feature = "std", feature = "os-rng", feature = "nip59"))]
 use crate::key::{AsyncGetPublicKey, GetPublicKey};
@@ -60,8 +59,7 @@ impl InboxRelayList {
 
 impl IntoEventBuilder for InboxRelayList {
     fn into_event_builder(self) -> EventBuilder {
-        EventBuilder::new(Kind::InboxRelays, "")
-            .tags(self.relays.into_iter().map(Nip17Tag::Relay).map(Into::into))
+        EventBuilder::new(Kind::InboxRelays, "").tags(self.relays.into_iter().map(Nip17Tag::Relay))
     }
 }
 
@@ -229,14 +227,9 @@ pub enum Nip17Tag {
     Relay(RelayUrl),
 }
 
-impl TagCodec for Nip17Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip17Tag,
+    fn parse(tag) {
         // Take iterator
         let mut iter = tag.into_iter();
 
@@ -253,14 +246,12 @@ impl TagCodec for Nip17Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         let Self::Relay(url) = self;
         let tag: Vec<String> = vec![String::from(RELAY), url.to_string()];
         Tag::new(tag)
     }
 }
-
-impl_tag_codec_conversions!(Nip17Tag);
 
 /// Extracts the relay list
 ///

@@ -14,9 +14,7 @@ use super::util::{
     unknown_tag,
 };
 use crate::error::Error;
-use crate::event::{
-    EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
-};
+use crate::event::{EventBuilder, IntoEventBuilder, Kind, Tag, impl_tag_codec_conversions};
 use crate::key::PublicKey;
 use crate::types::url::RelayUrl;
 
@@ -71,14 +69,9 @@ pub enum Nip02Tag {
     },
 }
 
-impl TagCodec for Nip02Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip02Tag,
+    fn parse(tag) {
         // Take iterator
         let mut iter = tag.into_iter();
 
@@ -99,7 +92,7 @@ impl TagCodec for Nip02Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         let Self::PublicKey {
             public_key,
             relay_hint,
@@ -124,8 +117,6 @@ impl TagCodec for Nip02Tag {
         Tag::new(tag)
     }
 }
-
-impl_tag_codec_conversions!(Nip02Tag);
 
 fn parse_p_tag<T, S>(mut iter: T) -> Result<(PublicKey, Option<RelayUrl>, Option<String>), Error>
 where

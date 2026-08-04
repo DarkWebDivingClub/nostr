@@ -11,10 +11,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use super::util::{missing_tag_kind, take_and_parse_from_str, unknown_tag};
-use crate::error::Error;
-use crate::event::{
-    EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
-};
+use crate::event::{EventBuilder, IntoEventBuilder, Kind, Tag, impl_tag_codec_conversions};
 use crate::types::url::Url;
 
 const SERVER: &str = "server";
@@ -39,12 +36,8 @@ impl BlossomServerList {
 
 impl IntoEventBuilder for BlossomServerList {
     fn into_event_builder(self) -> EventBuilder {
-        EventBuilder::new(Kind::BlossomServerList, "").tags(
-            self.servers
-                .into_iter()
-                .map(NipB7Tag::Server)
-                .map(Into::into),
-        )
+        EventBuilder::new(Kind::BlossomServerList, "")
+            .tags(self.servers.into_iter().map(NipB7Tag::Server))
     }
 }
 
@@ -57,14 +50,9 @@ pub enum NipB7Tag {
     Server(Url),
 }
 
-impl TagCodec for NipB7Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    NipB7Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
 
@@ -77,7 +65,7 @@ impl TagCodec for NipB7Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::Server(server_url) => {
                 Tag::new(vec![String::from(SERVER), server_url.to_string()])
@@ -85,8 +73,6 @@ impl TagCodec for NipB7Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(NipB7Tag);
 
 #[cfg(test)]
 mod tests {

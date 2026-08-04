@@ -10,10 +10,8 @@ use alloc::string::{String, ToString};
 
 use super::nip01::{Coordinate, Nip01Tag};
 use super::util::{missing_tag_kind, take_and_parse_from_str, unknown_tag};
-use crate::error::Error;
 use crate::event::{
-    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, Tags,
-    impl_tag_codec_conversions,
+    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, Tags, impl_tag_codec_conversions,
 };
 use crate::key::PublicKey;
 use crate::types::RelayUrl;
@@ -27,14 +25,9 @@ pub enum Nip25Tag {
     Kind(Kind),
 }
 
-impl TagCodec for Nip25Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip25Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
 
@@ -47,14 +40,12 @@ impl TagCodec for Nip25Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::Kind(kind) => Tag::new(vec![String::from("k"), kind.to_string()]),
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip25Tag);
 
 /// Reaction target
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

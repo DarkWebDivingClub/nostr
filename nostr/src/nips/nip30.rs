@@ -15,7 +15,7 @@ use super::util::{
     unknown_tag,
 };
 use crate::error::{Error, ErrorKind};
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{Tag, impl_tag_codec_conversions};
 use crate::types::url::Url;
 
 const EMOJI: &str = "emoji";
@@ -36,14 +36,9 @@ pub enum Nip30Tag {
     },
 }
 
-impl TagCodec for Nip30Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip30Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
 
@@ -60,7 +55,7 @@ impl TagCodec for Nip30Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::Emoji {
                 shortcode,
@@ -81,8 +76,6 @@ impl TagCodec for Nip30Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip30Tag);
 
 fn parse_emoji_tag<T, S>(mut iter: T) -> Result<(String, Url, Option<Coordinate>), Error>
 where

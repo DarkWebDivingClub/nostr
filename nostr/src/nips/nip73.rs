@@ -16,7 +16,7 @@ use super::util::{
     missing_tag_kind, take_and_parse_from_str, take_and_parse_optional_from_str, unknown_tag,
 };
 use crate::error::{Error, ErrorKind};
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{Tag, impl_tag_codec_conversions};
 use crate::types::Url;
 
 const HASHTAG: &str = "#";
@@ -309,14 +309,9 @@ pub enum Nip73Tag {
     Kind(Nip73Kind),
 }
 
-impl TagCodec for Nip73Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip73Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
 
@@ -333,15 +328,13 @@ impl TagCodec for Nip73Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::ExternalContent { content, hint } => serialize_i_tag(content, hint.as_ref()),
             Self::Kind(kind) => serialize_k_tag(kind),
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip73Tag);
 
 pub(super) fn parse_i_tag<T, S>(mut iter: T) -> Result<(ExternalContentId, Option<Url>), Error>
 where

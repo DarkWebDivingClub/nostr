@@ -22,7 +22,7 @@ use super::util::{
 };
 use crate::error::{Error, ErrorKind};
 use crate::event::{
-    EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+    EventBuilder, EventId, IntoEventBuilder, Kind, Tag, impl_tag_codec_conversions,
 };
 use crate::key::PublicKey;
 use crate::types::url::Url;
@@ -121,14 +121,9 @@ pub enum Nip34Tag {
     Web(Vec<Url>),
 }
 
-impl TagCodec for Nip34Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip34Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
         let kind: &str = kind.as_ref();
@@ -231,7 +226,7 @@ impl TagCodec for Nip34Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::AppliedAsCommits(commits) => {
                 let mut tag: Vec<String> = Vec::with_capacity(1 + commits.len());
@@ -315,8 +310,6 @@ impl TagCodec for Nip34Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip34Tag);
 
 fn parse_commit_list<I, S>(iter: I) -> Result<Vec<Sha1Hash>, Error>
 where

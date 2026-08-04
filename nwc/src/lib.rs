@@ -17,7 +17,6 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::time::Duration;
 
 use futures_core::Stream;
-use nostr::event::TagCodec;
 use nostr::nips::nip47::{
     ListTransactionsRequest, LookupInvoiceRequest, MakeInvoiceRequest, Nip47Ciphers, Nip47Tag,
     NostrWalletConnectUri, Notification, PayInvoiceRequest, PayKeysendRequest, Request, Response,
@@ -203,7 +202,7 @@ impl NostrWalletConnect {
         info_event
             .tags
             .iter()
-            .find_map(|t| match Nip47Tag::parse(t.as_slice()).ok()? {
+            .find_map(|t| match Nip47Tag::try_from(t).ok()? {
                 Nip47Tag::Encryption(et) => Some(et.latest()),
             })
     }
@@ -463,7 +462,7 @@ mod tests {
 
         if let Some(ciphers) = advertise_ciphers {
             let event = EventBuilder::new(Kind::WalletConnectInfo, "")
-                .tag(Nip47Tag::Encryption(ciphers).to_tag())
+                .tag(Nip47Tag::Encryption(ciphers))
                 .finalize(&wkeys)
                 .unwrap();
             client.send_event(&event).await.unwrap();
@@ -485,7 +484,7 @@ mod tests {
         let cipher = request
             .tags
             .iter()
-            .find_map(|tag| match Nip47Tag::parse(tag.as_slice()).ok()? {
+            .find_map(|tag| match Nip47Tag::try_from(tag).ok()? {
                 Nip47Tag::Encryption(ciphers) => Some(ciphers),
             })
             .unwrap_or(Nip47Ciphers::NIP04);

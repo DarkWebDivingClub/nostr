@@ -11,10 +11,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use super::util::{missing_tag_kind, take_string, take_timestamp, unknown_tag};
-use crate::error::Error;
-use crate::event::{
-    EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
-};
+use crate::event::{EventBuilder, IntoEventBuilder, Kind, Tag, impl_tag_codec_conversions};
 use crate::types::Timestamp;
 
 const URL: &str = "d";
@@ -37,14 +34,9 @@ pub enum NipB0Tag {
     Hashtag(String),
 }
 
-impl TagCodec for NipB0Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    NipB0Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
 
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
@@ -63,7 +55,7 @@ impl TagCodec for NipB0Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::Url(url) => Tag::new(vec![String::from(URL), url.clone()]),
             Self::PublishedAt(timestamp) => {
@@ -74,8 +66,6 @@ impl TagCodec for NipB0Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(NipB0Tag);
 
 /// Web Bookmark
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

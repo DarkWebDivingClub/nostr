@@ -17,7 +17,7 @@ use super::util::{
 };
 use crate::error::Error;
 use crate::event::{
-    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, impl_tag_codec_conversions,
 };
 use crate::key::PublicKey;
 use crate::types::RelayUrl;
@@ -66,14 +66,9 @@ pub enum Nip57Tag {
     },
 }
 
-impl TagCodec for Nip57Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip57Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
 
@@ -103,7 +98,7 @@ impl TagCodec for Nip57Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::Relays(relays) => {
                 let mut tag: Vec<String> = Vec::with_capacity(relays.len() + 1);
@@ -145,8 +140,6 @@ impl TagCodec for Nip57Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip57Tag);
 
 fn parse_relays<T, S>(iter: T) -> Result<Vec<RelayUrl>, Error>
 where

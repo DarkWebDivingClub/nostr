@@ -7,7 +7,7 @@ use super::super::util::{
     take_coordinate, take_event_id, take_public_key, take_string, unknown_tag,
 };
 use super::{Coordinate, Error};
-use crate::event::{EventId, Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{EventId, Tag, impl_tag_codec_conversions};
 use crate::key::PublicKey;
 use crate::types::RelayUrl;
 
@@ -43,14 +43,9 @@ pub enum Nip01Tag {
     },
 }
 
-impl TagCodec for Nip01Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip01Tag,
+    fn parse(tag) {
         // Take iterator
         let mut iter = tag.into_iter();
 
@@ -86,7 +81,7 @@ impl TagCodec for Nip01Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::Coordinate {
                 coordinate,
@@ -107,8 +102,6 @@ impl TagCodec for Nip01Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip01Tag);
 
 pub(in super::super) fn parse_a_tag<T, S>(
     mut iter: T,

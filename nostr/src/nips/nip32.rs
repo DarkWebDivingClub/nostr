@@ -10,10 +10,7 @@ use alloc::string::String;
 use alloc::vec;
 
 use super::util::{missing_tag_kind, take_string, unknown_tag};
-use crate::error::Error;
-use crate::event::{
-    EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
-};
+use crate::event::{EventBuilder, IntoEventBuilder, Kind, Tag, impl_tag_codec_conversions};
 
 /// Label event.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -65,14 +62,9 @@ pub enum Nip32Tag {
     },
 }
 
-impl TagCodec for Nip32Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip32Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
 
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
@@ -92,7 +84,7 @@ impl TagCodec for Nip32Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::LabelNamespace(namespace) => Tag::new(vec![String::from("L"), namespace.clone()]),
             Self::Label { value, namespace } => {
@@ -101,8 +93,6 @@ impl TagCodec for Nip32Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip32Tag);
 
 #[cfg(test)]
 mod tests {

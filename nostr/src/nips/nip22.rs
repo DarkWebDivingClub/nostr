@@ -15,7 +15,7 @@ use url::Url;
 
 use crate::error::Error;
 use crate::event::{
-    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, impl_tag_codec_conversions,
 };
 use crate::key::PublicKey;
 use crate::nips::nip01::{self, Coordinate};
@@ -82,14 +82,9 @@ pub enum Nip22Tag {
     },
 }
 
-impl TagCodec for Nip22Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip22Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
 
@@ -108,7 +103,7 @@ impl TagCodec for Nip22Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::Coordinate {
                 coordinate,
@@ -154,8 +149,6 @@ impl TagCodec for Nip22Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip22Tag);
 
 /// Comment target
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

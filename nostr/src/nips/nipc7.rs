@@ -13,7 +13,7 @@ use super::nip18::Nip18Tag;
 use super::nip19::Nip19Event;
 use super::nip21::ToNostrUri;
 use crate::error::Error;
-use crate::event::{Event, EventBuilder, EventId, IntoEventBuilder, Kind, TagCodec};
+use crate::event::{Event, EventBuilder, EventId, IntoEventBuilder, Kind};
 use crate::key::PublicKey;
 use crate::parser::{NostrParser, NostrParserOptions, Token};
 use crate::types::RelayUrl;
@@ -56,14 +56,11 @@ impl ChatMessageReply {
 
 impl IntoEventBuilder for ChatMessageReply {
     fn into_event_builder(self) -> EventBuilder {
-        EventBuilder::new(Kind::ChatMessage, self.content).tag(
-            Nip18Tag::Quote {
-                id: self.reply_to,
-                relay_hint: self.relay_hint,
-                public_key: Some(self.reply_to_author),
-            }
-            .to_tag(),
-        )
+        EventBuilder::new(Kind::ChatMessage, self.content).tag(Nip18Tag::Quote {
+            id: self.reply_to,
+            relay_hint: self.relay_hint,
+            public_key: Some(self.reply_to_author),
+        })
     }
 }
 

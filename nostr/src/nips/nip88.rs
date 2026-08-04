@@ -17,7 +17,7 @@ use super::util::{
 };
 use crate::error::{Error, ErrorKind};
 use crate::event::{
-    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, impl_tag_codec_conversions,
 };
 use crate::types::{RelayUrl, Timestamp};
 
@@ -95,14 +95,9 @@ pub enum Nip88Tag {
     PollEndsAt(Timestamp),
 }
 
-impl TagCodec for Nip88Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip88Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
 
@@ -128,7 +123,7 @@ impl TagCodec for Nip88Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::PollOption(option) => Tag::new(vec![
                 String::from(POLL_OPTION),
@@ -148,8 +143,6 @@ impl TagCodec for Nip88Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip88Tag);
 
 /// Poll
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

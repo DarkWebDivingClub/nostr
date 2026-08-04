@@ -10,8 +10,7 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 
-use crate::error::Error;
-use crate::event::{Tag, TagCodec, impl_tag_codec_conversions};
+use crate::event::{Tag, impl_tag_codec_conversions};
 use crate::nips::util::{missing_tag_kind, take_timestamp, unknown_tag};
 use crate::types::time::Timestamp;
 
@@ -26,14 +25,9 @@ pub enum Nip40Tag {
     Expiration(Timestamp),
 }
 
-impl TagCodec for Nip40Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip40Tag,
+    fn parse(tag) {
         // Take iterator
         let mut iter = tag.into_iter();
 
@@ -50,14 +44,12 @@ impl TagCodec for Nip40Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         let Self::Expiration(timestamp) = self;
         let tag: Vec<String> = vec![String::from(EXPIRATION), timestamp.to_string()];
         Tag::new(tag)
     }
 }
-
-impl_tag_codec_conversions!(Nip40Tag);
 
 #[cfg(test)]
 mod tests {

@@ -9,10 +9,7 @@
 use alloc::string::{String, ToString};
 use alloc::vec;
 
-use crate::error::Error;
-use crate::event::{
-    Event, EventBuilder, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
-};
+use crate::event::{Event, EventBuilder, IntoEventBuilder, Kind, Tag, impl_tag_codec_conversions};
 use crate::nips::util::{missing_tag_kind, take_relay_url, take_string, unknown_tag};
 use crate::types::RelayUrl;
 
@@ -42,8 +39,8 @@ impl ClientAuthentication {
 impl IntoEventBuilder for ClientAuthentication {
     fn into_event_builder(self) -> EventBuilder {
         EventBuilder::new(Kind::Authentication, "").tags([
-            Nip42Tag::Challenge(self.challenge).into(),
-            Nip42Tag::Relay(self.relay).into(),
+            Nip42Tag::Challenge(self.challenge),
+            Nip42Tag::Relay(self.relay),
         ])
     }
 }
@@ -59,14 +56,9 @@ pub enum Nip42Tag {
     Relay(RelayUrl),
 }
 
-impl TagCodec for Nip42Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip42Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
 
@@ -80,7 +72,7 @@ impl TagCodec for Nip42Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::Challenge(challenge) => {
                 Tag::new(vec![String::from(CHALLENGE), challenge.clone()])
@@ -89,8 +81,6 @@ impl TagCodec for Nip42Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip42Tag);
 
 /// Check if the [`Event`] is a valid authentication.
 ///

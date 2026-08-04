@@ -28,7 +28,7 @@ pub use self::multi_thread::*;
 pub use self::single_thread::*;
 use super::util::{missing_tag_kind, take_and_parse_from_str, unknown_tag};
 use crate::error::Error;
-use crate::event::{Tag, TagCodec, UnsignedEvent, impl_tag_codec_conversions};
+use crate::event::{Tag, UnsignedEvent, impl_tag_codec_conversions};
 
 const NONCE: &str = "nonce";
 
@@ -46,14 +46,9 @@ pub enum Nip13Tag {
     },
 }
 
-impl TagCodec for Nip13Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip13Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
 
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
@@ -67,7 +62,7 @@ impl TagCodec for Nip13Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::Nonce { nonce, difficulty } => Tag::new(vec![
                 String::from(NONCE),
@@ -77,8 +72,6 @@ impl TagCodec for Nip13Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip13Tag);
 
 fn parse_nonce_tag<T, S>(mut iter: T) -> Result<(u128, u8), Error>
 where

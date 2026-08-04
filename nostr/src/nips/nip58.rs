@@ -18,7 +18,7 @@ use super::util::{
 };
 use crate::error::{Error, ErrorKind};
 use crate::event::{
-    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, impl_tag_codec_conversions,
 };
 use crate::key::PublicKey;
 use crate::types::{RelayUrl, Url};
@@ -294,14 +294,9 @@ pub enum Nip58Tag {
     Thumb(Url, Option<ImageDimensions>),
 }
 
-impl TagCodec for Nip58Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip58Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
 
@@ -321,7 +316,7 @@ impl TagCodec for Nip58Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::Identifier(identifier) => {
                 Tag::new(vec![String::from(IDENTIFIER), identifier.clone()])
@@ -335,8 +330,6 @@ impl TagCodec for Nip58Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip58Tag);
 
 fn parse_url_and_dimensions_tag<T, S>(
     mut iter: T,

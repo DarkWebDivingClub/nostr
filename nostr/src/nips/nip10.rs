@@ -17,7 +17,7 @@ use super::util::{
 };
 use crate::error::{Error, ErrorKind};
 use crate::event::{
-    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, TagCodec, impl_tag_codec_conversions,
+    Event, EventBuilder, EventId, IntoEventBuilder, Kind, Tag, impl_tag_codec_conversions,
 };
 use crate::key::PublicKey;
 use crate::types::url::RelayUrl;
@@ -189,14 +189,9 @@ impl Nip10Tag {
     }
 }
 
-impl TagCodec for Nip10Tag {
-    type Error = Error;
-
-    fn parse<I, S>(tag: I) -> Result<Self, Self::Error>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
+impl_tag_codec_conversions! {
+    Nip10Tag,
+    fn parse(tag) {
         let mut iter = tag.into_iter();
         let kind: S = iter.next().ok_or(missing_tag_kind())?;
 
@@ -214,7 +209,7 @@ impl TagCodec for Nip10Tag {
         }
     }
 
-    fn to_tag(&self) -> Tag {
+    fn to_tag(&self) {
         match self {
             Self::Event {
                 id,
@@ -258,8 +253,6 @@ impl TagCodec for Nip10Tag {
         }
     }
 }
-
-impl_tag_codec_conversions!(Nip10Tag);
 
 #[allow(clippy::type_complexity)]
 fn parse_e_tag<T, S>(
