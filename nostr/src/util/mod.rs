@@ -22,6 +22,7 @@ use secp256k1::{PublicKey as NormalizedPublicKey, ecdh};
 #[cfg(feature = "nip44")]
 pub(crate) mod hkdf;
 mod json;
+pub(crate) mod sha256;
 
 pub(crate) use self::json::{impl_json_methods, parse_json, parse_json_from_value};
 #[cfg(any(feature = "nip04", feature = "nip44"))]

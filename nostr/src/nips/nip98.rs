@@ -17,7 +17,6 @@ use core::str::FromStr;
 
 #[cfg(feature = "std")]
 use base64::engine::{Engine, general_purpose};
-use bitcoin_hashes::sha256::Hash as Sha256Hash;
 use url::Url;
 
 use super::util::{missing_tag_kind, take_and_parse_from_str, unknown_tag};
@@ -33,6 +32,7 @@ use crate::key::AsyncGetPublicKey;
 use crate::key::PublicKey;
 #[cfg(feature = "std")]
 use crate::types::Timestamp;
+pub use crate::util::sha256::Sha256Hash;
 
 #[cfg(feature = "std")]
 const AUTH_HEADER_PREFIX: &str = "Nostr";
