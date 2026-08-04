@@ -17,7 +17,7 @@ use rand::rngs::SysRng;
 #[cfg(feature = "std")]
 use secp256k1::{All, Secp256k1};
 #[cfg(any(feature = "nip04", feature = "nip44"))]
-use secp256k1::{Parity, PublicKey as NormalizedPublicKey, XOnlyPublicKey, ecdh};
+use secp256k1::{PublicKey as NormalizedPublicKey, ecdh};
 
 #[cfg(feature = "nip44")]
 pub(crate) mod hkdf;
@@ -66,9 +66,13 @@ pub(crate) fn generate_shared_key(
     secret_key: &SecretKey,
     public_key: &PublicKey,
 ) -> Result<[u8; 32], Error> {
-    let pk: XOnlyPublicKey = public_key.xonly()?;
+    // `from_x_only_public_key(pk, Parity::Even)` builds exactly this form and
+    // parses it again, so building it directly is equivalent and parses once.
+    let mut compressed: [u8; 33] = [0u8; 33];
+    compressed[0] = 0x02; // Even parity
+    compressed[1..].copy_from_slice(public_key.as_bytes());
     let public_key_normalized: NormalizedPublicKey =
-        NormalizedPublicKey::from_x_only_public_key(pk, Parity::Even);
+        NormalizedPublicKey::from_slice(&compressed).map_err(Error::invalid_display)?;
     let ssp: [u8; 64] = ecdh::shared_secret_point(&public_key_normalized, secret_key);
     let mut shared_key: [u8; 32] = [0u8; 32];
     shared_key.copy_from_slice(&ssp[..32]);

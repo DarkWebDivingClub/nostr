@@ -6,7 +6,6 @@
 //!
 //! <https://github.com/nostr-protocol/nips/blob/master/44.md>
 
-use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt;
 use core::ops::{Deref, Range};
@@ -46,9 +45,7 @@ const MESSAGES_KEYS_AUTH_RANGE: Range<usize> =
 #[derive(Debug)]
 enum ErrorV2 {
     PayloadTooShort,
-    HkdfLength,
     NotFound(&'static str),
-    TryFromSlice,
     MessageEmpty,
     MessageTooLong,
     InvalidHmac,
@@ -61,13 +58,7 @@ impl From<ErrorV2> for Error {
             ErrorV2::PayloadTooShort => {
                 Error::with_static_message(ErrorKind::Invalid, "payload size is too short")
             }
-            ErrorV2::HkdfLength => {
-                Error::with_static_message(ErrorKind::Invalid, "invalid HKDF length")
-            }
             ErrorV2::NotFound(value) => Error::with_static_message(ErrorKind::Missing, value),
-            ErrorV2::TryFromSlice => {
-                Error::with_static_message(ErrorKind::Malformed, "invalid slice length")
-            }
             ErrorV2::MessageEmpty => {
                 Error::with_static_message(ErrorKind::Invalid, "message empty")
             }
@@ -85,11 +76,6 @@ impl From<ErrorV2> for Error {
 struct MessageKeys([u8; MESSAGE_KEYS_SIZE]);
 
 impl MessageKeys {
-    #[inline]
-    pub fn from_slice(slice: &[u8]) -> Result<Self, Error> {
-        Ok(Self(slice.try_into().map_err(|_| ErrorV2::TryFromSlice)?))
-    }
-
     #[inline]
     pub fn encryption(&self) -> &[u8] {
         &self.0[MESSAGES_KEYS_ENCRYPTION_RANGE]
@@ -167,27 +153,42 @@ pub fn encrypt_to_bytes_with_nonce(
     plaintext: &[u8],
     nonce: [u8; 32],
 ) -> Result<Vec<u8>, Error> {
+    let len: usize = plaintext.len();
+
+    // Same bounds `pad` enforces, checked before anything is allocated.
+    if len < 1 {
+        return Err(ErrorV2::MessageEmpty.into());
+    }
+
+    if len > MAX_SUPPORTED_PLAINTEXT_SIZE {
+        return Err(ErrorV2::MessageTooLong.into());
+    }
+
     // Get Message Keys
-    let keys: MessageKeys = get_message_keys(conversation_key, &nonce)?;
+    let keys: MessageKeys = get_message_keys(conversation_key, &nonce);
 
-    // Pad
-    let mut buffer: Vec<u8> = pad(plaintext)?;
-
-    // Compose cipher and encrypt
-    let mut cipher = ChaCha20::new(keys.encryption().into(), keys.nonce().into());
-    cipher.apply_keystream(&mut buffer);
-
-    // HMAC-SHA256
-    let mut engine: HmacEngine<sha256::HashEngine> = HmacEngine::new(keys.auth());
-    engine.input(&nonce);
-    engine.input(&buffer);
-    let hmac: [u8; 32] = engine.finalize().to_byte_array();
-
-    // Compose payload
-    let mut payload: Vec<u8> = vec![2]; // Version
+    // Build the payload in place, as [version | nonce | length | plaintext |
+    // padding | MAC], then encrypt the ciphertext region where it already sits.
+    // Padding and MAC are zero-filled by `resize` and overwritten below.
+    let ciphertext_len: usize = LENGTH_PREFIX_SIZE + calc_padding(len);
+    let mac_start: usize = VERSION_SIZE + NONCE_SIZE + ciphertext_len;
+    let mut payload: Vec<u8> = Vec::with_capacity(mac_start + HMAC_SIZE);
+    payload.push(2); // Version
     payload.extend_from_slice(&nonce);
-    payload.extend_from_slice(&buffer);
-    payload.extend_from_slice(&hmac);
+    payload.extend_from_slice(&(len as u16).to_be_bytes());
+    payload.extend_from_slice(plaintext);
+    payload.resize(mac_start + HMAC_SIZE, 0);
+
+    // Compose cipher and encrypt in place
+    let ciphertext: &mut [u8] = &mut payload[VERSION_SIZE + NONCE_SIZE..mac_start];
+    let mut cipher = ChaCha20::new(keys.encryption().into(), keys.nonce().into());
+    cipher.apply_keystream(ciphertext);
+
+    // HMAC-SHA256 over nonce | ciphertext, both already contiguous in `payload`
+    let mut engine: HmacEngine<sha256::HashEngine> = HmacEngine::new(keys.auth());
+    engine.input(&payload[VERSION_SIZE..mac_start]);
+    let hmac: [u8; 32] = engine.finalize().to_byte_array();
+    payload[mac_start..].copy_from_slice(&hmac);
 
     Ok(payload)
 }
@@ -221,7 +222,7 @@ pub fn decrypt_to_bytes(
         .ok_or(ErrorV2::NotFound("hmac"))?;
 
     // Compose Message Keys
-    let keys: MessageKeys = get_message_keys(conversation_key, nonce)?;
+    let keys: MessageKeys = get_message_keys(conversation_key, nonce);
 
     // Check HMAC-SHA256
     let mut engine: HmacEngine<sha256::HashEngine> = HmacEngine::new(keys.auth());
@@ -264,31 +265,10 @@ pub fn decrypt_to_bytes(
 }
 
 #[inline]
-fn get_message_keys(
-    conversation_key: &ConversationKey,
-    nonce: &[u8],
-) -> Result<MessageKeys, ErrorV2> {
-    let expanded_key: Vec<u8> = hkdf::expand(conversation_key.as_bytes(), nonce, MESSAGE_KEYS_SIZE);
-    MessageKeys::from_slice(&expanded_key).map_err(|_| ErrorV2::HkdfLength)
-}
-
-fn pad(unpadded: &[u8]) -> Result<Vec<u8>, ErrorV2> {
-    let len: usize = unpadded.len();
-
-    if len < 1 {
-        return Err(ErrorV2::MessageEmpty);
-    }
-
-    if len > MAX_SUPPORTED_PLAINTEXT_SIZE {
-        return Err(ErrorV2::MessageTooLong);
-    }
-
-    let take: usize = calc_padding(len) - len;
-    let mut padded: Vec<u8> = Vec::with_capacity(2 + len + take);
-    padded.extend_from_slice(&(len as u16).to_be_bytes());
-    padded.extend_from_slice(unpadded);
-    padded.extend(core::iter::repeat_n(0, take));
-    Ok(padded)
+fn get_message_keys(conversation_key: &ConversationKey, nonce: &[u8]) -> MessageKeys {
+    let mut keys: [u8; MESSAGE_KEYS_SIZE] = [0u8; MESSAGE_KEYS_SIZE];
+    hkdf::expand_into(conversation_key.as_bytes(), nonce, &mut keys);
+    MessageKeys(keys)
 }
 
 #[inline]
@@ -317,12 +297,34 @@ const fn log2_round_down(x: usize) -> u32 {
 mod tests {
     #![allow(dead_code)]
 
+    use alloc::vec;
     use core::str::FromStr;
 
     use base64::engine::{Engine, general_purpose};
 
     use super::*;
     use crate::key::Keys;
+
+    /// Straightforward reference padding, kept as an oracle for the in-place
+    /// payload construction in `encrypt_to_bytes_with_nonce`.
+    fn pad(unpadded: &[u8]) -> Result<Vec<u8>, ErrorV2> {
+        let len: usize = unpadded.len();
+
+        if len < 1 {
+            return Err(ErrorV2::MessageEmpty);
+        }
+
+        if len > MAX_SUPPORTED_PLAINTEXT_SIZE {
+            return Err(ErrorV2::MessageTooLong);
+        }
+
+        let take: usize = calc_padding(len) - len;
+        let mut padded: Vec<u8> = Vec::with_capacity(2 + len + take);
+        padded.extend_from_slice(&(len as u16).to_be_bytes());
+        padded.extend_from_slice(unpadded);
+        padded.extend(core::iter::repeat_n(0, take));
+        Ok(padded)
+    }
     use crate::nips::nip44;
 
     const JSON_VECTORS: &str = include_str!("nip44.vectors.json");
@@ -629,7 +631,7 @@ mod tests {
 
         let nonce: [u8; 32] = [0x42; 32];
 
-        let keys: MessageKeys = get_message_keys(conversation_key, &nonce).unwrap();
+        let keys: MessageKeys = get_message_keys(conversation_key, &nonce);
 
         // Zero or one encrypted byte. ChaCha20 preserves the buffer length,
         // therefore the decrypted buffer will also contain zero or one byte.
@@ -704,6 +706,69 @@ mod tests {
             decrypt_to_bytes(&conversation_key, &payload).unwrap(),
             plaintext
         );
+    }
+
+    #[test]
+    fn test_encrypt_rejects_invalid_plaintext_len() {
+        let conversation_key = ConversationKey::new([0x42; 32]);
+        let nonce: [u8; 32] = [0x11; 32];
+
+        let err = encrypt_to_bytes_with_nonce(&conversation_key, b"", nonce).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::Invalid);
+        assert_eq!(err.to_string(), "message empty");
+
+        let too_long: Vec<u8> = vec![0x24; MAX_SUPPORTED_PLAINTEXT_SIZE + 1];
+        let err = encrypt_to_bytes_with_nonce(&conversation_key, &too_long, nonce).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::Invalid);
+        assert_eq!(err.to_string(), "message too long");
+    }
+
+    /// Composing the payload in place must be byte-identical to the
+    /// pad-encrypt-append form it replaced.
+    #[test]
+    fn test_encrypt_matches_reference_construction() {
+        let conversation_key = ConversationKey::new([0x42; 32]);
+        let nonce: [u8; 32] = [0x11; 32];
+
+        for len in [
+            1usize,
+            2,
+            31,
+            32,
+            33,
+            63,
+            64,
+            65,
+            100,
+            255,
+            256,
+            257,
+            1000,
+            4096,
+            4097,
+            MAX_SUPPORTED_PLAINTEXT_SIZE,
+        ] {
+            let plaintext: Vec<u8> = (0..len).map(|i| (i % 251) as u8).collect();
+
+            let keys: MessageKeys = get_message_keys(&conversation_key, &nonce);
+            let mut buffer: Vec<u8> = pad(&plaintext).unwrap();
+            let mut cipher = ChaCha20::new(keys.encryption().into(), keys.nonce().into());
+            cipher.apply_keystream(&mut buffer);
+
+            let mut engine: HmacEngine<sha256::HashEngine> = HmacEngine::new(keys.auth());
+            engine.input(&nonce);
+            engine.input(&buffer);
+            let mac: [u8; 32] = engine.finalize().to_byte_array();
+
+            let mut expected: Vec<u8> = vec![2];
+            expected.extend_from_slice(&nonce);
+            expected.extend_from_slice(&buffer);
+            expected.extend_from_slice(&mac);
+
+            let payload: Vec<u8> =
+                encrypt_to_bytes_with_nonce(&conversation_key, &plaintext, nonce).unwrap();
+            assert_eq!(payload, expected, "payload mismatch at plaintext len {len}");
+        }
     }
 
     #[test]
