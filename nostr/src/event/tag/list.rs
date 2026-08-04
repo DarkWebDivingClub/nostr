@@ -4,17 +4,14 @@
 
 //! Tags (tag list)
 
-#[cfg(not(feature = "std"))]
-use alloc::collections::btree_map::{BTreeMap, Entry};
+// TODO: remove Tags and move the main methods helpers (identifier, challenge, public_keys) in the Event impl?
+
 use alloc::string::String;
 use alloc::vec::{IntoIter, Vec};
 use core::cmp::Ordering;
 use core::fmt;
 use core::hash::{Hash, Hasher};
-use core::ops::{Index, IndexMut};
-use core::slice::Iter;
-#[cfg(feature = "std")]
-use std::collections::hash_map::{Entry, HashMap};
+use core::ops::{Deref, DerefMut, Index, IndexMut};
 
 use serde::ser::SerializeSeq;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -26,23 +23,6 @@ use crate::nips::nip01::{Coordinate, Nip01Tag};
 use crate::nips::nip40::Nip40Tag;
 use crate::nips::nip42::Nip42Tag;
 use crate::types::Timestamp;
-
-struct DedupVal {
-    // First index where the tag was seen
-    first_idx: usize,
-    // The best index, so in this case the longest one
-    best_idx: usize,
-}
-
-impl DedupVal {
-    #[inline]
-    fn new(idx: usize) -> Self {
-        Self {
-            first_idx: idx,
-            best_idx: idx,
-        }
-    }
-}
 
 /// Tags collection
 #[derive(Clone, Default)]
@@ -79,6 +59,20 @@ impl Ord for Tags {
 impl Hash for Tags {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.list.hash(state);
+    }
+}
+
+impl Deref for Tags {
+    type Target = Vec<Tag>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.list
+    }
+}
+
+impl DerefMut for Tags {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.list
     }
 }
 
@@ -133,203 +127,6 @@ impl Tags {
         }
 
         Ok(Self::from_list(list))
-    }
-
-    /// Get number of tags.
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.list.len()
-    }
-
-    /// Check if contains no tags.
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.list.is_empty()
-    }
-
-    /// Appends a [`Tag`] to the back of the collection.
-    ///
-    /// Check [`Vec::push`] doc to learn more.
-    pub fn push(&mut self, tag: Tag) {
-        self.list.push(tag);
-    }
-
-    /// Removes the last [`Tag`] and returns it, or `None` if it's empty.
-    ///
-    /// Check [`Vec::pop`] doc to learn more.
-    pub fn pop(&mut self) -> Option<Tag> {
-        self.list.pop()
-    }
-
-    /// Inserts a [`Tag`] at position `index` within the vector,
-    /// shifting all tags after it to the right.
-    ///
-    /// Returns `true` if the [`Tag`] is inserted successfully.
-    /// Returns `false` if `index > len`.
-    ///
-    /// Check [`Vec::insert`] doc to learn more.
-    pub fn insert(&mut self, index: usize, tag: Tag) -> bool {
-        // Check if `index` is bigger than collection len
-        if index > self.list.len() {
-            return false;
-        }
-
-        // Insert at position
-        self.list.insert(index, tag);
-
-        // Inserted successfully
-        true
-    }
-
-    /// Removes and returns the [`Tag`] at position `index` within the vector,
-    /// shifting all tags after it to the left.
-    ///
-    /// Check [`Vec::remove`] doc to learn more.
-    pub fn remove(&mut self, index: usize) -> Option<Tag> {
-        // Check if `index` is bigger than collection len
-        if index > self.list.len() {
-            return None;
-        }
-
-        // Remove from collection
-        Some(self.list.remove(index))
-    }
-
-    /// Extends the collection.
-    ///
-    /// Check [`Vec::extend`] doc to learn more.
-    pub fn extend<I>(&mut self, iter: I)
-    where
-        I: IntoIterator<Item = Tag>,
-    {
-        self.list.extend(iter);
-    }
-
-    /// Retains only the elements specified by the predicate.
-    ///
-    /// In other words, remove all elements e for which `f(&e)` returns `false`.
-    ///
-    /// Check [`Vec::retain`] doc to learn more.
-    pub fn retain<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&Tag) -> bool,
-    {
-        self.list.retain(|t| f(t));
-    }
-
-    /// Deduplicate tags
-    ///
-    /// # Policy
-    ///
-    /// - Two tags are considered duplicates if:
-    ///   1) They have the same tag kind
-    ///   2) They contain the same content (if applicable)
-    ///
-    /// - Among duplicates, the longest tag is retained; shorter ones are discarded.
-    ///
-    /// # Time complexity
-    ///
-    /// In a `no_std` env takes `O(N log N)` time, otherwise `O(N)`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// # use nostr::event::Tags;
-    /// let tags = [
-    ///     vec!["t", "test"], // This will be discarded since an item with the same kind + content and longer len exists.
-    ///     vec!["t", "test1"],
-    ///     vec!["t", "test", "wss://relay.damus.io"],
-    /// ];
-    /// let mut tags = Tags::parse(tags).unwrap();
-    ///
-    /// let expected_tags = [
-    ///     vec!["t", "test", "wss://relay.damus.io"], // Replaced the previous shorted tag
-    ///     vec!["t", "test1"],
-    /// ];
-    /// let mut expected_tags = Tags::parse(expected_tags).unwrap();
-    ///
-    /// assert_eq!(tags, expected_tags);
-    /// ```
-    pub fn dedup(&mut self) {
-        // If there are no tags, nothing to do
-        if self.list.is_empty() {
-            return;
-        }
-
-        // Construct the dedup map
-        #[cfg(feature = "std")]
-        let mut map: HashMap<(&str, Option<&str>), DedupVal> =
-            HashMap::with_capacity(self.list.len());
-        #[cfg(not(feature = "std"))]
-        let mut map: BTreeMap<(&str, Option<&str>), DedupVal> = BTreeMap::new();
-
-        // Figure out which tags to keep
-        for (idx, tag) in self.list.iter().enumerate() {
-            // Construct dedup key
-            let key: (&str, Option<&str>) = (tag.kind(), tag.content());
-
-            // Check if key exists or not
-            match map.entry(key) {
-                // The key already exists
-                Entry::Occupied(mut entry) => {
-                    // Get entry value
-                    let val: &mut DedupVal = entry.get_mut();
-
-                    // Compare lengths and keep whichever is longer
-                    if tag.len() > self.list[val.best_idx].len() {
-                        // The current tag is longer -> update the best_idx with the current one
-                        val.best_idx = idx;
-                    }
-                }
-                // The key doesn't exist, insert the current index
-                Entry::Vacant(entry) => {
-                    entry.insert(DedupVal::new(idx));
-                }
-            }
-        }
-
-        // Build a new list, placing the best duplicate at the earliest index
-        let mut new_list: Vec<Option<Tag>> = vec![None; self.list.len()];
-        for DedupVal {
-            first_idx,
-            best_idx,
-        } in map.into_values()
-        {
-            new_list[first_idx] = Some(self.list[best_idx].clone()); // TODO: avoid clone here
-        }
-
-        // Flatten out the resulting list, skipping positions that are `None`
-        self.list = new_list.into_iter().flatten().collect();
-    }
-
-    /// Get first tag
-    #[inline]
-    pub fn first(&self) -> Option<&Tag> {
-        self.list.first()
-    }
-
-    /// Get last tag
-    #[inline]
-    pub fn last(&self) -> Option<&Tag> {
-        self.list.last()
-    }
-
-    /// Get tag at index
-    #[inline]
-    pub fn get(&self, index: usize) -> Option<&Tag> {
-        self.list.get(index)
-    }
-
-    /// Iterate tags
-    #[inline]
-    pub fn iter(&self) -> Iter<'_, Tag> {
-        self.list.iter()
-    }
-
-    /// Get as slice of tags
-    #[inline]
-    pub fn as_slice(&self) -> &[Tag] {
-        &self.list
     }
 
     /// Convert [`Tags`] into [`Vec<Tag>`].
@@ -478,7 +275,6 @@ impl<'de> Deserialize<'de> for Tags {
 mod tests {
     use super::*;
     use crate::event::Event;
-    use crate::types::RelayUrl;
 
     #[test]
     fn test_collect() {
@@ -503,67 +299,6 @@ mod tests {
         assert_eq!(event.tags.identifier(), Some(String::from("1")));
     }
 
-    #[test]
-    fn test_tags_dedup() {
-        let pubkey1 =
-            PublicKey::from_hex("b8aef32a5421205c1f89ad09e2d93873df68a8611b247f62af005655eadc0efb")
-                .unwrap();
-        let pubkey2 =
-            PublicKey::from_hex("f86c44a2de95d9149b51c6a29afeabba264c18e2fa7c49de93424a0c56947785")
-                .unwrap();
-
-        let event1 =
-            EventId::from_hex("3dfdbb371de782f51812dc4809ea1104d80e143cec1091a4be07f518ef09e3d7")
-                .unwrap();
-        let event2 =
-            EventId::from_hex("2be17aa3031bdcb006f0fce80c146dea9c1c0268b0af2398bb673365c6444d45")
-                .unwrap();
-
-        let long_p_tag_1 = Nip01Tag::PublicKey {
-            public_key: pubkey1,
-            relay_hint: Some(RelayUrl::parse("wss://relay.damus.io").unwrap()),
-        };
-
-        let long_e_tag_2 = Nip01Tag::Event {
-            id: event2,
-            relay_hint: Some(RelayUrl::parse("wss://relay.damus.io").unwrap()),
-            public_key: None,
-        };
-
-        let empty_list: Vec<String> = Vec::new();
-
-        let list = vec![
-            Tag::protected(),
-            Tag::custom("p", empty_list.clone()), // Non standard p tag
-            Tag::public_key(pubkey1),
-            Tag::public_key(pubkey2),
-            Tag::event(event1),
-            Tag::event(event2),
-            Tag::identifier("test"),
-            long_e_tag_2.to_tag(),
-            Tag::event(event2),
-            Tag::protected(),
-            long_p_tag_1.to_tag(),
-            Tag::public_key(pubkey2),
-            Tag::identifier("test"),
-        ];
-
-        let mut tags = Tags::from_list(list);
-        tags.dedup();
-
-        let expected = vec![
-            Tag::protected(),
-            Tag::custom("p", empty_list), // Non standard p tag
-            long_p_tag_1.to_tag(),
-            Tag::public_key(pubkey2),
-            Tag::event(event1),
-            long_e_tag_2.to_tag(),
-            Tag::identifier("test"),
-        ];
-
-        assert_eq!(tags.to_vec(), expected);
-    }
-
     // Unit test for issue https://github.com/nostrdevkit/nostr/issues/948
     #[test]
     fn test_hashtags_dedup() {
@@ -573,173 +308,5 @@ mod tests {
         tags.push(Tag::hashtag("a1"));
         tags.push(Tag::hashtag("a2"));
         tags.dedup();
-    }
-}
-
-#[cfg(bench)]
-#[cfg(all(feature = "std", feature = "os-rng"))]
-mod benches {
-    use test::{Bencher, black_box};
-
-    use super::*;
-    use crate::RelayUrl;
-    use crate::key::Keys;
-
-    fn generate_tags(n: usize) -> Tags {
-        let half = n / 2;
-
-        let mut pubkeys = Vec::with_capacity(half);
-
-        let mut tags = Vec::with_capacity(n);
-
-        for _ in 0..half {
-            let keys = Keys::generate();
-
-            // Save pubkey
-            pubkeys.push(keys.public_key());
-
-            // Push simple p tag
-            tags.push(Tag::public_key(keys.public_key()));
-        }
-
-        for pk in pubkeys.into_iter() {
-            // Push long p tag
-            let long_p_tag = Nip01Tag::PublicKey {
-                public_key: pk,
-                relay_hint: Some(RelayUrl::parse("wss://relay.damus.io").unwrap()),
-            }
-            .to_tag();
-            tags.push(long_p_tag)
-        }
-
-        Tags::from_list(tags)
-    }
-
-    #[bench]
-    pub fn tags_dedup_10_tags(bh: &mut Bencher) {
-        let mut tags = generate_tags(10);
-
-        assert!(tags.len() == 10);
-
-        bh.iter(|| {
-            black_box(tags.dedup());
-        });
-
-        assert!(tags.len() == 5);
-    }
-
-    #[bench]
-    pub fn tags_dedup_50_tags(bh: &mut Bencher) {
-        let mut tags = generate_tags(50);
-
-        assert!(tags.len() == 50);
-
-        bh.iter(|| {
-            black_box(tags.dedup());
-        });
-
-        assert!(tags.len() == 25);
-    }
-
-    #[bench]
-    pub fn tags_dedup_100_tags(bh: &mut Bencher) {
-        let mut tags = generate_tags(100);
-
-        assert!(tags.len() == 100);
-
-        bh.iter(|| {
-            black_box(tags.dedup());
-        });
-
-        assert!(tags.len() == 50);
-    }
-
-    #[bench]
-    pub fn tags_dedup_500_tags(bh: &mut Bencher) {
-        let mut tags = generate_tags(500);
-
-        assert!(tags.len() == 500);
-
-        bh.iter(|| {
-            black_box(tags.dedup());
-        });
-
-        assert!(tags.len() == 250);
-    }
-
-    #[bench]
-    pub fn tags_dedup_1000_tags(bh: &mut Bencher) {
-        let mut tags = generate_tags(1000);
-
-        assert!(tags.len() == 1000);
-
-        bh.iter(|| {
-            black_box(tags.dedup());
-        });
-
-        assert!(tags.len() == 500);
-    }
-
-    #[bench]
-    pub fn tags_dedup_2000_tags(bh: &mut Bencher) {
-        let mut tags = generate_tags(2000);
-
-        assert!(tags.len() == 2000);
-
-        bh.iter(|| {
-            black_box(tags.dedup());
-        });
-
-        assert!(tags.len() == 1000);
-    }
-
-    #[bench]
-    pub fn tags_dedup_4000_tags(bh: &mut Bencher) {
-        let mut tags = generate_tags(4000);
-
-        assert!(tags.len() == 4000);
-
-        bh.iter(|| {
-            black_box(tags.dedup());
-        });
-
-        assert!(tags.len() == 2000);
-    }
-
-    #[bench]
-    pub fn tags_push(bh: &mut Bencher) {
-        let mut tags = Tags::new();
-
-        bh.iter(|| {
-            black_box(tags.push(Tag::protected()));
-        });
-    }
-
-    #[bench]
-    pub fn vec_tag_push(bh: &mut Bencher) {
-        let mut tags = Vec::new();
-
-        bh.iter(|| {
-            black_box(tags.push(Tag::protected()));
-        });
-    }
-
-    #[bench]
-    pub fn tags_pop(bh: &mut Bencher) {
-        let mut tags = generate_tags(4000);
-
-        bh.iter(|| {
-            black_box(tags.pop());
-        });
-    }
-
-    #[bench]
-    pub fn vec_tag_pop(bh: &mut Bencher) {
-        let tags = generate_tags(4000);
-        let mut tags = tags.to_vec();
-
-        bh.iter(|| {
-            black_box(tags.pop());
-        });
     }
 }
