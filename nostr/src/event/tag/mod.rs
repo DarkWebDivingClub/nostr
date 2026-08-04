@@ -20,7 +20,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 mod codec;
 mod list;
 
-pub use self::codec::*;
+pub(crate) use self::codec::impl_tag_codec_conversions;
 pub use self::list::*;
 use super::id::EventId;
 use crate::error::{Error, ErrorKind};

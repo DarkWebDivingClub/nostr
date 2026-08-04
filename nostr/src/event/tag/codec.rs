@@ -53,4 +53,4 @@ macro_rules! impl_tag_codec_conversions {
     };
 }
 
-pub use impl_tag_codec_conversions;
+pub(crate) use impl_tag_codec_conversions;
