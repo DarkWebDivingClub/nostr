@@ -94,7 +94,7 @@ impl UnsignedEvent {
     /// Compute the event ID
     #[inline]
     pub fn compute_id(&self) -> EventId {
-        EventId::new(
+        EventId::compute(
             &self.pubkey,
             &self.created_at,
             &self.kind,

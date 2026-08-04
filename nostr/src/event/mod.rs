@@ -189,7 +189,7 @@ impl Event {
 
     /// Verify if the [`EventId`] it's composed correctly
     pub fn verify_id(&self) -> bool {
-        let id: EventId = EventId::new(
+        let id: EventId = EventId::compute(
             &self.pubkey,
             &self.created_at,
             &self.kind,

@@ -668,7 +668,7 @@ mod tests {
     fn test_standardized_event_tag() {
         let keys = Keys::generate();
         let kind = Kind::GitPatch;
-        let id = EventId::new(
+        let id = EventId::compute(
             &keys.public_key(),
             &Timestamp::from_secs(1),
             &kind,
@@ -742,7 +742,7 @@ mod tests {
     fn test_event() {
         let keys = Keys::generate();
         let kind = Kind::GitPatch;
-        let event_id = EventId::new(
+        let event_id = EventId::compute(
             &keys.public_key(),
             &Timestamp::from_secs(1),
             &kind,

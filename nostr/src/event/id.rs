@@ -4,13 +4,12 @@
 
 //! Event ID
 
-use alloc::string::{String, ToString};
+use alloc::string::String;
+use alloc::vec::Vec;
 use core::fmt;
 use core::str::{self, FromStr};
 
-use bitcoin_hashes::sha256::Hash as Sha256Hash;
 use serde::{Deserialize, Deserializer, Serialize};
-use serde_json::{Value, json};
 
 use super::{Kind, Tag, Tags};
 use crate::error::{Error, ErrorKind};
@@ -19,6 +18,7 @@ use crate::nips::nip13;
 use crate::nips::nip19::FromBech32;
 use crate::nips::nip21::FromNostrUri;
 use crate::types::Timestamp;
+use crate::util::sha256::Sha256Hash;
 
 /// Event ID
 ///
@@ -26,7 +26,7 @@ use crate::types::Timestamp;
 ///
 /// <https://github.com/nostr-protocol/nips/blob/master/01.md>
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct EventId([u8; 32]);
+pub struct EventId(Sha256Hash);
 
 impl fmt::Debug for EventId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -38,33 +38,51 @@ impl EventId {
     /// Event ID len
     pub const LEN: usize = 32;
 
-    /// Generate [`EventId`]
-    pub fn new(
+    /// Computes the NIP-01 event identifier from unsigned event fields.
+    ///
+    /// The fields are serialized as the compact UTF-8 JSON array
+    /// `[0, public_key, created_at, kind, tags, content]` and hashed with
+    /// SHA-256.
+    ///
+    /// # Panics
+    ///
+    /// Panics only if one of the crate-owned event field types unexpectedly
+    /// fails to serialize to a JSON value. Such a failure indicates an
+    /// internal invariant violation rather than invalid caller input.
+    #[must_use]
+    pub fn compute(
         public_key: &PublicKey,
         created_at: &Timestamp,
         kind: &Kind,
         tags: &Tags,
         content: &str,
     ) -> Self {
-        let json: Value = json!([0, public_key, created_at, kind, tags, content]);
-        let event_str: String = json.to_string();
-        let hash: Sha256Hash = Sha256Hash::hash(event_str.as_bytes());
-        Self::from_byte_array(hash.to_byte_array())
+        let serialized: Vec<u8> =
+            serde_json::to_vec(&(0u8, public_key, created_at, kind, tags, content))
+                .expect("serializing valid Nostr event fields must not fail");
+        let hash: Sha256Hash = Sha256Hash::hash(&serialized);
+        Self(hash)
     }
 
-    /// Construct event ID from 32-byte array
+    /// Construct from a 32-byte array
     #[inline]
+    #[must_use]
     pub const fn from_byte_array(bytes: [u8; Self::LEN]) -> Self {
-        Self(bytes)
+        Self(Sha256Hash::from_byte_array(bytes))
     }
 
-    /// All zeros
-    #[inline]
-    pub const fn all_zeros() -> Self {
-        Self::from_byte_array([0u8; Self::LEN])
+    #[cfg(test)]
+    pub(crate) fn all_zeros() -> Self {
+        Self(Sha256Hash::from_byte_array([0; Self::LEN]))
     }
 
-    /// Try to parse [EventId] from `hex`, `bech32` or [NIP21](https://github.com/nostr-protocol/nips/blob/master/21.md) uri
+    /// Parses an event identifier.
+    ///
+    /// The accepted representations are:
+    ///
+    /// - a 64-character hexadecimal event identifier;
+    /// - a NIP-19 `note` or `nevent` identifier accepted by [`FromBech32::from_bech32`];
+    /// - a NIP-21 `nostr:` URI accepted by [`FromNostrUri::from_nostr_uri`].
     pub fn parse(id: &str) -> Result<Self, Error> {
         // Try from hex
         if let Ok(id) = Self::from_hex(id) {
@@ -88,61 +106,46 @@ impl EventId {
     }
 
     /// Parse from hex string
+    #[inline]
     pub fn from_hex(hex: &str) -> Result<Self, Error> {
-        let mut bytes: [u8; Self::LEN] = [0u8; Self::LEN];
-        faster_hex::hex_decode(hex.as_bytes(), &mut bytes).map_err(Error::malformed_display)?;
-        Ok(Self::from_byte_array(bytes))
+        Ok(Self(Sha256Hash::from_hex(hex)?))
     }
 
     /// Parse from bytes
     pub fn from_slice(slice: &[u8]) -> Result<Self, Error> {
-        // Check len
-        if slice.len() != Self::LEN {
-            return Err(Error::with_static_message(
-                ErrorKind::Invalid,
-                "invalid event ID",
-            ));
-        }
+        let bytes: [u8; Self::LEN] = slice
+            .try_into()
+            .map_err(|_| Error::with_static_message(ErrorKind::Invalid, "invalid event ID"))?;
 
-        // Copy bytes
-        let mut bytes: [u8; Self::LEN] = [0u8; Self::LEN];
-        bytes.copy_from_slice(slice);
-
-        // Construct
         Ok(Self::from_byte_array(bytes))
     }
 
     /// Get as bytes
     #[inline]
+    #[must_use]
     pub fn as_bytes(&self) -> &[u8; Self::LEN] {
-        &self.0
+        self.0.as_bytes()
     }
 
     /// Consume and get bytes
     #[inline]
+    #[must_use]
     pub fn to_bytes(self) -> [u8; Self::LEN] {
-        self.0
+        self.0.to_bytes()
     }
 
     /// Get as hex string
     #[inline]
+    #[must_use]
     pub fn to_hex(&self) -> String {
-        // SAFETY: hex is a valid UTF-8
-        unsafe { String::from_utf8_unchecked(self.to_hex_byte_array().to_vec()) }
-    }
-
-    /// Get as hex 64-byte array
-    #[inline]
-    pub fn to_hex_byte_array(&self) -> [u8; Self::LEN * 2] {
-        let mut buf = [0u8; Self::LEN * 2];
-        faster_hex::hex_encode(self.as_bytes(), &mut buf).expect("Buffer size is correct");
-        buf
+        self.0.to_hex()
     }
 
     /// Check POW
     ///
     /// <https://github.com/nostr-protocol/nips/blob/master/13.md>
     #[inline]
+    #[must_use]
     pub fn check_pow(&self, difficulty: u8) -> bool {
         nip13::get_leading_zero_bits(self.as_bytes()) >= difficulty
     }
@@ -195,14 +198,12 @@ impl From<EventId> for Tag {
 }
 
 impl Serialize for EventId {
+    #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        let bytes: [u8; Self::LEN * 2] = self.to_hex_byte_array();
-        // SAFETY: hex is a valid UTF-8
-        let encoded: &str = unsafe { str::from_utf8_unchecked(&bytes) };
-        serializer.serialize_str(encoded)
+        self.0.serialize(serializer)
     }
 }
 
