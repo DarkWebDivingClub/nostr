@@ -1,6 +1,6 @@
 [package]
 name = "nostr-ndb"
-version = "0.45.0-alpha.8"
+version = "0.45.0"
 edition.workspace = true
 description = "ndb (nostrdb) storage backend for Nostr apps"
 authors.workspace = true

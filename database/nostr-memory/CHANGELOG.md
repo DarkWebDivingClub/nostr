@@ -27,6 +27,6 @@
 
 -->
 
-## Unreleased
+v0.45.0 - 2026/08/05
 
 First release.
