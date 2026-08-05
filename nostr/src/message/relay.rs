@@ -7,18 +7,16 @@
 
 use alloc::borrow::{Cow, ToOwned};
 use alloc::string::String;
-use alloc::vec::IntoIter;
 use core::fmt;
 
-use serde::de::{self, DeserializeOwned, SeqAccess, Visitor};
+use serde::de::{self, SeqAccess, Visitor};
 use serde::ser::SerializeSeq;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::Value;
 
 use super::{SubscriptionId, invalid_message_format};
 use crate::error::Error;
 use crate::event::{Event, EventId};
-use crate::util::{impl_json_methods, parse_json_from_value};
+use crate::util::impl_json_methods;
 
 /// A string that must be exactly one word.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -323,88 +321,6 @@ impl RelayMessage<'_> {
             Self::Ok { .. } => 4,
         }
     }
-
-    /// Deserialize from [`Value`]
-    pub fn from_value(msg: Value) -> Result<Self, Error> {
-        let Value::Array(v) = msg else {
-            return Err(invalid_message_format());
-        };
-
-        if v.is_empty() {
-            return Err(invalid_message_format());
-        }
-
-        let mut v_iter = v.into_iter();
-
-        // Index 0
-        let v_type: String = next_and_deser(&mut v_iter)?;
-
-        match v_type.as_str() {
-            "NOTICE" => {
-                // ["NOTICE", <message>]
-                let message: String = next_and_deser(&mut v_iter)?; // Index 1
-                Ok(Self::notice(message))
-            }
-            "CLOSED" => {
-                // ["CLOSED", <subscription_id>, <message>]
-                Ok(Self::Closed {
-                    subscription_id: next_and_deser(&mut v_iter)?, // Index 1
-                    message: next_and_deser(&mut v_iter)?,         // Index 2
-                })
-            }
-            "EVENT" => {
-                // ["EVENT", <subscription id>, <event JSON>]
-                Ok(Self::Event {
-                    subscription_id: next_and_deser(&mut v_iter)?, // Index 1
-                    event: next_and_deser(&mut v_iter)?,           // Index 2
-                })
-            }
-            "EOSE" => {
-                // ["EOSE", <subscription_id>]
-                let subscription_id: SubscriptionId = next_and_deser(&mut v_iter)?; // Index 1
-                Ok(Self::eose(subscription_id))
-            }
-            "OK" => {
-                // ["OK", <event_id>, <true|false>, <message>]
-                Ok(Self::Ok {
-                    event_id: next_and_deser(&mut v_iter)?, // Index 1
-                    status: next_and_deser(&mut v_iter)?,   // Index 2
-                    message: next_and_deser(&mut v_iter)?,  // Index 3
-                })
-            }
-            "AUTH" => {
-                // ["AUTH", <challenge>]
-                Ok(Self::Auth {
-                    challenge: next_and_deser(&mut v_iter)?, // Index 1
-                })
-            }
-            "COUNT" => {
-                // ["COUNT", <subscription id>, {"count": num}]
-                let subscription_id: SubscriptionId = next_and_deser(&mut v_iter)?; // Index 1
-                let Count { count } = next_and_deser(&mut v_iter)?; // Index 2
-
-                Ok(Self::Count {
-                    subscription_id: Cow::Owned(subscription_id),
-                    count,
-                })
-            }
-            "NEG-MSG" => {
-                // ["NEG-MSG", <subscription ID string>, <message, lowercase hex-encoded>]
-                Ok(Self::NegMsg {
-                    subscription_id: next_and_deser(&mut v_iter)?, // Index 1
-                    message: next_and_deser(&mut v_iter)?,         // Index 2
-                })
-            }
-            "NEG-ERR" => {
-                // ["NEG-ERR", <subscription ID string>, <reason-code>]
-                Ok(Self::NegErr {
-                    subscription_id: next_and_deser(&mut v_iter)?, // Index 1
-                    message: next_and_deser(&mut v_iter)?,         // Index 2
-                })
-            }
-            _ => Err(invalid_message_format()),
-        }
-    }
 }
 
 impl Serialize for RelayMessage<'_> {
@@ -590,15 +506,6 @@ impl_json_methods! {
 
         serde_json::from_slice(msg).map_err(Error::malformed)
     }
-}
-
-#[inline]
-fn next_and_deser<T>(iter: &mut IntoIter<Value>) -> Result<T, Error>
-where
-    T: DeserializeOwned,
-{
-    let val: Value = iter.next().ok_or(invalid_message_format())?;
-    parse_json_from_value(val)
 }
 
 /// Returns true if the slice is not empty and has no ASCII whitespace
