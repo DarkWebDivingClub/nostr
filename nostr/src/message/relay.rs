@@ -13,8 +13,7 @@ use serde::de::{self, SeqAccess, Visitor};
 use serde::ser::SerializeSeq;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use super::{SubscriptionId, invalid_message_format};
-use crate::error::Error;
+use super::SubscriptionId;
 use crate::event::{Event, EventId};
 use crate::util::impl_json_methods;
 
@@ -495,18 +494,7 @@ impl<'de> Visitor<'de> for RelayMessageVisitor {
     }
 }
 
-impl_json_methods! {
-    RelayMessage<'_>,
-    from_json(json) {
-        let msg: &[u8] = json.as_ref();
-
-        if msg.is_empty() {
-            return Err(invalid_message_format());
-        }
-
-        serde_json::from_slice(msg).map_err(Error::malformed)
-    }
-}
+impl_json_methods!(RelayMessage<'_>);
 
 /// Returns true if the slice is not empty and has no ASCII whitespace
 const fn is_single_word(mut bytes: &[u8]) -> bool {
