@@ -10,9 +10,10 @@ use alloc::string::String;
 use alloc::vec::IntoIter;
 use core::fmt;
 
-use serde::de::DeserializeOwned;
+use serde::de::{self, DeserializeOwned, SeqAccess, Visitor};
+use serde::ser::SerializeSeq;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use super::{SubscriptionId, invalid_message_format};
 use crate::error::Error;
@@ -307,6 +308,22 @@ impl RelayMessage<'_> {
         }
     }
 
+    /// Number of elements in the JSON array form.
+    ///
+    /// Matched exhaustively on purpose: a new variant must state its own
+    /// length rather than inherit a default that may not fit.
+    const fn len(&self) -> usize {
+        match self {
+            Self::Notice(..) | Self::EndOfStoredEvents(..) | Self::Auth { .. } => 2,
+            Self::Event { .. }
+            | Self::Closed { .. }
+            | Self::Count { .. }
+            | Self::NegMsg { .. }
+            | Self::NegErr { .. } => 3,
+            Self::Ok { .. } => 4,
+        }
+    }
+
     /// Deserialize from [`Value`]
     pub fn from_value(msg: Value) -> Result<Self, Error> {
         let Value::Array(v) = msg else {
@@ -388,41 +405,6 @@ impl RelayMessage<'_> {
             _ => Err(invalid_message_format()),
         }
     }
-
-    fn as_value(&self) -> Value {
-        match self {
-            Self::Event {
-                event,
-                subscription_id,
-            } => json!(["EVENT", subscription_id, event]),
-            Self::Notice(message) => json!(["NOTICE", message]),
-            Self::Closed {
-                subscription_id,
-                message,
-            } => json!(["CLOSED", subscription_id, message]),
-            Self::EndOfStoredEvents(subscription_id) => {
-                json!(["EOSE", subscription_id])
-            }
-            Self::Ok {
-                event_id,
-                status,
-                message,
-            } => json!(["OK", event_id, status, message]),
-            Self::Auth { challenge } => json!(["AUTH", challenge]),
-            Self::Count {
-                subscription_id,
-                count,
-            } => json!(["COUNT", subscription_id, { "count": count }]),
-            Self::NegMsg {
-                subscription_id,
-                message,
-            } => json!(["NEG-MSG", subscription_id, message]),
-            Self::NegErr {
-                subscription_id,
-                message,
-            } => json!(["NEG-ERR", subscription_id, message]),
-        }
-    }
 }
 
 impl Serialize for RelayMessage<'_> {
@@ -430,8 +412,77 @@ impl Serialize for RelayMessage<'_> {
     where
         S: Serializer,
     {
-        let json_value: Value = self.as_value();
-        json_value.serialize(serializer)
+        // Write the array elements straight to the serializer. Building a
+        // `serde_json::Value` first would allocate for every element, and for
+        // an `EVENT` message that means the whole event too.
+        let mut seq = serializer.serialize_seq(Some(self.len()))?;
+
+        match self {
+            Self::Event {
+                subscription_id,
+                event,
+            } => {
+                seq.serialize_element("EVENT")?;
+                seq.serialize_element(subscription_id)?;
+                seq.serialize_element(event)?;
+            }
+            Self::Notice(message) => {
+                seq.serialize_element("NOTICE")?;
+                seq.serialize_element(message)?;
+            }
+            Self::Closed {
+                subscription_id,
+                message,
+            } => {
+                seq.serialize_element("CLOSED")?;
+                seq.serialize_element(subscription_id)?;
+                seq.serialize_element(message)?;
+            }
+            Self::EndOfStoredEvents(subscription_id) => {
+                seq.serialize_element("EOSE")?;
+                seq.serialize_element(subscription_id)?;
+            }
+            Self::Ok {
+                event_id,
+                status,
+                message,
+            } => {
+                seq.serialize_element("OK")?;
+                seq.serialize_element(event_id)?;
+                seq.serialize_element(status)?;
+                seq.serialize_element(message)?;
+            }
+            Self::Auth { challenge } => {
+                seq.serialize_element("AUTH")?;
+                seq.serialize_element(challenge)?;
+            }
+            Self::Count {
+                subscription_id,
+                count,
+            } => {
+                seq.serialize_element("COUNT")?;
+                seq.serialize_element(subscription_id)?;
+                seq.serialize_element(&Count { count: *count })?;
+            }
+            Self::NegMsg {
+                subscription_id,
+                message,
+            } => {
+                seq.serialize_element("NEG-MSG")?;
+                seq.serialize_element(subscription_id)?;
+                seq.serialize_element(message)?;
+            }
+            Self::NegErr {
+                subscription_id,
+                message,
+            } => {
+                seq.serialize_element("NEG-ERR")?;
+                seq.serialize_element(subscription_id)?;
+                seq.serialize_element(message)?;
+            }
+        }
+
+        seq.end()
     }
 }
 
@@ -440,8 +491,91 @@ impl<'de> Deserialize<'de> for RelayMessage<'_> {
     where
         D: Deserializer<'de>,
     {
-        let json_value = Value::deserialize(deserializer)?;
-        RelayMessage::from_value(json_value).map_err(serde::de::Error::custom)
+        deserializer.deserialize_seq(RelayMessageVisitor)
+    }
+}
+
+struct RelayMessageVisitor;
+
+impl<'de> Visitor<'de> for RelayMessageVisitor {
+    type Value = RelayMessage<'static>;
+
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("a relay message array")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        fn malformed<E>() -> E
+        where
+            E: de::Error,
+        {
+            E::custom("invalid message format")
+        }
+
+        // Read only the elements each variant defines, then drain the rest.
+        // Extra trailing elements are reserved for future extensions and must
+        // not be rejected, which the previous `Value::Array` path also allowed.
+        macro_rules! next {
+            () => {
+                seq.next_element()?.ok_or_else(malformed)?
+            };
+        }
+
+        let message_type: String = next!();
+
+        let message: RelayMessage<'static> = match message_type.as_str() {
+            // ["EVENT", <subscription id>, <event JSON>]
+            "EVENT" => RelayMessage::Event {
+                subscription_id: Cow::Owned(next!()),
+                event: Cow::Owned(next!()),
+            },
+            // ["OK", <event_id>, <true|false>, <message>]
+            "OK" => RelayMessage::Ok {
+                event_id: next!(),
+                status: next!(),
+                message: Cow::Owned(next!()),
+            },
+            // ["EOSE", <subscription_id>]
+            "EOSE" => RelayMessage::EndOfStoredEvents(Cow::Owned(next!())),
+            // ["NOTICE", <message>]
+            "NOTICE" => RelayMessage::Notice(Cow::Owned(next!())),
+            // ["CLOSED", <subscription_id>, <message>]
+            "CLOSED" => RelayMessage::Closed {
+                subscription_id: Cow::Owned(next!()),
+                message: Cow::Owned(next!()),
+            },
+            // ["AUTH", <challenge>]
+            "AUTH" => RelayMessage::Auth {
+                challenge: Cow::Owned(next!()),
+            },
+            // ["COUNT", <subscription id>, {"count": num}]
+            "COUNT" => {
+                let subscription_id: SubscriptionId = next!();
+                let Count { count } = next!();
+                RelayMessage::Count {
+                    subscription_id: Cow::Owned(subscription_id),
+                    count,
+                }
+            }
+            // ["NEG-MSG", <subscription ID string>, <message, lowercase hex-encoded>]
+            "NEG-MSG" => RelayMessage::NegMsg {
+                subscription_id: Cow::Owned(next!()),
+                message: Cow::Owned(next!()),
+            },
+            // ["NEG-ERR", <subscription ID string>, <reason-code>]
+            "NEG-ERR" => RelayMessage::NegErr {
+                subscription_id: Cow::Owned(next!()),
+                message: Cow::Owned(next!()),
+            },
+            _ => return Err(malformed()),
+        };
+
+        while seq.next_element::<de::IgnoredAny>()?.is_some() {}
+
+        Ok(message)
     }
 }
 
@@ -454,8 +588,7 @@ impl_json_methods! {
             return Err(invalid_message_format());
         }
 
-        let value: Value = serde_json::from_slice(msg).map_err(Error::malformed)?;
-        Self::from_value(value)
+        serde_json::from_slice(msg).map_err(Error::malformed)
     }
 }
 
@@ -484,7 +617,7 @@ const fn is_single_word(mut bytes: &[u8]) -> bool {
     true
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct Count {
     count: usize,
 }
@@ -495,6 +628,7 @@ mod tests {
     use core::str::FromStr;
 
     use super::*;
+    use crate::error::ErrorKind;
     use crate::event::{Kind, Signature};
     use crate::key::PublicKey;
     use crate::types::Timestamp;
@@ -684,6 +818,100 @@ mod tests {
         assert_eq!(
             RelayMessage::EndOfStoredEvents(Cow::Owned(SubscriptionId::new("sub"))),
             RelayMessage::from_json(MSG).unwrap()
+        );
+    }
+
+    /// Trailing elements are reserved for future extensions, so every variant
+    /// must ignore them rather than reject the message.
+    #[test]
+    fn parse_trailing_elements() {
+        let cases: [(&str, RelayMessage); 4] = [
+            (r#"["NOTICE","hi","extra"]"#, RelayMessage::notice("hi")),
+            (
+                r#"["CLOSED","sub","reason",{"a":1}]"#,
+                RelayMessage::closed(SubscriptionId::new("sub"), "reason"),
+            ),
+            (
+                r#"["COUNT","sub",{"count":7},"extra"]"#,
+                RelayMessage::count(SubscriptionId::new("sub"), 7),
+            ),
+            (
+                r#"["AUTH","challenge",1,2,3]"#,
+                RelayMessage::auth("challenge"),
+            ),
+        ];
+
+        for (json, expected) in cases {
+            assert_eq!(RelayMessage::from_json(json).unwrap(), expected, "{json}");
+        }
+    }
+
+    /// Every variant must survive a serialize and parse cycle. The suite only
+    /// ever parsed messages, so the serialized form of most variants had no
+    /// coverage at all.
+    #[test]
+    fn round_trip_every_variant() {
+        let event: Event = Event::from_json(
+            r#"{"id":"70b10f70c1318967eddf12527799411b1a9780ad9c43858f5e5fcd45486a13a5","pubkey":"379e863e8357163b5bce5d2688dc4f1dcc2d505222fb8d74db600f30535dfdfe","created_at":1612809991,"kind":1,"tags":[],"content":"test","sig":"273a9cd5d11455590f4359500bccb7a89428262b96b3ea87a756b770964472f8c3e87f5d5e64d8d2e859a71462a3f477b554565c4f2f326cb01dd7620db71502"}"#,
+        )
+        .unwrap();
+        let id: EventId = event.id;
+        let sub = || SubscriptionId::new("sub");
+
+        let messages: [RelayMessage; 10] = [
+            RelayMessage::event(sub(), event),
+            RelayMessage::notice("a \"quoted\" notice"),
+            RelayMessage::closed(sub(), "duplicate: have this already"),
+            RelayMessage::eose(sub()),
+            RelayMessage::ok(id, true, ""),
+            RelayMessage::ok(id, false, "blocked: no"),
+            RelayMessage::auth("challenge"),
+            RelayMessage::count(sub(), 42),
+            RelayMessage::NegMsg {
+                subscription_id: Cow::Owned(sub()),
+                message: Cow::Borrowed("deadbeef"),
+            },
+            RelayMessage::NegErr {
+                subscription_id: Cow::Owned(sub()),
+                message: Cow::Borrowed("RESULTS_TOO_BIG"),
+            },
+        ];
+
+        for message in messages {
+            let json: String = message.as_json();
+            assert_eq!(RelayMessage::from_json(&json).unwrap(), message, "{json}");
+        }
+    }
+
+    #[test]
+    fn parse_rejects_unknown_type_and_non_array() {
+        for json in [
+            r#"["NOT-A-REAL-TYPE","x"]"#,
+            r#"{"type":"NOTICE"}"#,
+            r#""NOTICE""#,
+            r#"[]"#,
+        ] {
+            let err = RelayMessage::from_json(json).unwrap_err();
+            assert_eq!(err.kind(), ErrorKind::Malformed, "{json}");
+        }
+    }
+
+    /// An `EVENT` message must embed the event exactly as the event serializes
+    /// on its own. Round-tripping through `serde_json::Value` used to reorder
+    /// the event's keys alphabetically.
+    #[test]
+    fn event_message_embeds_canonical_event() {
+        let event: Event = Event::from_json(
+            r#"{"id":"70b10f70c1318967eddf12527799411b1a9780ad9c43858f5e5fcd45486a13a5","pubkey":"379e863e8357163b5bce5d2688dc4f1dcc2d505222fb8d74db600f30535dfdfe","created_at":1707161500,"kind":1,"tags":[],"content":"test","sig":"0e57f2c4b6b7b4cc7cbb0e1d0b0e0c9f24b8bde9f0d51c3d9f22a5cd94e0e4d8b0e6b1dfa1e0dd5e0cd0b8b7c9c3e1e8b1b7e4f8b0d1e7c0d6b1e4a7e3b2c1d0"}"#,
+        )
+        .unwrap();
+
+        let message: RelayMessage = RelayMessage::event(SubscriptionId::new("sub"), event.clone());
+        let json: String = message.as_json();
+
+        assert!(
+            json.contains(&event.as_json()),
+            "event was not embedded verbatim: {json}"
         );
     }
 }
