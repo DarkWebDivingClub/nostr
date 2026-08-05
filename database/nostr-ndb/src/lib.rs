@@ -170,8 +170,10 @@ impl NostrDatabase for NdbDatabase {
         Box::pin(async move {
             let txn: Transaction = Transaction::new(&self.db).map_err(Error::storage)?;
             let res: Vec<QueryResult> = ndb_query(&self.db, &txn, &filter)?;
+            let now = Timestamp::now();
             Ok(res
                 .into_iter()
+                .filter(|result| !ndb_note_is_expired_at(&result.note, now))
                 .map(|r| ndb_note_to_neg_item(r.note))
                 .collect())
         })
@@ -296,4 +298,13 @@ fn ndb_note_to_neg_item(note: Note) -> (EventId, Timestamp) {
     let id = EventId::from_byte_array(*note.id());
     let created_at = Timestamp::from_secs(note.created_at());
     (id, created_at)
+}
+
+fn ndb_note_is_expired_at(note: &Note, now: Timestamp) -> bool {
+    note.tags()
+        .iter()
+        .find(|tag| tag.get_str(0) == Some("expiration"))
+        .and_then(|tag| tag.get_str(1))
+        .and_then(|timestamp| timestamp.parse::<Timestamp>().ok())
+        .is_some_and(|expiration| expiration < now)
 }

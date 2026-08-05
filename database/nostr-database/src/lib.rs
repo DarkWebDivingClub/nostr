@@ -173,7 +173,7 @@ pub trait NostrDatabase: Any + Debug + Send + Sync {
         filter: Filter,
     ) -> Pin<Box<dyn Future<Output = Result<BTreeSet<Event>, Error>> + Send + '_>>;
 
-    /// Get `negentropy` items
+    /// Get unexpired `negentropy` items.
     #[allow(clippy::type_complexity)]
     fn negentropy_items(
         &self,
@@ -181,7 +181,12 @@ pub trait NostrDatabase: Any + Debug + Send + Sync {
     ) -> Pin<Box<dyn Future<Output = Result<Vec<(EventId, Timestamp)>, Error>> + Send + '_>> {
         Box::pin(async move {
             let events: BTreeSet<Event> = self.query(filter).await?;
-            Ok(events.into_iter().map(|e| (e.id, e.created_at)).collect())
+            let now = Timestamp::now();
+            Ok(events
+                .into_iter()
+                .filter(|event| !event.is_expired_at(now))
+                .map(|event| (event.id, event.created_at))
+                .collect())
         })
     }
 

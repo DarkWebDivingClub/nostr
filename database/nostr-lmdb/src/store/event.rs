@@ -130,6 +130,15 @@ impl Hash for DatabaseEvent<'_> {
 }
 
 impl<'a> DatabaseEvent<'a> {
+    pub(super) fn is_expired_at(&self, now: Timestamp) -> bool {
+        self.tags
+            .iter()
+            .find(|tag| tag.kind() == "expiration")
+            .and_then(DatabaseTag::content)
+            .and_then(|timestamp| Timestamp::from_str(timestamp).ok())
+            .is_some_and(|expiration| expiration < now)
+    }
+
     pub(crate) fn from_flatbuf(buf: &'a [u8]) -> Result<Self, StoreError> {
         let ev = event_fbs::root_as_event(buf)?;
 

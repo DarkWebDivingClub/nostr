@@ -603,15 +603,19 @@ impl MemoryStore {
     }
 
     pub fn negentropy_items(&self, filter: Filter) -> Vec<(EventId, Timestamp)> {
+        let now = Timestamp::now();
         match self.internal_query(filter) {
             InternalQueryResult::All => self
                 .events
                 .iter()
+                .filter(|event| !event.is_expired_at(now))
                 .map(|ev| (ev.id, ev.created_at))
                 .collect(),
-            InternalQueryResult::Set(set) => {
-                set.into_iter().map(|ev| (ev.id, ev.created_at)).collect()
-            }
+            InternalQueryResult::Set(set) => set
+                .into_iter()
+                .filter(|event| !event.is_expired_at(now))
+                .map(|ev| (ev.id, ev.created_at))
+                .collect(),
         }
     }
 

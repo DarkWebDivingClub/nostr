@@ -461,6 +461,26 @@ macro_rules! database_unit_tests {
                 store.save_event(event).await.expect("Failed to save event");
             }
 
+            let keys = Keys::generate();
+            let expiration = Timestamp::now() + 1;
+            let expired_event = build_event(
+                &keys,
+                EventBuilder::new(Kind::TextNote, "expired")
+                    .tag(Tag::expiration(expiration)),
+            );
+            store
+                .save_event(&expired_event)
+                .await
+                .expect("Failed to save expiring event");
+
+            time::timeout(Duration::from_secs(2), async {
+                while !expired_event.is_expired() {
+                    time::sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await
+            .expect("event did not expire before the deadline");
+
             // Get negentropy items (7 visible events)
             let items = store
                 .negentropy_items(Filter::new())
@@ -468,6 +488,7 @@ macro_rules! database_unit_tests {
                 .expect("Failed to get negentropy items");
 
             assert_eq!(items.len(), 8);
+            assert!(!items.iter().any(|(id, _)| id == &expired_event.id));
 
             // Verify items are from the original events
             let event_ids: HashSet<EventId> = events.iter().map(|e| e.id).collect();

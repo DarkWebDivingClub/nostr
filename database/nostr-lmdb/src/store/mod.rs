@@ -136,8 +136,10 @@ impl Store {
     ) -> Result<Vec<(EventId, Timestamp)>, StoreError> {
         let txn = self.db.read_txn()?;
         let events = self.db.query(&txn, filter)?;
+        let now = Timestamp::now();
         let items = events
             .into_iter()
+            .filter(|event| !event.is_expired_at(now))
             .map(|e| (EventId::from_byte_array(*e.id), e.created_at))
             .collect();
         txn.commit()?;

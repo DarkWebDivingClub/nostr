@@ -27,6 +27,12 @@
 
 -->
 
+## Unreleased
+
+### Fixed
+
+- Exclude expired events from negentropy items
+
 ## v0.45.0 - 2026/08/05
 
 ### Breaking changes
