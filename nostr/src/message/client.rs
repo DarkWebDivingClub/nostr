@@ -292,17 +292,11 @@ impl<'de> Visitor<'de> for ClientMessageVisitor {
             // ["AUTH", <event JSON>]
             "AUTH" => ClientMessage::Auth(Cow::Owned(next!())),
             // ["NEG-OPEN", <subscription ID string>, <filter>, <initial message>]
-            "NEG-OPEN" => {
-                let subscription_id: SubscriptionId = next!();
-                let filter: Filter = next!();
-                let initial_message: String = next!();
-
-                ClientMessage::NegOpen {
-                    subscription_id: Cow::Owned(subscription_id),
-                    filter: Cow::Owned(filter),
-                    initial_message: Cow::Owned(initial_message),
-                }
-            }
+            "NEG-OPEN" => ClientMessage::NegOpen {
+                subscription_id: Cow::Owned(next!()),
+                filter: Cow::Owned(next!()),
+                initial_message: Cow::Owned(next!()),
+            },
             // ["NEG-MSG", <subscription ID string>, <message, lowercase hex-encoded>]
             "NEG-MSG" => ClientMessage::NegMsg {
                 subscription_id: Cow::Owned(next!()),
