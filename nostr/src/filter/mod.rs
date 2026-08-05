@@ -695,10 +695,58 @@ where
     S: Serializer,
 {
     let mut map = serializer.serialize_map(Some(generic_tags.len()))?;
+
+    // The key is always `#` followed by a single ASCII letter, so it fits in a
+    // fixed buffer. `format!` would allocate a `String` for every entry.
+    let mut key: [u8; 2] = [b'#', 0];
+
     for (tag, values) in generic_tags.iter() {
-        map.serialize_entry(&format!("#{tag}"), values)?;
+        key[1] = tag.as_byte();
+        let key: &str = core::str::from_utf8(&key).map_err(serde::ser::Error::custom)?;
+        map.serialize_entry(key, values)?;
     }
+
     map.end()
+}
+
+/// A generic tag query key.
+///
+/// `Some` when the key is `#` followed by a single letter, `None` for any other
+/// key, which is ignored. Deserializing through this avoids allocating a
+/// `String` for every key in the map.
+struct TagKey(Option<SingleLetterTag>);
+
+impl<'de> Deserialize<'de> for TagKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct TagKeyVisitor;
+
+        impl Visitor<'_> for TagKeyVisitor {
+            type Value = TagKey;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a map key")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                let mut chars = v.chars();
+                if let (Some('#'), Some(ch), None) = (chars.next(), chars.next(), chars.next()) {
+                    let tag: SingleLetterTag =
+                        SingleLetterTag::from_char(ch).map_err(serde::de::Error::custom)?;
+                    Ok(TagKey(Some(tag)))
+                } else {
+                    Ok(TagKey(None))
+                }
+            }
+        }
+
+        deserializer.deserialize_str(TagKeyVisitor)
+    }
 }
 
 fn deserialize_generic_tags<'de, D>(deserializer: D) -> Result<GenericTags, D::Error>
@@ -719,15 +767,16 @@ where
             M: MapAccess<'de>,
         {
             let mut generic_tags = BTreeMap::new();
-            while let Some(key) = map.next_key::<String>()? {
-                let mut chars = key.chars();
-                if let (Some('#'), Some(ch), None) = (chars.next(), chars.next(), chars.next()) {
-                    let tag: SingleLetterTag =
-                        SingleLetterTag::from_char(ch).map_err(serde::de::Error::custom)?;
-                    let values: BTreeSet<String> = map.next_value()?;
-                    generic_tags.insert(tag, values);
-                } else {
-                    map.next_value::<serde::de::IgnoredAny>()?;
+            while let Some(TagKey(tag)) = map.next_key::<TagKey>()? {
+                match tag {
+                    Some(tag) => {
+                        let values: BTreeSet<String> = map.next_value()?;
+                        generic_tags.insert(tag, values);
+                    }
+                    // Not a `#X` key, so it isn't a generic tag query.
+                    None => {
+                        map.next_value::<serde::de::IgnoredAny>()?;
+                    }
                 }
             }
             Ok(generic_tags)
@@ -915,6 +964,38 @@ mod tests {
         let json = r##"{"aa":["..."],"search":"test"}"##;
         let filter = Filter::from_json(json).unwrap();
         assert_eq!(filter, Filter::new().search("test"));
+    }
+
+    /// A key is a generic tag query only when it is `#` followed by exactly one
+    /// letter. Anything else is ignored, except a single non-letter character,
+    /// which is rejected.
+    #[test]
+    fn test_generic_tag_key_shapes() {
+        // Ignored: not `#` + exactly one character.
+        for json in [
+            r##"{"#ab":["x"],"search":"test"}"##,
+            r##"{"#":["x"],"search":"test"}"##,
+            r##"{"t":["x"],"search":"test"}"##,
+            r##"{"":["x"],"search":"test"}"##,
+        ] {
+            let filter = Filter::from_json(json).unwrap();
+            assert_eq!(filter, Filter::new().search("test"), "{json}");
+        }
+
+        // Rejected: `#` followed by a single non-letter.
+        for json in [
+            r##"{"#1":["x"]}"##,
+            r##"{"#_":["x"]}"##,
+            r##"{"# ":["x"]}"##,
+            r###"{"##":["x"]}"###,
+        ] {
+            assert!(Filter::from_json(json).is_err(), "{json}");
+        }
+
+        // Accepted, both cases.
+        let filter = Filter::from_json(r##"{"#t":["x"],"#T":["y"]}"##).unwrap();
+        assert_eq!(filter.generic_tags.len(), 2);
+        assert_eq!(filter.as_json(), r##"{"#t":["x"],"#T":["y"]}"##);
     }
 
     #[test]

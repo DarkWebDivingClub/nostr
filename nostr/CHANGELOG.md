@@ -118,6 +118,7 @@
 - Hardware-accelerate SHA-256 where available (https://github.com/nostrdevkit/nostr/pull/1419)
 - Reduce allocations and redundant key parsing in the NIP-44 v2 path (https://github.com/nostrdevkit/nostr/pull/1421)
 - Serialize and deserialize `RelayMessage` without a `serde_json::Value` tree (https://github.com/nostrdevkit/nostr/pull/1425)
+- Avoid allocating a `String` per generic tag key when serializing and deserializing `Filter` (https://github.com/nostrdevkit/nostr/pull/1427)
 
 ### Security
 
