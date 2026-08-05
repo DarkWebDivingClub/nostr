@@ -126,8 +126,9 @@ dependencies = [
 
 [[package]]
 name = "async-wsocket"
-version = "0.16.0"
-source = "git+https://github.com/shadowylab/async-wsocket?rev=fe5c6a1b0730ce11a1627a2643433cfcd3214899#fe5c6a1b0730ce11a1627a2643433cfcd3214899"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c713e1f14c7b82e32ea159af1c6e2f070cfadbdf23fb2512acce9af0a26f1a2"
 dependencies = [
  "futures",
  "futures-util",
