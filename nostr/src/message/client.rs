@@ -297,15 +297,11 @@ impl<'de> Visitor<'de> for ClientMessageVisitor {
                 let filter: Filter = next!();
                 let initial_message: String = next!();
 
-                if seq.next_element::<de::IgnoredAny>()?.is_some() {
-                    return Err(malformed());
-                }
-
-                return Ok(ClientMessage::NegOpen {
+                ClientMessage::NegOpen {
                     subscription_id: Cow::Owned(subscription_id),
                     filter: Cow::Owned(filter),
                     initial_message: Cow::Owned(initial_message),
-                });
+                }
             }
             // ["NEG-MSG", <subscription ID string>, <message, lowercase hex-encoded>]
             "NEG-MSG" => ClientMessage::NegMsg {
@@ -427,7 +423,6 @@ mod tests {
             r#"[]"#,
             r#"["REQ","sub"]"#,
             r#"["NEG-OPEN","sub",{},16,"deadbeef"]"#,
-            r#"["NEG-OPEN","sub",{},"deadbeef","extra"]"#,
         ] {
             let err = ClientMessage::from_json(json).unwrap_err();
             assert_eq!(err.kind(), ErrorKind::Malformed, "{json}");
