@@ -331,7 +331,6 @@ pub(super) async fn sync(
     let open_msg: ClientMessage = ClientMessage::NegOpen {
         subscription_id: Cow::Borrowed(&sub_id),
         filter: Cow::Borrowed(filter),
-        id_size: None,
         initial_message: Cow::Owned(faster_hex::hex_string(&initial_message)),
     };
     relay.send_msg(open_msg).await?;
@@ -565,9 +564,7 @@ async fn check_negentropy_support(
                     }
                     RelayMessage::Notice(message) => {
                         if message == "ERROR: negentropy error: negentropy query missing elements" {
-                            // The NEG-OPEN message is sent with 4 elements instead of 5
-                            // If the relay return this error means that is not support new
-                            // negentropy protocol
+                            // The relay expects the deprecated five-element NEG-OPEN format.
                             return Err(negentropy::Error::UnsupportedProtocolVersion.into());
                         } else if message.contains("bad msg")
                             && (message.contains("unknown cmd")

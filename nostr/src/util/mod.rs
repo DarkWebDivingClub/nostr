@@ -24,7 +24,9 @@ pub(crate) mod hkdf;
 mod json;
 pub(crate) mod sha256;
 
-pub(crate) use self::json::{impl_json_methods, parse_json, parse_json_from_value};
+#[cfg(feature = "nip47")]
+pub(crate) use self::json::parse_json_from_value;
+pub(crate) use self::json::{impl_json_methods, parse_json};
 use crate::error::Error;
 #[cfg(any(feature = "nip04", feature = "nip44"))]
 use crate::key::{PublicKey, SecretKey};

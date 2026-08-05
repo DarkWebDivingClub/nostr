@@ -20,13 +20,8 @@ pub mod relay;
 
 pub use self::client::ClientMessage;
 pub use self::relay::{MachineReadablePrefix, RelayMessage};
-use crate::error::{Error, ErrorKind};
 #[cfg(feature = "rand")]
 use crate::util;
-
-fn invalid_message_format() -> Error {
-    Error::with_static_message(ErrorKind::Malformed, "invalid message format")
-}
 
 /// Subscription ID
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

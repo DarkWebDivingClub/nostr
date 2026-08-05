@@ -6,17 +6,18 @@
 //! Client messages
 
 use alloc::borrow::Cow;
-use alloc::string::{String, ToString};
+use alloc::string::String;
 use alloc::vec::Vec;
+use core::fmt;
 
+use serde::de::{self, SeqAccess, Visitor};
+use serde::ser::SerializeSeq;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::{Value, json};
 
-use super::{SubscriptionId, invalid_message_format};
-use crate::error::Error;
+use super::SubscriptionId;
 use crate::event::Event;
 use crate::filter::Filter;
-use crate::util::{impl_json_methods, parse_json, parse_json_from_value};
+use crate::util::impl_json_methods;
 
 /// Messages sent by clients, received by relays
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -49,8 +50,6 @@ pub enum ClientMessage<'a> {
         subscription_id: Cow<'a, SubscriptionId>,
         /// Filter
         filter: Cow<'a, Filter>,
-        /// ID size (deprecated)
-        id_size: Option<u8>,
         /// Initial message (hex)
         initial_message: Cow<'a, str>,
     },
@@ -117,7 +116,6 @@ impl ClientMessage<'_> {
         Self::NegOpen {
             subscription_id: Cow::Owned(subscription_id),
             filter: Cow::Owned(filter),
-            id_size: None,
             initial_message: Cow::Owned(initial_message),
         }
     }
@@ -146,186 +144,17 @@ impl ClientMessage<'_> {
         matches!(self, ClientMessage::Auth(_))
     }
 
-    /// Serialize as [`Value`]
-    pub fn as_value(&self) -> Value {
-        match self {
-            Self::Event(event) => json!(["EVENT", event]),
-            Self::Req {
-                subscription_id,
-                filters,
-            } => {
-                let mut json = json!(["REQ", subscription_id]);
-                let mut filters = json!(filters);
-
-                if let Some(json) = json.as_array_mut() {
-                    if let Some(filters) = filters.as_array_mut() {
-                        json.append(filters);
-                    }
-                }
-
-                json
-            }
-            Self::Count {
-                subscription_id,
-                filter,
-            } => {
-                json!(["COUNT", subscription_id, filter])
-            }
-            Self::Close(subscription_id) => json!(["CLOSE", subscription_id]),
-            Self::Auth(event) => json!(["AUTH", event]),
-            Self::NegOpen {
-                subscription_id,
-                filter,
-                id_size,
-                initial_message,
-            } => match id_size {
-                Some(id_size) => json!([
-                    "NEG-OPEN",
-                    subscription_id,
-                    filter,
-                    id_size,
-                    initial_message
-                ]),
-                None => json!(["NEG-OPEN", subscription_id, filter, initial_message]),
-            },
-            Self::NegMsg {
-                subscription_id,
-                message,
-            } => json!(["NEG-MSG", subscription_id, message]),
-            Self::NegClose { subscription_id } => json!(["NEG-CLOSE", subscription_id]),
-        }
-    }
-
-    /// Deserialize from [`Value`]
+    /// Number of elements in the JSON array form.
     ///
-    /// **This method NOT verify the event signature!**
-    pub fn from_value(msg: Value) -> Result<Self, Error> {
-        let v = msg.as_array().ok_or(invalid_message_format())?;
-
-        if v.is_empty() {
-            return Err(invalid_message_format());
+    /// Matched exhaustively on purpose: a new variant must state its own
+    /// length rather than inherit a default that may not fit.
+    fn len(&self) -> usize {
+        match self {
+            Self::Event(..) | Self::Close(..) | Self::Auth(..) | Self::NegClose { .. } => 2,
+            Self::Count { .. } | Self::NegMsg { .. } => 3,
+            Self::Req { filters, .. } => 2 + filters.len(),
+            Self::NegOpen { .. } => 4,
         }
-
-        let v_len: usize = v.len();
-
-        // ["EVENT", <event JSON>]
-        if v[0] == "EVENT" {
-            if v_len >= 2 {
-                let event: Event = parse_json_from_value(v[1].clone())?;
-                return Ok(Self::event(event));
-            } else {
-                return Err(invalid_message_format());
-            }
-        }
-
-        // ["REQ", <subscription_id>, <filter JSON>]
-        if v[0] == "REQ" {
-            if v_len >= 3 {
-                // Deprecated REQ
-                // ["REQ", <subscription_id>, <filter JSON>, <filter JSON>, ...]
-                let subscription_id: SubscriptionId = parse_json_from_value(v[1].clone())?;
-                let filters: Vec<Cow<Filter>> =
-                    parse_json_from_value(Value::Array(v[2..].to_vec()))?;
-                return Ok(Self::Req {
-                    subscription_id: Cow::Owned(subscription_id),
-                    filters,
-                });
-            } else {
-                return Err(invalid_message_format());
-            }
-        }
-
-        // ["COUNT", <subscription_id>, <filter JSON>]
-        if v[0] == "COUNT" {
-            if v_len >= 3 {
-                let subscription_id: SubscriptionId = parse_json_from_value(v[1].clone())?;
-                let filter: Filter = parse_json_from_value(v[2].clone())?;
-                return Ok(Self::count(subscription_id, filter));
-            } else {
-                return Err(invalid_message_format());
-            }
-        }
-
-        // Close
-        // ["CLOSE", <subscription_id>]
-        if v[0] == "CLOSE" {
-            if v_len >= 2 {
-                let subscription_id: SubscriptionId = parse_json_from_value(v[1].clone())?;
-                return Ok(Self::close(subscription_id));
-            } else {
-                return Err(invalid_message_format());
-            }
-        }
-
-        // Auth
-        // ["AUTH", <event JSON>]
-        if v[0] == "AUTH" {
-            if v_len >= 2 {
-                let event: Event = parse_json_from_value(v[1].clone())?;
-                return Ok(Self::auth(event));
-            } else {
-                return Err(invalid_message_format());
-            }
-        }
-
-        // Negentropy Open
-        // New: ["NEG-OPEN", <subscription ID string>, <filter>, <initialMessage as lowercase hex-encoded>]
-        // Old: ["NEG-OPEN", <subscription ID string>, <filter>, <idSize>, <initialMessage as lowercase hex-encoded>]
-        if v[0] == "NEG-OPEN" {
-            // New negentropy protocol message
-            if v_len == 4 {
-                let subscription_id: SubscriptionId = parse_json_from_value(v[1].clone())?;
-                let filter: Filter = Filter::from_json(v[2].to_string())?;
-                let initial_message: String = parse_json_from_value(v[3].clone())?;
-                return Ok(Self::neg_open(subscription_id, filter, initial_message));
-            }
-
-            // Old negentropy protocol message
-            if v_len == 5 {
-                let subscription_id: SubscriptionId = parse_json_from_value(v[1].clone())?;
-                let filter: Filter = Filter::from_json(v[2].to_string())?;
-                let id_size: u8 = v[3].as_u64().ok_or(invalid_message_format())? as u8;
-                let initial_message: String = parse_json_from_value(v[4].clone())?;
-                return Ok(Self::NegOpen {
-                    subscription_id: Cow::Owned(subscription_id),
-                    filter: Cow::Owned(filter),
-                    id_size: Some(id_size),
-                    initial_message: Cow::Owned(initial_message),
-                });
-            }
-
-            return Err(invalid_message_format());
-        }
-
-        // Negentropy Message
-        // ["NEG-MSG", <subscription ID string>, <message, lowercase hex-encoded>]
-        if v[0] == "NEG-MSG" {
-            if v_len >= 3 {
-                let subscription_id: SubscriptionId = parse_json_from_value(v[1].clone())?;
-                let message: String = parse_json_from_value(v[2].clone())?;
-                return Ok(Self::NegMsg {
-                    subscription_id: Cow::Owned(subscription_id),
-                    message: Cow::Owned(message),
-                });
-            } else {
-                return Err(invalid_message_format());
-            }
-        }
-
-        // Negentropy Close
-        // ["NEG-CLOSE", <subscription ID string>]
-        if v[0] == "NEG-CLOSE" {
-            if v_len >= 2 {
-                let subscription_id: SubscriptionId = parse_json_from_value(v[1].clone())?;
-                return Ok(Self::NegClose {
-                    subscription_id: Cow::Owned(subscription_id),
-                });
-            } else {
-                return Err(invalid_message_format());
-            }
-        }
-
-        Err(invalid_message_format())
     }
 }
 
@@ -334,8 +163,67 @@ impl Serialize for ClientMessage<'_> {
     where
         S: Serializer,
     {
-        let json_value: Value = self.as_value();
-        json_value.serialize(serializer)
+        // Write the array elements straight to the serializer. Building a
+        // `serde_json::Value` first would allocate for every element, and for
+        // an `EVENT` message that means the whole event too.
+        let mut seq = serializer.serialize_seq(Some(self.len()))?;
+
+        match self {
+            Self::Event(event) => {
+                seq.serialize_element("EVENT")?;
+                seq.serialize_element(event)?;
+            }
+            Self::Req {
+                subscription_id,
+                filters,
+            } => {
+                seq.serialize_element("REQ")?;
+                seq.serialize_element(subscription_id)?;
+                for filter in filters {
+                    seq.serialize_element(filter)?;
+                }
+            }
+            Self::Count {
+                subscription_id,
+                filter,
+            } => {
+                seq.serialize_element("COUNT")?;
+                seq.serialize_element(subscription_id)?;
+                seq.serialize_element(filter)?;
+            }
+            Self::Close(subscription_id) => {
+                seq.serialize_element("CLOSE")?;
+                seq.serialize_element(subscription_id)?;
+            }
+            Self::Auth(event) => {
+                seq.serialize_element("AUTH")?;
+                seq.serialize_element(event)?;
+            }
+            Self::NegOpen {
+                subscription_id,
+                filter,
+                initial_message,
+            } => {
+                seq.serialize_element("NEG-OPEN")?;
+                seq.serialize_element(subscription_id)?;
+                seq.serialize_element(filter)?;
+                seq.serialize_element(initial_message)?;
+            }
+            Self::NegMsg {
+                subscription_id,
+                message,
+            } => {
+                seq.serialize_element("NEG-MSG")?;
+                seq.serialize_element(subscription_id)?;
+                seq.serialize_element(message)?;
+            }
+            Self::NegClose { subscription_id } => {
+                seq.serialize_element("NEG-CLOSE")?;
+                seq.serialize_element(subscription_id)?;
+            }
+        }
+
+        seq.end()
     }
 }
 
@@ -344,32 +232,111 @@ impl<'de> Deserialize<'de> for ClientMessage<'_> {
     where
         D: Deserializer<'de>,
     {
-        let json_value = Value::deserialize(deserializer)?;
-        ClientMessage::from_value(json_value).map_err(serde::de::Error::custom)
+        deserializer.deserialize_seq(ClientMessageVisitor)
     }
 }
 
-impl_json_methods! {
-    ClientMessage<'_>,
-    from_json(json) {
-        let msg: &[u8] = json.as_ref();
+struct ClientMessageVisitor;
 
-        if msg.is_empty() {
-            return Err(invalid_message_format());
+impl<'de> Visitor<'de> for ClientMessageVisitor {
+    type Value = ClientMessage<'static>;
+
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("a client message array")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        fn malformed<E>() -> E
+        where
+            E: de::Error,
+        {
+            E::custom("invalid message format")
         }
 
-        let value: Value = parse_json(&msg)?;
-        Self::from_value(value)
+        macro_rules! next {
+            () => {
+                seq.next_element()?.ok_or_else(malformed)?
+            };
+        }
+
+        let message_type: String = next!();
+
+        let message: ClientMessage<'static> = match message_type.as_str() {
+            // ["EVENT", <event JSON>]
+            "EVENT" => ClientMessage::Event(Cow::Owned(next!())),
+            // ["REQ", <subscription_id>, <filter JSON>, <filter JSON>, ...]
+            "REQ" => {
+                let subscription_id: SubscriptionId = next!();
+                let mut filters: Vec<Cow<'static, Filter>> = Vec::new();
+                while let Some(filter) = seq.next_element::<Filter>()? {
+                    filters.push(Cow::Owned(filter));
+                }
+                if filters.is_empty() {
+                    return Err(malformed());
+                }
+                return Ok(ClientMessage::Req {
+                    subscription_id: Cow::Owned(subscription_id),
+                    filters,
+                });
+            }
+            // ["COUNT", <subscription_id>, <filter JSON>]
+            "COUNT" => ClientMessage::Count {
+                subscription_id: Cow::Owned(next!()),
+                filter: Cow::Owned(next!()),
+            },
+            // ["CLOSE", <subscription_id>]
+            "CLOSE" => ClientMessage::Close(Cow::Owned(next!())),
+            // ["AUTH", <event JSON>]
+            "AUTH" => ClientMessage::Auth(Cow::Owned(next!())),
+            // ["NEG-OPEN", <subscription ID string>, <filter>, <initial message>]
+            "NEG-OPEN" => {
+                let subscription_id: SubscriptionId = next!();
+                let filter: Filter = next!();
+                let initial_message: String = next!();
+
+                if seq.next_element::<de::IgnoredAny>()?.is_some() {
+                    return Err(malformed());
+                }
+
+                return Ok(ClientMessage::NegOpen {
+                    subscription_id: Cow::Owned(subscription_id),
+                    filter: Cow::Owned(filter),
+                    initial_message: Cow::Owned(initial_message),
+                });
+            }
+            // ["NEG-MSG", <subscription ID string>, <message, lowercase hex-encoded>]
+            "NEG-MSG" => ClientMessage::NegMsg {
+                subscription_id: Cow::Owned(next!()),
+                message: Cow::Owned(next!()),
+            },
+            // ["NEG-CLOSE", <subscription ID string>]
+            "NEG-CLOSE" => ClientMessage::NegClose {
+                subscription_id: Cow::Owned(next!()),
+            },
+            _ => return Err(malformed()),
+        };
+
+        while seq.next_element::<de::IgnoredAny>()?.is_some() {}
+
+        Ok(message)
     }
 }
+
+impl_json_methods!(ClientMessage<'_>);
 
 #[cfg(test)]
 mod tests {
     use core::str::FromStr;
 
     use super::*;
+    use crate::error::ErrorKind;
     use crate::event::Kind;
     use crate::key::PublicKey;
+
+    const EVENT_JSON: &str = r#"{"id":"70b10f70c1318967eddf12527799411b1a9780ad9c43858f5e5fcd45486a13a5","pubkey":"379e863e8357163b5bce5d2688dc4f1dcc2d505222fb8d74db600f30535dfdfe","created_at":1612809991,"kind":1,"tags":[],"content":"test","sig":"273a9cd5d11455590f4359500bccb7a89428262b96b3ea87a756b770964472f8c3e87f5d5e64d8d2e859a71462a3f477b554565c4f2f326cb01dd7620db71502"}"#;
 
     #[test]
     fn test_client_message_req() {
@@ -391,5 +358,94 @@ mod tests {
             Filter::new().kind(Kind::Custom(22)),
         );
         assert_eq!(client_req.as_json(), r##"["REQ","test",{"kinds":[22]}]"##);
+    }
+
+    /// Trailing elements are reserved for future extensions, so fixed-length
+    /// variants other than `NEG-OPEN` must continue to ignore them.
+    #[test]
+    fn parse_trailing_elements() {
+        let cases: [(&str, ClientMessage); 3] = [
+            (
+                r#"["COUNT","sub",{"kinds":[1]},"extra"]"#,
+                ClientMessage::count(
+                    SubscriptionId::new("sub"),
+                    Filter::new().kind(Kind::TextNote),
+                ),
+            ),
+            (
+                r#"["CLOSE","sub",{"extra":true}]"#,
+                ClientMessage::close(SubscriptionId::new("sub")),
+            ),
+            (
+                r#"["NEG-MSG","sub","deadbeef",1,2]"#,
+                ClientMessage::NegMsg {
+                    subscription_id: Cow::Owned(SubscriptionId::new("sub")),
+                    message: Cow::Borrowed("deadbeef"),
+                },
+            ),
+        ];
+
+        for (json, expected) in cases {
+            assert_eq!(ClientMessage::from_json(json).unwrap(), expected, "{json}");
+        }
+    }
+
+    #[test]
+    fn round_trip_every_variant() {
+        let event: Event = Event::from_json(EVENT_JSON).unwrap();
+        let sub = || SubscriptionId::new("sub");
+        let filter = || Filter::new().kind(Kind::TextNote);
+
+        let messages: [ClientMessage; 8] = [
+            ClientMessage::event(event.clone()),
+            ClientMessage::req(sub(), vec![filter(), Filter::new().author(event.pubkey)]),
+            ClientMessage::count(sub(), filter()),
+            ClientMessage::close(sub()),
+            ClientMessage::auth(event),
+            ClientMessage::neg_open(sub(), filter(), String::from("deadbeef")),
+            ClientMessage::NegMsg {
+                subscription_id: Cow::Owned(sub()),
+                message: Cow::Borrowed("deadbeef"),
+            },
+            ClientMessage::NegClose {
+                subscription_id: Cow::Owned(sub()),
+            },
+        ];
+
+        for message in messages {
+            let json: String = message.as_json();
+            assert_eq!(ClientMessage::from_json(&json).unwrap(), message, "{json}");
+        }
+    }
+
+    #[test]
+    fn parse_rejects_unknown_type_and_non_array() {
+        for json in [
+            r#"["NOT-A-REAL-TYPE","x"]"#,
+            r#"{"type":"EVENT"}"#,
+            r#""EVENT""#,
+            r#"[]"#,
+            r#"["REQ","sub"]"#,
+            r#"["NEG-OPEN","sub",{},16,"deadbeef"]"#,
+            r#"["NEG-OPEN","sub",{},"deadbeef","extra"]"#,
+        ] {
+            let err = ClientMessage::from_json(json).unwrap_err();
+            assert_eq!(err.kind(), ErrorKind::Malformed, "{json}");
+        }
+    }
+
+    /// An `EVENT` message must embed the event exactly as the event serializes
+    /// on its own. Round-tripping through `serde_json::Value` used to reorder
+    /// the event's keys alphabetically.
+    #[test]
+    fn event_message_embeds_canonical_event() {
+        let event: Event = Event::from_json(EVENT_JSON).unwrap();
+        let message: ClientMessage = ClientMessage::event(event.clone());
+        let json: String = message.as_json();
+
+        assert!(
+            json.contains(&event.as_json()),
+            "event was not embedded verbatim: {json}"
+        );
     }
 }

@@ -1,4 +1,5 @@
 use serde::de;
+#[cfg(feature = "nip47")]
 use serde_json::Value;
 
 use crate::error::Error;
@@ -13,6 +14,7 @@ where
 }
 
 #[inline]
+#[cfg(feature = "nip47")]
 pub(crate) fn parse_json_from_value<T>(value: Value) -> Result<T, Error>
 where
     T: de::DeserializeOwned,

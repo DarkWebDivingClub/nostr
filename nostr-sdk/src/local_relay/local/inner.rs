@@ -916,7 +916,6 @@ impl InnerLocalRelay {
                 subscription_id,
                 filter,
                 initial_message,
-                ..
             } => {
                 if let RateLimiterResponse::Limited =
                     session.check_query_rate_limit(self.queries_per_minute)

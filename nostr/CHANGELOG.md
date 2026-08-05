@@ -47,6 +47,7 @@
 - Remove `EventBuilder::sign_with_keys` and `EventBuilder::sign_with_ctx` (https://github.com/nostrdevkit/nostr/pull/1355)
 - Remove `UnsignedEvent::sign_with_keys`, `UnsignedEvent::sign_with_ctx` and `UnsignedEvent::sign_with_aux_rand` (https://github.com/nostrdevkit/nostr/pull/1355)
 - Remove `JsonUtil` trait (https://github.com/nostrdevkit/nostr/pull/1365)
+- Remove the deprecated `id_size` field from `ClientMessage::NegOpen` https://github.com/nostrdevkit/nostr/pull/1426
 
 ### Changed
 
@@ -117,7 +118,7 @@
 - Optimize event serialization by ~73% (https://github.com/nostrdevkit/nostr/pull/1319)
 - Hardware-accelerate SHA-256 where available (https://github.com/nostrdevkit/nostr/pull/1419)
 - Reduce allocations and redundant key parsing in the NIP-44 v2 path (https://github.com/nostrdevkit/nostr/pull/1421)
-- Serialize and deserialize `RelayMessage` without a `serde_json::Value` tree (https://github.com/nostrdevkit/nostr/pull/1425)
+- Serialize and deserialize `RelayMessage` and `ClientMessage` without a `serde_json::Value` tree (https://github.com/nostrdevkit/nostr/pull/1425 and https://github.com/nostrdevkit/nostr/pull/1426)
 - Avoid allocating a `String` per generic tag key when serializing and deserializing `Filter` (https://github.com/nostrdevkit/nostr/pull/1427)
 
 ### Security
