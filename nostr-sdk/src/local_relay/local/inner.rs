@@ -1690,7 +1690,7 @@ mod tests {
         );
         assert_eq!(relay.queries_per_minute, 120);
         assert_eq!(relay.auth_events_per_minute, 30);
-        assert_eq!(relay.messages_per_minute, 300);
+        assert_eq!(relay.messages_per_minute, 6_000);
         assert_eq!(relay.max_filters_per_req, 20);
         assert_eq!(relay.max_filter_limit, Some(500));
         assert_eq!(relay.max_query_results, 500);

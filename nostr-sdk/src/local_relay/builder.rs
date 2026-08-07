@@ -26,7 +26,7 @@ pub(super) const DEFAULT_MAX_WEBSOCKET_MESSAGE_SIZE: usize = 5 * 1024 * 1024;
 pub(super) const DEFAULT_WEBSOCKET_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 pub(super) const DEFAULT_QUERIES_PER_MINUTE: u32 = 120;
 pub(super) const DEFAULT_AUTH_EVENTS_PER_MINUTE: u32 = 30;
-pub(super) const DEFAULT_MESSAGES_PER_MINUTE: u32 = 300;
+pub(super) const DEFAULT_MESSAGES_PER_MINUTE: u32 = 6_000;
 
 /// Rate limit
 #[derive(Debug, Clone)]
@@ -423,7 +423,11 @@ impl LocalRelayBuilder {
     }
 
     /// Sets the maximum WebSocket messages per minute for each connection.
-    /// Defaults to 300.
+    ///
+    /// Defaults to 6,000. This coarse connection-wide catch-all aggregates all
+    /// activity sharing a WebSocket and bounds malformed and non-text frames,
+    /// while operation-specific limits remain the primary controls for valid
+    /// protocol messages.
     #[inline]
     pub fn messages_per_minute(mut self, max: u32) -> Self {
         self.messages_per_minute = max;

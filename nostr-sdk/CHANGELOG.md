@@ -27,6 +27,17 @@
 
 -->
 
+## Unreleased
+
+### Fixed
+
+- Raise the local relay's default connection-wide WebSocket message limit from 300 to
+  6,000 per minute because its coarse accounting aggregates all activity sharing a
+  connection and affected legitimate public-relay clients sustaining 44-45 frames per
+  second. The catch-all remains a finite safety fuse for malformed and non-text frames,
+  while the lower operation-specific event, query, and authentication limits remain
+  unchanged.
+
 ## v0.45.1 - 2026/08/07
 
 ### Fixed

@@ -628,8 +628,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_binary_messages_are_rate_limited() {
-        let relay = LocalRelay::builder().messages_per_minute(1).build();
+    async fn test_default_message_limit_allows_301_protocol_frames() {
+        let relay = LocalRelay::new();
         relay.run().await.unwrap();
 
         let url = Url::parse(relay.url().await.as_str()).unwrap();
@@ -637,29 +637,94 @@ mod tests {
             .await
             .unwrap();
 
-        socket.send(Message::Binary(vec![1])).await.unwrap();
-        let notice = time::timeout(Duration::from_secs(1), socket.next())
-            .await
-            .expect("relay did not answer the first binary message")
-            .unwrap()
-            .unwrap();
-        assert!(matches!(
-            notice,
-            Message::Text(json)
-                if matches!(
-                    RelayMessage::from_json(json.as_bytes()).unwrap(),
-                    RelayMessage::Notice(..)
-                )
-        ));
+        time::timeout(Duration::from_secs(5), async {
+            for _ in 0..301 {
+                socket
+                    .send(Message::Text(r#"["CLOSE","harmless"]"#.to_owned()))
+                    .await
+                    .unwrap();
+            }
+            socket
+                .send(Message::Text(r#"["REQ","valid",{}]"#.to_owned()))
+                .await
+                .unwrap();
 
-        socket.send(Message::Binary(vec![2])).await.unwrap();
-        let closed = time::timeout(Duration::from_secs(1), socket.next())
+            let eose = socket.next().await.unwrap().unwrap();
+            assert!(matches!(
+                eose,
+                Message::Text(json)
+                    if matches!(
+                        RelayMessage::from_json(json.as_bytes()).unwrap(),
+                        RelayMessage::EndOfStoredEvents(subscription_id)
+                            if subscription_id.as_str() == "valid"
+                    )
+            ));
+        })
+        .await
+        .expect("timed out waiting for EOSE after 301 harmless frames");
+    }
+
+    #[tokio::test]
+    async fn test_default_message_limit_closes_rapid_burst_over_6000_frames() {
+        let relay = LocalRelay::new();
+        relay.run().await.unwrap();
+
+        let url = Url::parse(relay.url().await.as_str()).unwrap();
+        let mut socket = WebSocket::connect(&url, &ConnectionMode::direct())
             .await
-            .expect("connection did not close after rate limit");
-        assert!(matches!(
-            closed,
-            None | Some(Ok(Message::Close(..))) | Some(Err(..))
-        ));
+            .unwrap();
+
+        time::timeout(Duration::from_secs(5), async {
+            for _ in 0..6_001 {
+                socket
+                    .send(Message::Text(r#"["CLOSE","harmless"]"#.to_owned()))
+                    .await
+                    .unwrap();
+            }
+
+            let closed = socket.next().await;
+            assert!(matches!(
+                closed,
+                None | Some(Ok(Message::Close(..))) | Some(Err(..))
+            ));
+        })
+        .await
+        .expect("connection did not close after 6,001 rapid frames");
+    }
+
+    #[tokio::test]
+    async fn test_configured_message_limit_is_exact_for_binary_frames() {
+        let relay = LocalRelay::builder().messages_per_minute(3).build();
+        relay.run().await.unwrap();
+
+        let url = Url::parse(relay.url().await.as_str()).unwrap();
+        let mut socket = WebSocket::connect(&url, &ConnectionMode::direct())
+            .await
+            .unwrap();
+
+        time::timeout(Duration::from_secs(5), async {
+            for byte in 1..=3 {
+                socket.send(Message::Binary(vec![byte])).await.unwrap();
+                let notice = socket.next().await.unwrap().unwrap();
+                assert!(matches!(
+                    notice,
+                    Message::Text(json)
+                        if matches!(
+                            RelayMessage::from_json(json.as_bytes()).unwrap(),
+                            RelayMessage::Notice(..)
+                        )
+                ));
+            }
+
+            socket.send(Message::Binary(vec![4])).await.unwrap();
+            let closed = socket.next().await;
+            assert!(matches!(
+                closed,
+                None | Some(Ok(Message::Close(..))) | Some(Err(..))
+            ));
+        })
+        .await
+        .expect("connection did not enforce the configured three-frame limit");
     }
 
     #[tokio::test]
