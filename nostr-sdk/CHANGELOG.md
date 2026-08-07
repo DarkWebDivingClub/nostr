@@ -34,7 +34,7 @@
 - Restore unlimited established local relay connections by default while retaining the default
   limit for pending WebSocket handshakes.
 
-v0.45.0 - 2026/08/05
+## v0.45.0 - 2026/08/05
 
 ### Breaking changes
 
