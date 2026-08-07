@@ -1820,7 +1820,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-connect"
-version = "0.45.0"
+version = "0.45.1"
 dependencies = [
  "async-utility",
  "dialoguer",
