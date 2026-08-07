@@ -409,13 +409,14 @@ async fn get_remote_signer_public_key(
                         Err(_) => continue,
                     };
 
-                    tracing::debug!("Received Nostr Connect message: '{msg}'");
-
                     // Parse message
                     let msg: NostrConnectMessage = match NostrConnectMessage::from_json(msg) {
                         Ok(m) => m,
                         Err(_) => continue,
                     };
+
+                    // The Debug and Display implementations of NostrConnectMessage redact the sensitive data.
+                    tracing::debug!("Received Nostr Connect message: '{msg}'");
 
                     // Check if it's a `connect` response.
                     //
