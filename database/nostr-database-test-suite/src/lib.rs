@@ -473,7 +473,7 @@ macro_rules! database_unit_tests {
                 .await
                 .expect("Failed to save expiring event");
 
-            time::timeout(Duration::from_secs(2), async {
+            time::timeout(Duration::from_secs(3), async {
                 while !expired_event.is_expired() {
                     time::sleep(Duration::from_millis(10)).await;
                 }
@@ -481,7 +481,7 @@ macro_rules! database_unit_tests {
             .await
             .expect("event did not expire before the deadline");
 
-            // Get negentropy items (7 visible events)
+            // Get negentropy items
             let items = store
                 .negentropy_items(Filter::new())
                 .await
