@@ -86,7 +86,7 @@ pub struct GossipAllowedRelays {
     pub onion: bool,
     /// Allow local network relays (default: false)
     pub local: bool,
-    /// Allow relays without SSL/TLS encryption (default: true)
+    /// Allow relays without SSL/TLS encryption (default: false)
     pub without_tls: bool,
 }
 
@@ -95,7 +95,7 @@ impl Default for GossipAllowedRelays {
         Self {
             onion: true,
             local: false,
-            without_tls: true,
+            without_tls: false,
         }
     }
 }
