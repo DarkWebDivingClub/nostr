@@ -27,6 +27,12 @@
 
 -->
 
+## Unreleased
+
+### Fixed
+
+- The `Display` implementations of `NostrConnectMessage` redact the sensitive data (https://github.com/nostrdevkit/nostr/pull/1432)
+
 ## v0.45.0 - 2026/08/05
 
 ### Breaking changes
