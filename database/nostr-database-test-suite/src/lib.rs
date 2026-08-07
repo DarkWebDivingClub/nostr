@@ -490,6 +490,13 @@ macro_rules! database_unit_tests {
             assert_eq!(items.len(), 8);
             assert!(!items.iter().any(|(id, _)| id == &expired_event.id));
 
+            // Verify expired events are also excluded when a filter is applied.
+            let filtered_items = store
+                .negentropy_items(Filter::new().author(keys.public_key()))
+                .await
+                .expect("Failed to get filtered negentropy items");
+            assert!(filtered_items.is_empty());
+
             // Verify items are from the original events
             let event_ids: HashSet<EventId> = events.iter().map(|e| e.id).collect();
 
