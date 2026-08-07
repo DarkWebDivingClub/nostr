@@ -24,8 +24,9 @@ use tokio::net::TcpListener;
 use tokio::sync::{Notify, OnceCell, OwnedSemaphorePermit, Semaphore, broadcast};
 
 use super::super::builder::{
-    LocalRelayBuilder, LocalRelayBuilderMode, LocalRelayBuilderNip42, LocalRelayTestOptions,
-    QueryPolicy, QueryPolicyResult, RateLimit, WritePolicy, WritePolicyResult,
+    DEFAULT_MAX_PENDING_HANDSHAKES, LocalRelayBuilder, LocalRelayBuilderMode,
+    LocalRelayBuilderNip42, LocalRelayTestOptions, QueryPolicy, QueryPolicyResult, RateLimit,
+    WritePolicy, WritePolicyResult,
 };
 use super::session::{NegentropySubscription, Nip42Session, RateLimiterResponse, Session, Tokens};
 use super::util;
@@ -57,6 +58,7 @@ pub(super) struct InnerLocalRelay {
     queries_per_minute: u32,
     auth_events_per_minute: u32,
     messages_per_minute: u32,
+    pending_handshakes_limit: Arc<Semaphore>,
     connections_limit: Arc<Semaphore>,
     max_websocket_message_size: usize,
     max_event_size: usize,
@@ -110,7 +112,10 @@ impl InnerLocalRelay {
             queries_per_minute: builder.queries_per_minute,
             auth_events_per_minute: builder.auth_events_per_minute,
             messages_per_minute: builder.messages_per_minute,
-            connections_limit: Arc::new(Semaphore::new(builder.max_connections)),
+            pending_handshakes_limit: Arc::new(Semaphore::new(DEFAULT_MAX_PENDING_HANDSHAKES)),
+            connections_limit: Arc::new(Semaphore::new(
+                builder.max_connections.unwrap_or(Semaphore::MAX_PERMITS),
+            )),
             max_websocket_message_size: builder.max_websocket_message_size,
             max_event_size: builder.max_event_size,
             websocket_handshake_timeout: builder.websocket_handshake_timeout,
@@ -171,7 +176,7 @@ impl InnerLocalRelay {
                         match output {
                             Ok((stream, addr)) => {
                                 // Acquire before spawning so excess sockets cannot create tasks.
-                                let permit = match r.connections_limit.clone().try_acquire_owned() {
+                                let permit = match r.pending_handshakes_limit.clone().try_acquire_owned() {
                                     Ok(permit) => permit,
                                     Err(e) => {
                                         tracing::warn!("Rejecting connection from {addr}: {e}");
@@ -282,7 +287,6 @@ impl InnerLocalRelay {
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
-        // Hold the permit for the complete WebSocket session, including test delays.
         let permit = self.connections_limit.clone().try_acquire_owned()?;
 
         if let Some(unresponsive_connection) = self.test.unresponsive_connection {
@@ -322,6 +326,12 @@ impl InnerLocalRelay {
             Error::with_static_message(ErrorKind::Transport, "WebSocket handshake timed out")
         })?
         .map_err(Error::transport)?;
+
+        // The pre-handshake socket is no longer consuming admission resources.
+        drop(permit);
+
+        // An established connection only consumes a permit when explicitly configured.
+        let permit = self.connections_limit.clone().try_acquire_owned()?;
 
         self.handle_websocket(ws_stream, addr, permit).await?;
 
@@ -1673,7 +1683,11 @@ mod tests {
         let relay = InnerLocalRelay::new(LocalRelayBuilder::default());
         let config = relay.websocket_config();
 
-        assert_eq!(relay.connections_limit.available_permits(), 128);
+        assert_eq!(relay.pending_handshakes_limit.available_permits(), 128);
+        assert_eq!(
+            relay.connections_limit.available_permits(),
+            Semaphore::MAX_PERMITS
+        );
         assert_eq!(relay.queries_per_minute, 120);
         assert_eq!(relay.auth_events_per_minute, 30);
         assert_eq!(relay.messages_per_minute, 300);
@@ -1697,6 +1711,7 @@ mod tests {
         );
         let config = relay.websocket_config();
 
+        assert_eq!(relay.pending_handshakes_limit.available_permits(), 128);
         assert_eq!(relay.connections_limit.available_permits(), 4);
         assert_eq!(config.max_message_size, Some(1024));
         assert_eq!(config.max_frame_size, Some(1024));

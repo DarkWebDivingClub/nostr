@@ -16,7 +16,7 @@ use nostr_database::prelude::*;
 
 use super::local::LocalRelay;
 
-pub(super) const DEFAULT_MAX_CONNECTIONS: usize = 128;
+pub(super) const DEFAULT_MAX_PENDING_HANDSHAKES: usize = 128;
 pub(super) const DEFAULT_MAX_FILTERS_PER_REQ: usize = 20;
 pub(super) const DEFAULT_MAX_EVENT_SIZE: usize = 64 * 1024;
 pub(super) const DEFAULT_MAX_QUERY_RESULTS: usize = 500;
@@ -285,7 +285,7 @@ pub struct LocalRelayBuilder {
     /// NIP42 options
     pub(crate) nip42: Option<LocalRelayBuilderNip42>,
     /// Max connections allowed
-    pub(crate) max_connections: usize,
+    pub(crate) max_connections: Option<usize>,
     /// Max WebSocket message size
     pub(crate) max_websocket_message_size: usize,
     /// Max event size in bytes
@@ -345,7 +345,7 @@ impl Default for LocalRelayBuilder {
             auth_events_per_minute: DEFAULT_AUTH_EVENTS_PER_MINUTE,
             messages_per_minute: DEFAULT_MESSAGES_PER_MINUTE,
             nip42: None,
-            max_connections: DEFAULT_MAX_CONNECTIONS,
+            max_connections: None,
             max_websocket_message_size: DEFAULT_MAX_WEBSOCKET_MESSAGE_SIZE,
             max_event_size: DEFAULT_MAX_EVENT_SIZE,
             websocket_handshake_timeout: DEFAULT_WEBSOCKET_HANDSHAKE_TIMEOUT,
@@ -437,10 +437,10 @@ impl LocalRelayBuilder {
         self
     }
 
-    /// Set number of max connections allowed. Defaults to 128.
+    /// Set number of max connections allowed. By default, connections are unlimited.
     #[inline]
     pub fn max_connections(mut self, max: usize) -> Self {
-        self.max_connections = max;
+        self.max_connections = Some(max);
         self
     }
 
