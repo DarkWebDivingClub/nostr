@@ -27,6 +27,7 @@ const NIP50_SEARCHABLE_TAGS_SQL: &str = "'title', 'description', 'subject', 'nam
 #[derive(Clone, Copy)]
 enum SqlSelectClause {
     Select,
+    Negentropy,
     Count,
     Delete,
 }
@@ -619,7 +620,43 @@ impl NostrDatabase for NostrSqlite {
         })
     }
 
-    // TODO: impl negentropy_items deserializing only ids and timestamps
+    fn negentropy_items(
+        &self,
+        filter: Filter,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<(EventId, Timestamp)>, Error>> + Send + '_>> {
+        Box::pin(async move {
+            let filter = with_limit(filter, EVENTS_QUERY_LIMIT);
+            Ok(self
+                .pool
+                .interact(move |conn| {
+                    let query = build_filter(&filter, SqlSelectClause::Negentropy);
+                    let mut stmt = conn.prepare(&query.sql)?;
+                    let rows = stmt.query_map(params_from_iter(query.params), |row| {
+                        Ok((
+                            row.get::<_, Vec<u8>>("id")?,
+                            row.get::<_, i64>("created_at")?,
+                            row.get::<_, String>("tags")?,
+                        ))
+                    })?;
+                    let now = Timestamp::now();
+                    let mut items = Vec::new();
+
+                    for row in rows {
+                        let (id, created_at, tags) = row?;
+                        let tags: Tags = serde_json::from_str(&tags)?;
+
+                        if tags.expiration().is_some_and(|expiration| expiration < now) {
+                            continue;
+                        }
+
+                        items.push((EventId::from_slice(&id)?, created_at.try_into()?));
+                    }
+
+                    Ok(items)
+                })
+                .await?)
+        })
+    }
 
     fn delete(
         &self,
@@ -680,11 +717,14 @@ fn build_filter(filter: &Filter, select_clause: SqlSelectClause) -> FilterQuery 
     if filter.is_empty() {
         let mut sql = String::from(match select_clause {
             SqlSelectClause::Select => "SELECT * FROM events",
+            SqlSelectClause::Negentropy => "SELECT id, created_at, tags FROM events",
             SqlSelectClause::Count => "SELECT COUNT(*) FROM events",
             SqlSelectClause::Delete => "DELETE FROM events",
         });
 
-        if let SqlSelectClause::Select | SqlSelectClause::Count = select_clause {
+        if let SqlSelectClause::Select | SqlSelectClause::Negentropy | SqlSelectClause::Count =
+            select_clause
+        {
             sql.push_str(" ORDER BY created_at DESC");
             if let Some(limit) = filter.limit {
                 sql.push_str(" LIMIT ?");
@@ -703,6 +743,7 @@ fn build_filter(filter: &Filter, select_clause: SqlSelectClause) -> FilterQuery 
 
     let mut sql = match select_clause {
         SqlSelectClause::Select => "SELECT DISTINCT e.*".to_string(),
+        SqlSelectClause::Negentropy => "SELECT DISTINCT e.id, e.created_at, e.tags".to_string(),
         SqlSelectClause::Count => "SELECT COUNT(DISTINCT e.id)".to_string(),
         // For DELETE, we need to use a subquery because SQLite doesn't support DELETE with JOIN directly
         SqlSelectClause::Delete => {
@@ -745,7 +786,7 @@ fn build_filter(filter: &Filter, select_clause: SqlSelectClause) -> FilterQuery 
     // Add all the filter conditions
     add_filter_conditions(filter, &mut query);
 
-    // Only add ORDER BY and LIMIT for SELECT queries
+    // Only add ORDER BY and LIMIT for queries that select event data
     query.sql.push_str(" ORDER BY e.created_at DESC");
 
     if let Some(limit) = filter.limit {
