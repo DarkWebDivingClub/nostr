@@ -1836,7 +1836,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-database"
-version = "0.45.0"
+version = "0.45.1"
 dependencies = [
  "nostr",
  "opaquerr",
