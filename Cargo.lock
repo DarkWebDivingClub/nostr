@@ -1923,7 +1923,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-ndb"
-version = "0.45.0"
+version = "0.45.1"
 dependencies = [
  "nostr",
  "nostr-database",
