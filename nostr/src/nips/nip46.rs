@@ -656,8 +656,9 @@ impl fmt::Debug for NostrConnectMessage {
 }
 
 impl fmt::Display for NostrConnectMessage {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.as_json())
+        fmt::Debug::fmt(self, f)
     }
 }
 
