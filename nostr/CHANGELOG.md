@@ -33,6 +33,10 @@
 
 - The `Display` implementations of `NostrConnectMessage` redact the sensitive data (https://github.com/nostrdevkit/nostr/pull/1432)
 
+### Security
+
+- Use `zeroize` for ECDH key handling in NIP-44 and NIP-04 (https://github.com/nostrdevkit/nostr/pull/1435)
+
 ## v0.45.0 - 2026/08/05
 
 ### Breaking changes

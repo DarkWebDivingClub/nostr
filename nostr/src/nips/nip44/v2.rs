@@ -15,6 +15,7 @@ use bitcoin_hashes::sha256::{self, Hash as Sha256Hash};
 use bitcoin_hashes::{Hash, HashEngine};
 use chacha20::ChaCha20;
 use chacha20::cipher::{KeyIvInit, StreamCipher};
+use zeroize::Zeroizing;
 
 use crate::error::{Error, ErrorKind};
 use crate::key::{PublicKey, SecretKey};
@@ -120,8 +121,8 @@ impl ConversationKey {
     /// Derive Conversation Key
     #[inline]
     pub fn derive(secret_key: &SecretKey, public_key: &PublicKey) -> Result<Self, Error> {
-        let shared_key: [u8; 32] = util::generate_shared_key(secret_key, public_key)?;
-        Ok(Self(hkdf::extract(b"nip44-v2", &shared_key)))
+        let shared_key: Zeroizing<[u8; 32]> = util::generate_shared_key(secret_key, public_key)?;
+        Ok(Self(hkdf::extract(b"nip44-v2", shared_key.as_slice())))
     }
 
     /// Compose Conversation Key from bytes

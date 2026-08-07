@@ -17,6 +17,7 @@ use rand::Rng;
 use rand::rand_core::UnwrapErr;
 #[cfg(all(feature = "std", feature = "os-rng"))]
 use rand::rngs::SysRng;
+use zeroize::Zeroizing;
 
 use crate::error::{Error, ErrorKind};
 use crate::key::{PublicKey, SecretKey};
@@ -78,10 +79,11 @@ where
     T: AsRef<[u8]>,
 {
     // Generate key
-    let key: [u8; 32] = util::generate_shared_key(secret_key, public_key)?;
+    let key: Zeroizing<[u8; 32]> = util::generate_shared_key(secret_key, public_key)?;
 
     // Compose cipher
-    let cipher = Aes256CbcEnc::new(&key.into(), &iv.into());
+    let cipher: Aes256CbcEnc =
+        Aes256CbcEnc::new_from_slices(key.as_slice(), &iv).map_err(Error::malformed_display)?;
 
     // Encrypt
     let result: Vec<u8> = cipher.encrypt_padded_vec_mut::<Pkcs7>(content.as_ref());
@@ -130,9 +132,10 @@ where
         .as_slice()
         .try_into()
         .map_err(|_| Error::with_static_message(ErrorKind::Malformed, "invalid IV length"))?;
-    let key: [u8; 32] = util::generate_shared_key(secret_key, public_key)?;
+    let key: Zeroizing<[u8; 32]> = util::generate_shared_key(secret_key, public_key)?;
 
-    let cipher = Aes256CbcDec::new(&key.into(), &iv.into());
+    let cipher: Aes256CbcDec =
+        Aes256CbcDec::new_from_slices(key.as_slice(), &iv).map_err(Error::malformed_display)?;
     let result = cipher
         .decrypt_padded_vec_mut::<Pkcs7>(&encrypted_content)
         .map_err(|_| Error::with_static_message(ErrorKind::Crypto, "wrong block mode"))?;
