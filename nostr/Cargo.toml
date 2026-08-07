@@ -34,6 +34,7 @@ std = [
     "unicode-normalization?/std",
     "universal-time/std",
     "url/std",
+    "zeroize?/std",
 ]
 alloc = [
     "base64?/alloc",
@@ -47,6 +48,7 @@ alloc = [
     "secp256k1/alloc",
     "serde/alloc",
     "serde_json/alloc",
+    "zeroize?/alloc",
 ]
 # Enable random stuff
 rand = ["dep:rand"]
@@ -84,7 +86,7 @@ serde_json.workspace = true
 unicode-normalization = { version = "0.1", default-features = false, optional = true }
 universal-time.workspace = true
 url = { version = "2.5", default-features = false, features = ["serde"] }
-zeroize = { version = "1.9", default-features = false, features = ["alloc"], optional = true }
+zeroize = { version = "1.9", default-features = false, optional = true }
 
 [dev-dependencies]
 reqwest = { workspace = true, features = ["rustls-tls"] }
