@@ -27,6 +27,12 @@
 
 -->
 
+## Unreleased
+
+### Fixed
+
+- Log the parsed `NostrConnectMessage` to redact sensitive data, instead of the raw decrypted message (https://github.com/nostrdevkit/nostr/pull/1432)
+
 ## v0.45.0 - 2026/08/05
 
 ### Breaking changes
