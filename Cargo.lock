@@ -1932,7 +1932,7 @@ dependencies = [
 
 [[package]]
 name = "nostr-sdk"
-version = "0.45.0"
+version = "0.45.1"
 dependencies = [
  "async-utility",
  "async-wsocket",
