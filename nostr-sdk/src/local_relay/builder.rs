@@ -24,7 +24,7 @@ pub(super) const DEFAULT_MAX_NEGENTROPY_ITEMS: usize = 50_000;
 pub(super) const DEFAULT_MAX_SUBSCRIPTION_BYTES: usize = 1024 * 1024;
 pub(super) const DEFAULT_MAX_WEBSOCKET_MESSAGE_SIZE: usize = 5 * 1024 * 1024;
 pub(super) const DEFAULT_WEBSOCKET_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
-pub(super) const DEFAULT_QUERIES_PER_MINUTE: u32 = 120;
+pub(super) const DEFAULT_QUERIES_PER_MINUTE: u32 = 1_200;
 pub(super) const DEFAULT_AUTH_EVENTS_PER_MINUTE: u32 = 30;
 pub(super) const DEFAULT_MESSAGES_PER_MINUTE: u32 = 6_000;
 
@@ -276,7 +276,7 @@ pub struct LocalRelayBuilder {
     pub(crate) mode: LocalRelayBuilderMode,
     /// Rate limit
     pub(crate) rate_limit: RateLimit,
-    /// Query messages per minute per connection
+    /// Query-start messages per minute per connection
     pub(crate) queries_per_minute: u32,
     /// Authentication events per minute per connection
     pub(crate) auth_events_per_minute: u32,
@@ -407,7 +407,14 @@ impl LocalRelayBuilder {
     }
 
     /// Sets the maximum query messages per minute for each connection.
-    /// Defaults to 120.
+    ///
+    /// `REQ`, `COUNT`, and `NEG-OPEN` messages share one query-start allowance.
+    /// NIP-77 `NEG-MSG` continuation frames use a separate allowance with the
+    /// same capacity, so reconciliation traffic cannot exhaust the query-start
+    /// allowance. Every frame is also covered by the connection-wide
+    /// [`LocalRelayBuilder::messages_per_minute`] limit.
+    ///
+    /// Defaults to 1,200 for each allowance.
     #[inline]
     pub fn queries_per_minute(mut self, max: u32) -> Self {
         self.queries_per_minute = max;
