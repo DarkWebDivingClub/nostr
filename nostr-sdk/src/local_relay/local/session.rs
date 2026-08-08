@@ -94,6 +94,7 @@ pub(super) struct Session<'a> {
     pub nip42: Nip42Session,
     pub write_tokens: Tokens,
     pub query_tokens: Tokens,
+    pub negentropy_tokens: Tokens,
     pub auth_tokens: Tokens,
     pub message_tokens: Tokens,
 }
@@ -127,6 +128,10 @@ impl Session<'_> {
 
     pub fn check_query_rate_limit(&mut self, max_per_minute: u32) -> RateLimiterResponse {
         Self::take_token(&mut self.query_tokens, max_per_minute)
+    }
+
+    pub fn check_negentropy_rate_limit(&mut self, max_per_minute: u32) -> RateLimiterResponse {
+        Self::take_token(&mut self.negentropy_tokens, max_per_minute)
     }
 
     pub fn check_auth_rate_limit(&mut self, max_per_minute: u32) -> RateLimiterResponse {
@@ -219,6 +224,7 @@ mod tests {
             nip42: Nip42Session::default(),
             write_tokens: Tokens::new(tokens),
             query_tokens: Tokens::new(tokens),
+            negentropy_tokens: Tokens::new(tokens),
             auth_tokens: Tokens::new(tokens),
             message_tokens: Tokens::new(tokens),
         }
@@ -253,6 +259,39 @@ mod tests {
     }
 
     #[test]
+    fn query_rate_limit_starts_full_and_caps_refill_at_capacity() {
+        let mut session = session(2);
+
+        assert!(matches!(
+            session.check_query_rate_limit(2),
+            RateLimiterResponse::Allowed
+        ));
+        assert!(matches!(
+            session.check_query_rate_limit(2),
+            RateLimiterResponse::Allowed
+        ));
+        assert!(matches!(
+            session.check_query_rate_limit(2),
+            RateLimiterResponse::Limited
+        ));
+
+        session.query_tokens.last = Some(Instant::now() - Duration::from_secs(60));
+
+        assert!(matches!(
+            session.check_query_rate_limit(2),
+            RateLimiterResponse::Allowed
+        ));
+        assert!(matches!(
+            session.check_query_rate_limit(2),
+            RateLimiterResponse::Allowed
+        ));
+        assert!(matches!(
+            session.check_query_rate_limit(2),
+            RateLimiterResponse::Limited
+        ));
+    }
+
+    #[test]
     fn rate_limits_use_separate_buckets() {
         let mut session = session(1);
 
@@ -262,6 +301,10 @@ mod tests {
         ));
         assert!(matches!(
             session.check_query_rate_limit(1),
+            RateLimiterResponse::Allowed
+        ));
+        assert!(matches!(
+            session.check_negentropy_rate_limit(1),
             RateLimiterResponse::Allowed
         ));
         assert!(matches!(

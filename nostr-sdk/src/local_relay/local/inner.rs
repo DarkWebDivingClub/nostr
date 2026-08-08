@@ -361,6 +361,7 @@ impl InnerLocalRelay {
             nip42: Nip42Session::default(),
             write_tokens: Tokens::new(self.rate_limit.notes_per_minute),
             query_tokens: Tokens::new(self.queries_per_minute),
+            negentropy_tokens: Tokens::new(self.queries_per_minute),
             auth_tokens: Tokens::new(self.auth_events_per_minute),
             message_tokens: Tokens::new(self.messages_per_minute),
         };
@@ -1104,7 +1105,7 @@ impl InnerLocalRelay {
                 message,
             } => {
                 if let RateLimiterResponse::Limited =
-                    session.check_query_rate_limit(self.queries_per_minute)
+                    session.check_negentropy_rate_limit(self.queries_per_minute)
                 {
                     return send_negentropy_rate_limit_error(ws_tx, subscription_id).await;
                 }
@@ -1673,6 +1674,7 @@ mod tests {
             },
             write_tokens: Tokens::new(1),
             query_tokens: Tokens::new(1),
+            negentropy_tokens: Tokens::new(1),
             auth_tokens: Tokens::new(1),
             message_tokens: Tokens::new(1),
         }
@@ -1688,7 +1690,7 @@ mod tests {
             relay.connections_limit.available_permits(),
             Semaphore::MAX_PERMITS
         );
-        assert_eq!(relay.queries_per_minute, 120);
+        assert_eq!(relay.queries_per_minute, 1_200);
         assert_eq!(relay.auth_events_per_minute, 30);
         assert_eq!(relay.messages_per_minute, 6_000);
         assert_eq!(relay.max_filters_per_req, 20);
@@ -1903,7 +1905,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn zero_query_rate_rejects_the_first_req() {
+    async fn zero_query_rate_rejects_query_starts() {
         let relay = InnerLocalRelay::new(LocalRelayBuilder::default().queries_per_minute(0));
         let (server_stream, client_stream) = tokio::io::duplex(16 * 1024);
         let server = WebSocketStream::from_raw_socket(server_stream, Role::Server, None).await;
@@ -1911,6 +1913,7 @@ mod tests {
         let (mut server_tx, _) = server.split();
         let mut session = session(None);
         session.query_tokens = Tokens::new(0);
+        session.negentropy_tokens = Tokens::new(0);
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
         relay
@@ -1920,6 +1923,208 @@ mod tests {
                 ClientMessage::Req {
                     subscription_id: Cow::Owned(SubscriptionId::new("limited")),
                     filters: vec![Cow::Owned(Filter::new())],
+                },
+                &addr,
+                2,
+            )
+            .await
+            .unwrap();
+
+        let response = client.next().await.unwrap().unwrap();
+        let Message::Text(response) = response else {
+            panic!("unexpected WebSocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(response.as_bytes()).unwrap(),
+            RelayMessage::Closed {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "limited"
+                && message == "rate-limited: too many queries"
+        ));
+
+        relay
+            .handle_client_msg(
+                &mut session,
+                &mut server_tx,
+                ClientMessage::NegMsg {
+                    subscription_id: Cow::Owned(SubscriptionId::new("limited-neg-msg")),
+                    message: Cow::Borrowed("6100"),
+                },
+                &addr,
+                2,
+            )
+            .await
+            .unwrap();
+
+        let response = client.next().await.unwrap().unwrap();
+        let Message::Text(response) = response else {
+            panic!("unexpected WebSocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(response.as_bytes()).unwrap(),
+            RelayMessage::NegErr {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "limited-neg-msg"
+                && message == "rate-limited: too many queries"
+        ));
+
+        relay
+            .handle_client_msg(
+                &mut session,
+                &mut server_tx,
+                ClientMessage::Count {
+                    subscription_id: Cow::Owned(SubscriptionId::new("limited-count")),
+                    filter: Cow::Owned(Filter::new()),
+                },
+                &addr,
+                2,
+            )
+            .await
+            .unwrap();
+
+        let response = client.next().await.unwrap().unwrap();
+        let Message::Text(response) = response else {
+            panic!("unexpected WebSocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(response.as_bytes()).unwrap(),
+            RelayMessage::Closed {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "limited-count"
+                && message == "rate-limited: too many queries"
+        ));
+
+        relay
+            .handle_client_msg(
+                &mut session,
+                &mut server_tx,
+                ClientMessage::NegOpen {
+                    subscription_id: Cow::Owned(SubscriptionId::new("limited-neg")),
+                    filter: Cow::Owned(Filter::new()),
+                    initial_message: Cow::Borrowed(""),
+                },
+                &addr,
+                2,
+            )
+            .await
+            .unwrap();
+
+        let response = client.next().await.unwrap().unwrap();
+        let Message::Text(response) = response else {
+            panic!("unexpected WebSocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(response.as_bytes()).unwrap(),
+            RelayMessage::NegErr {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "limited-neg"
+                && message == "rate-limited: too many queries"
+        ));
+    }
+
+    #[tokio::test]
+    async fn negentropy_continuations_do_not_consume_query_start_allowance() {
+        let relay = InnerLocalRelay::new(LocalRelayBuilder::default().queries_per_minute(1));
+        let (server_stream, client_stream) = tokio::io::duplex(16 * 1024);
+        let server = WebSocketStream::from_raw_socket(server_stream, Role::Server, None).await;
+        let mut client = WebSocketStream::from_raw_socket(client_stream, Role::Client, None).await;
+        let (mut server_tx, _) = server.split();
+        let mut session = session(None);
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+
+        relay
+            .handle_client_msg(
+                &mut session,
+                &mut server_tx,
+                ClientMessage::NegMsg {
+                    subscription_id: Cow::Owned(SubscriptionId::new("neg")),
+                    message: Cow::Borrowed("6100"),
+                },
+                &addr,
+                2,
+            )
+            .await
+            .unwrap();
+
+        let response = client.next().await.unwrap().unwrap();
+        let Message::Text(response) = response else {
+            panic!("unexpected WebSocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(response.as_bytes()).unwrap(),
+            RelayMessage::NegErr {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "neg"
+                && message == "error: subscription not found"
+        ));
+        assert_eq!(session.query_tokens.count, 1);
+        assert_eq!(session.negentropy_tokens.count, 0);
+
+        relay
+            .handle_client_msg(
+                &mut session,
+                &mut server_tx,
+                ClientMessage::NegMsg {
+                    subscription_id: Cow::Owned(SubscriptionId::new("limited-neg")),
+                    message: Cow::Borrowed("6100"),
+                },
+                &addr,
+                2,
+            )
+            .await
+            .unwrap();
+
+        let response = client.next().await.unwrap().unwrap();
+        let Message::Text(response) = response else {
+            panic!("unexpected WebSocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(response.as_bytes()).unwrap(),
+            RelayMessage::NegErr {
+                subscription_id,
+                message,
+            } if subscription_id.as_str() == "limited-neg"
+                && message == "rate-limited: too many queries"
+        ));
+        assert_eq!(session.query_tokens.count, 1);
+
+        relay
+            .handle_client_msg(
+                &mut session,
+                &mut server_tx,
+                ClientMessage::Req {
+                    subscription_id: Cow::Owned(SubscriptionId::new("allowed")),
+                    filters: vec![Cow::Owned(Filter::new())],
+                },
+                &addr,
+                2,
+            )
+            .await
+            .unwrap();
+
+        let response = client.next().await.unwrap().unwrap();
+        let Message::Text(response) = response else {
+            panic!("unexpected WebSocket message");
+        };
+        assert!(matches!(
+            RelayMessage::from_json(response.as_bytes()).unwrap(),
+            RelayMessage::EndOfStoredEvents(subscription_id)
+                if subscription_id.as_str() == "allowed"
+        ));
+        assert_eq!(session.query_tokens.count, 0);
+
+        relay
+            .handle_client_msg(
+                &mut session,
+                &mut server_tx,
+                ClientMessage::Count {
+                    subscription_id: Cow::Owned(SubscriptionId::new("limited")),
+                    filter: Cow::Owned(Filter::new()),
                 },
                 &addr,
                 2,

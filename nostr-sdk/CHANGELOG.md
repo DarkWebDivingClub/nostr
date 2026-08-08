@@ -31,6 +31,12 @@
 
 ### Fixed
 
+- Raise the newly introduced local relay's default query-start limit from 120 to
+  1,200 per minute per connection and account NIP-77 `NEG-MSG` continuation
+  frames against a separate allowance of the same size. The newly added DoS
+  protection remains finite while one reconciliation can no longer exhaust the
+  query-start budget; every continuation is also covered by the connection-wide
+  WebSocket message limit and the existing negentropy resource bounds.
 - Raise the local relay's default connection-wide WebSocket message limit from 300 to
   6,000 per minute because its coarse accounting aggregates all activity sharing a
   connection and affected legitimate public-relay clients sustaining 44-45 frames per
