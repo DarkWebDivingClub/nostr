@@ -186,6 +186,10 @@ pub struct GiftWrapSealBuilder {
 
 impl GiftWrapSealBuilder {
     /// Create a new gift wrap builder.
+    // Take an `UnsignedEvent` as rumor and not an `EventBuilder`!
+    // May be useful to take an `EventBuilder` but it can create issues:
+    // if a dev passes the same cloned `EventBuilder` to send the rumor to multiple users,
+    // the final rumor will have different `created_at` timestamps, so different event IDs.
     #[inline]
     pub fn new(rumor: UnsignedEvent, receiver: PublicKey) -> Self {
         Self { rumor, receiver }
@@ -199,13 +203,17 @@ where
 {
     type Error = Error;
 
-    fn finalize(self, signer: &S) -> Result<Event, Self::Error> {
+    fn finalize(mut self, signer: &S) -> Result<Event, Self::Error> {
+        // Make sure that rumor has event ID before it's serialized:
+        // the encrypted JSON is exactly what the receiver will parse.
+        self.rumor.ensure_id();
+
         // Encrypt content
         let content: String = signer
             .nip44_encrypt(&self.receiver, &self.rumor.as_json())
             .map_err(Error::crypto)?;
 
-        let seal: EventBuilder = build_seal(self.rumor, content);
+        let seal: EventBuilder = build_seal(content);
         seal.finalize(signer)
     }
 }
@@ -218,13 +226,17 @@ where
     type Error = Error;
 
     fn finalize_async<'a>(
-        self,
+        mut self,
         signer: &'a S,
     ) -> Pin<Box<dyn Future<Output = Result<Event, Self::Error>> + Send + 'a>>
     where
         Self: 'a,
         S: 'a,
     {
+        // Make sure that rumor has event ID before it's serialized:
+        // the encrypted JSON is exactly what the receiver will parse.
+        self.rumor.ensure_id();
+
         Box::pin(async move {
             // Encrypt content
             let content: String = signer
@@ -232,7 +244,7 @@ where
                 .await
                 .map_err(Error::crypto)?;
 
-            let seal: EventBuilder = build_seal(self.rumor, content);
+            let seal: EventBuilder = build_seal(content);
             seal.finalize_async(signer).await
         })
     }
@@ -426,16 +438,7 @@ where
 }
 
 #[cfg(all(feature = "std", feature = "os-rng"))]
-fn build_seal(mut rumor: UnsignedEvent, content: String) -> EventBuilder {
-    // Take an `UnsignedEvent` as rumor and not an `EventBuilder`!
-    // May be useful to take an `EventBuilder` but it can create issues:
-    // if a dev passes the same cloned `EventBuilder` to send the rumor to multiple users,
-    // the final rumor will have different `created_at` timestamps, so different event IDs.
-
-    // Make sure that rumor has event ID
-    rumor.ensure_id();
-
-    // Compose builder
+fn build_seal(content: String) -> EventBuilder {
     EventBuilder::new(Kind::Seal, content).custom_created_at(tweaked_timestamp())
 }
 
@@ -467,7 +470,7 @@ mod tests {
         // Compose Gift Wrap event
         let rumor: UnsignedEvent =
             EventBuilder::new(Kind::TextNote, "Test").finalize_unsigned(sender_keys.public_key());
-        let event: Event = GiftWrapBuilder::new(receiver_keys.public_key(), rumor.clone())
+        let event: Event = GiftWrapBuilder::new(receiver_keys.public_key(), rumor)
             .finalize(&sender_keys)
             .unwrap();
         let unwrapped = extract_rumor(&receiver_keys, &event).unwrap();
@@ -516,13 +519,57 @@ mod tests {
         let rumor: UnsignedEvent =
             EventBuilder::new(Kind::TextNote, "Test").finalize_unsigned(sender_keys.public_key());
         let event: Event = GiftWrapBuilder::new(receiver_keys.public_key(), rumor)
-            .finalize(&sender_keys)
+            .finalize_async(&sender_keys)
+            .await
             .unwrap();
 
         let unwrapped = extract_rumor_async(&receiver_keys, &event).await.unwrap();
         assert_eq!(unwrapped.sender, sender_keys.public_key());
         assert_eq!(unwrapped.rumor.kind, Kind::TextNote);
         assert_eq!(unwrapped.rumor.content, "Test");
+    }
+
+    #[test]
+    fn test_rumor_id_serialized_inside_wrap() {
+        let sender_keys =
+            Keys::parse("6b911fd37cdf5c81d4c0adb1ab7fa822ed253ab0ad9aa18d77257c88b29b718e")
+                .unwrap();
+        let receiver_keys =
+            Keys::parse("7b911fd37cdf5c81d4c0adb1ab7fa822ed253ab0ad9aa18d77257c88b29b718e")
+                .unwrap();
+
+        let rumor: UnsignedEvent =
+            EventBuilder::new(Kind::TextNote, "Test").finalize_unsigned(sender_keys.public_key());
+        let event: Event = GiftWrapBuilder::new(receiver_keys.public_key(), rumor.clone())
+            .finalize(&sender_keys)
+            .unwrap();
+
+        // The rumor id must survive the wrap: it has to be computed *before*
+        // the rumor JSON is encrypted into the seal.
+        let unwrapped = extract_rumor(&receiver_keys, &event).unwrap();
+        assert_eq!(unwrapped.rumor.id, Some(rumor.compute_id()));
+    }
+
+    #[tokio::test]
+    async fn test_rumor_id_serialized_inside_wrap_async() {
+        let sender_keys =
+            Keys::parse("6b911fd37cdf5c81d4c0adb1ab7fa822ed253ab0ad9aa18d77257c88b29b718e")
+                .unwrap();
+        let receiver_keys =
+            Keys::parse("7b911fd37cdf5c81d4c0adb1ab7fa822ed253ab0ad9aa18d77257c88b29b718e")
+                .unwrap();
+
+        let rumor: UnsignedEvent =
+            EventBuilder::new(Kind::TextNote, "Test").finalize_unsigned(sender_keys.public_key());
+        let event: Event = GiftWrapBuilder::new(receiver_keys.public_key(), rumor.clone())
+            .finalize_async(&sender_keys)
+            .await
+            .unwrap();
+
+        // The rumor id must survive the wrap: it has to be computed *before*
+        // the rumor JSON is encrypted into the seal.
+        let unwrapped = extract_rumor_async(&receiver_keys, &event).await.unwrap();
+        assert_eq!(unwrapped.rumor.id, Some(rumor.compute_id()));
     }
 
     #[test]
