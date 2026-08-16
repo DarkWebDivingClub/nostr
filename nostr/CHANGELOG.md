@@ -33,6 +33,8 @@
 
 - Require `CryptoRng` trait for secret key generation (https://github.com/nostrdevkit/nostr/pull/1437)
 
+## v0.45.2 - 2026/08/16
+
 ### Fixed
 
 - Ensure the rumor has its event id before it's encrypted into the gift wrap seal (https://github.com/nostrdevkit/nostr/pull/1444)
