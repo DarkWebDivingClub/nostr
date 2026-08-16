@@ -197,4 +197,39 @@ mod tests {
             output.failed.values().next().unwrap()
         );
     }
+
+    #[tokio::test]
+    async fn protected_repost() {
+        let relay = LocalRelay::builder()
+            .database(MemoryDatabase::unbounded())
+            .build();
+        relay.run().await.unwrap();
+
+        let keys = Keys::generate();
+        let client = Client::default();
+
+        client
+            .add_relay(relay.url().await)
+            .and_connect()
+            .await
+            .unwrap();
+
+        let event = EventBuilder::new(Kind::TextNote, "IDK")
+            .tag(Tag::protected())
+            .finalize(&keys)
+            .unwrap();
+
+        let repost = EventBuilder::new(Kind::Repost, event.as_json())
+            .tag(event.id)
+            .tag(Tag::public_key(event.pubkey))
+            .finalize(&Keys::generate())
+            .unwrap();
+
+        let output = client.send_event(&repost).await.unwrap();
+        assert!(output.success.is_empty());
+        assert_eq!(
+            "blocked: repost of a protected event",
+            output.failed.values().next().unwrap()
+        );
+    }
 }
