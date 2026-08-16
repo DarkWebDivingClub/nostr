@@ -35,7 +35,10 @@
 
 ### Added
 
-- impl `From<PublicKey>` for `Tag` (https://github.com/nostrdevkit/nostr/pull/1446)
+- Impl `From<PublicKey>` for `Tag` (https://github.com/nostrdevkit/nostr/pull/1446)
+- Take an `Into<Tag>` iterator instead of `Tag` iterator in
+  `GiftWrapBuilder::extra_tags`, `PrivateDirectMessageBuilder::extra_tags`
+  and `PrivateDirectMessageBuilder::rumor_extra_tags` (https://github.com/nostrdevkit/nostr/pull/1447)
 
 ## v0.45.2 - 2026/08/16
 

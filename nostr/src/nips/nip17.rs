@@ -114,21 +114,24 @@ impl PrivateDirectMessageBuilder {
 
     /// Extra tags to add to the **rumor** event.
     #[inline]
-    pub fn rumor_extra_tags<T>(mut self, tags: T) -> Self
+    pub fn rumor_extra_tags<I, T>(mut self, tags: I) -> Self
     where
-        T: IntoIterator<Item = Tag>,
+        I: IntoIterator<Item = T>,
+        T: Into<Tag>,
     {
-        self.rumor_extra_tags.extend(tags);
+        self.rumor_extra_tags
+            .extend(tags.into_iter().map(Into::into));
         self
     }
 
     /// Extra tags to add to the **gift wrap** event.
     #[inline]
-    pub fn extra_tags<T>(mut self, tags: T) -> Self
+    pub fn extra_tags<I, T>(mut self, tags: I) -> Self
     where
-        T: IntoIterator<Item = Tag>,
+        I: IntoIterator<Item = T>,
+        T: Into<Tag>,
     {
-        self.extra_tags.extend(tags);
+        self.extra_tags.extend(tags.into_iter().map(Into::into));
         self
     }
 
