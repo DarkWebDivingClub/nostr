@@ -37,6 +37,7 @@
   second. The catch-all remains a finite safety fuse for malformed and non-text frames,
   while the lower operation-specific event, query, and authentication limits remain
   unchanged.
+- local_relay: Reject repost of a protected event (https://github.com/nostrdevkit/nostr/pull/1445)
 
 ## v0.45.1 - 2026/08/07
 
