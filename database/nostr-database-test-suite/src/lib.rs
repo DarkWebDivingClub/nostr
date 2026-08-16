@@ -119,7 +119,7 @@ macro_rules! database_unit_tests {
                 .finalize(&to_vanish)
                 .unwrap();
             let dummy_gift_wrap = EventBuilder::new(Kind::GiftWrap, ":)")
-                .tag(Tag::public_key(to_vanish.public_key()))
+                .tag(to_vanish.public_key())
                 .finalize(&helper)
                 .unwrap();
 

@@ -832,7 +832,7 @@ impl Request {
 
         let keys: Keys = Keys::new(uri.secret.clone());
         EventBuilder::new(Kind::WalletConnectRequest, encrypted)
-            .tag(Tag::public_key(uri.public_key))
+            .tag(uri.public_key)
             .tag_maybe(encryption_tag)
             .finalize(&keys)
     }
