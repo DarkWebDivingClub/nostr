@@ -27,11 +27,13 @@
 
 -->
 
-## v0.45.1 - 2026/08/07
+## Unreleased
 
 ### Breaking changes
 
 - Require `CryptoRng` trait for secret key generation (https://github.com/nostrdevkit/nostr/pull/1437)
+
+## v0.45.1 - 2026/08/07
 
 ### Fixed
 
