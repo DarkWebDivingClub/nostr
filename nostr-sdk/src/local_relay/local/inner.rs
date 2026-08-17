@@ -572,6 +572,24 @@ impl InnerLocalRelay {
                     .await;
                 }
 
+                // Reject repost of a protected event
+                if matches!(event.kind, Kind::Repost | Kind::GenericRepost)
+                    && Event::from_json(&event.content).is_ok_and(|e| e.is_protected())
+                {
+                    return send_msg(
+                        ws_tx,
+                        RelayMessage::Ok {
+                            event_id: event.id,
+                            status: false,
+                            message: Cow::Owned(format!(
+                                "{}: repost of a protected event",
+                                MachineReadablePrefix::Blocked
+                            )),
+                        },
+                    )
+                    .await;
+                }
+
                 if event.kind == Kind::GiftWrap {
                     let mut pkeys = event.tags.public_keys();
                     // Ensure exactly one recipient public key: the first
