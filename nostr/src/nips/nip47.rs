@@ -942,8 +942,12 @@ pub struct LookupInvoiceResponse {
     /// Payment hash
     pub payment_hash: String,
     /// Amount in millisatoshis
+    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_null_as_default")]
     pub amount: u64,
     /// Fees paid in millisatoshis
+    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_null_as_default")]
     pub fees_paid: u64,
     /// Creation timestamp in seconds since epoch
     pub created_at: Timestamp,
@@ -1029,6 +1033,8 @@ pub struct MakeHoldInvoiceResponse {
     /// Payment hash
     pub payment_hash: String,
     /// Amount in millisatoshis
+    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_null_as_default")]
     pub amount: u64,
     /// Creation timestamp
     pub created_at: Timestamp,
@@ -1647,8 +1653,12 @@ pub struct PaymentNotification {
     /// Payment hash
     pub payment_hash: String,
     /// Amount in millisatoshis
+    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_null_as_default")]
     pub amount: u64,
     /// Fees paid in millisatoshis
+    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_null_as_default")]
     pub fees_paid: u64,
     /// Creation timestamp in seconds since epoch
     pub created_at: Timestamp,
@@ -1686,6 +1696,8 @@ pub struct HoldInvoiceAcceptedNotification {
     /// Payment hash
     pub payment_hash: String,
     /// Amount in millisatoshis
+    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_null_as_default")]
     pub amount: u64,
     /// Creation timestamp
     pub created_at: Timestamp,
@@ -1696,6 +1708,20 @@ pub struct HoldInvoiceAcceptedNotification {
     /// Optional metadata about the payment
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<Value>,
+}
+
+/// Deserialize a missing or `null` value as the type's default.
+///
+/// `#[serde(default)]` alone covers only an absent key. Some wallet
+/// services send an explicit `null` for a value they have not computed yet
+/// (a fee for an unrouted payment, for example), which would otherwise be
+/// a hard parse failure.
+fn deserialize_null_as_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Default + Deserialize<'de>,
+{
+    Ok(Option::deserialize(deserializer)?.unwrap_or_default())
 }
 
 fn deserialize_empty_string_as_none<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
@@ -1717,6 +1743,27 @@ mod tests {
     use core::str::FromStr;
 
     use super::*;
+
+    /// Some wallet services omit `amount` and send `fees_paid: null` for a
+    /// payment they have not routed yet. Losing the whole response — and
+    /// with it `state`, which is what callers poll for — turns a working
+    /// wallet into one that looks unreachable.
+    #[test]
+    fn test_lookup_invoice_response_tolerates_missing_and_null_amounts() {
+        let json = r#"{
+            "type": "incoming",
+            "state": "settled",
+            "payment_hash": "0a1b2c",
+            "fees_paid": null,
+            "created_at": 1755000000
+        }"#;
+
+        let res: LookupInvoiceResponse = serde_json::from_str(json).unwrap();
+
+        assert_eq!(res.state, Some(TransactionState::Settled));
+        assert_eq!(res.amount, 0);
+        assert_eq!(res.fees_paid, 0);
+    }
 
     const NOTIFICATION_JSON: &str = r#"{
         "notification_type": "payment_received",
