@@ -100,8 +100,10 @@ impl RelayUrl {
     /// Parse relay URL
     #[inline]
     pub fn parse(url: &str) -> Result<Self, Error> {
-        // Check that "://" appears only once in the URL
-        if url.matches("://").count() > 1 {
+        // Check if "://" appears more than once in the URL.
+        // Instead of using "count", we use the "next", to avoid iterating over the entire string.
+        let mut matches = url.matches("://");
+        if let (Some(_), Some(_)) = (matches.next(), matches.next()) {
             return Err(Error::with_static_message(
                 ErrorKind::Invalid,
                 "multiple scheme separators",
@@ -341,6 +343,19 @@ mod tests {
         assert_eq!(
             RelayUrl::parse("wss://").unwrap_err().kind(),
             ErrorKind::Malformed
+        );
+    }
+
+    #[test]
+    fn test_relay_url_with_multiple_separators() {
+        assert_eq!(
+            RelayUrl::parse("wss://test://again").unwrap_err(),
+            Error::with_static_message(ErrorKind::Invalid, "multiple scheme separators")
+        );
+
+        assert_eq!(
+            RelayUrl::parse("wss://test://test://test://").unwrap_err(),
+            Error::with_static_message(ErrorKind::Invalid, "multiple scheme separators")
         );
     }
 
