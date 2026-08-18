@@ -211,7 +211,7 @@ fn make_rumor(
     extra_tags: Vec<Tag>,
 ) -> UnsignedEvent {
     EventBuilder::new(Kind::PrivateDirectMessage, message)
-        .tag(Tag::public_key(receiver))
+        .tag(receiver)
         .tags(extra_tags)
         .finalize_unsigned(sender)
 }

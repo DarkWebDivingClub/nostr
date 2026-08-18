@@ -33,6 +33,10 @@
 
 - Require `CryptoRng` trait for secret key generation (https://github.com/nostrdevkit/nostr/pull/1437)
 
+### Added
+
+- impl `From<PublicKey>` for `Tag` (https://github.com/nostrdevkit/nostr/pull/1446)
+
 ## v0.45.2 - 2026/08/16
 
 ### Fixed

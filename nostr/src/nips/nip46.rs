@@ -27,7 +27,7 @@ use super::nip44::{AsyncNip44, Nip44};
 use super::util::{invalid_uri, unexpected_result, unsupported_method};
 use crate::error::{Error, ErrorKind};
 use crate::event::{
-    AsyncSignEvent, Event, EventBuilder, FinalizeEvent, FinalizeEventAsync, Kind, SignEvent, Tag,
+    AsyncSignEvent, Event, EventBuilder, FinalizeEvent, FinalizeEventAsync, Kind, SignEvent,
     UnsignedEvent,
 };
 use crate::key::{AsyncGetPublicKey, GetPublicKey, PublicKey};
@@ -1088,7 +1088,7 @@ where
 
 #[inline]
 fn make_event_builder(nip44_encrypted_content: String, receiver: PublicKey) -> EventBuilder {
-    EventBuilder::new(Kind::NostrConnect, nip44_encrypted_content).tag(Tag::public_key(receiver))
+    EventBuilder::new(Kind::NostrConnect, nip44_encrypted_content).tag(receiver)
 }
 
 impl FromStr for NostrConnectUri {
