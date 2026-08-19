@@ -44,6 +44,7 @@
   while the lower operation-specific event, query, and authentication limits remain
   unchanged.
 - local_relay: Reject repost of a protected event (https://github.com/nostrdevkit/nostr/pull/1445)
+- local_relay: Check the target difficulty and the PoW (https://github.com/nostrdevkit/nostr/pull/1453)
 
 ## v0.45.1 - 2026/08/07
 

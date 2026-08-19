@@ -540,7 +540,15 @@ impl InnerLocalRelay {
 
                 // Check POW
                 if let Some(difficulty) = self.min_pow {
-                    if !event.id.check_pow(difficulty) {
+                    let target_difficulty = event
+                        .tags
+                        .iter()
+                        .find_map(|t| match Nip13Tag::try_from(t).ok()? {
+                            Nip13Tag::Nonce { difficulty, .. } => Some(difficulty),
+                        })
+                        .unwrap_or_default();
+
+                    if target_difficulty < difficulty || !event.id.check_pow(difficulty) {
                         return send_msg(
                             ws_tx,
                             RelayMessage::Ok {
