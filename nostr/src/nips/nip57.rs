@@ -201,7 +201,7 @@ pub struct ZapRequestData {
     pub lnurl: Option<String>,
     /// Event ID
     pub event_id: Option<EventId>,
-    /// NIP33 event coordinate that allows tipping parameterized replaceable events such as NIP23 long-form notes.
+    /// The coordinate of an addressable event (e.g., NIP-23 long-form note) to tip, if any.
     pub event_coordinate: Option<Coordinate>,
 }
 
@@ -313,7 +313,7 @@ impl ZapRequestData {
         }
     }
 
-    /// NIP33 event coordinate that allows tipping parameterized replaceable events such as NIP23 long-form notes.
+    /// Sets the event coordinate for tipping an addressable event (e.g., NIP-23 long-form notes).
     pub fn event_coordinate(self, event_coordinate: Coordinate) -> Self {
         Self {
             event_coordinate: Some(event_coordinate),

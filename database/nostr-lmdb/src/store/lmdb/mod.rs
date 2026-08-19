@@ -459,7 +459,7 @@ impl Lmdb {
         }
 
         // Reject event if ADDR was deleted after it's created_at date
-        // (non-parameterized or parameterized)
+        // (replaceable or addressable)
         if let Some(coordinate) = event.coordinate() {
             if let Some(time) = self.when_is_coordinate_deleted(txn, &coordinate)? {
                 if event.created_at <= time {
@@ -735,9 +735,8 @@ impl Lmdb {
                             }
                         }
 
-                        // If kind is replaceable (and not parameterized)
-                        // then don't take any more events for this author-kind
-                        // pair.
+                        // If kind is replaceable then don't take any more
+                        // events for this author-kind pair.
                         // NOTE that this optimization is difficult to implement
                         // for other replaceable event situations
                         if Kind::from(*kind).is_replaceable() {
@@ -1075,7 +1074,6 @@ impl Lmdb {
     }
 
     /// Remove all replaceable events with the matching author-kind
-    /// Kind must be a replaceable (not parameterized replaceable) event kind
     pub fn remove_replaceable(
         &self,
         txn: &mut RwTxn,
@@ -1112,8 +1110,7 @@ impl Lmdb {
         Ok(())
     }
 
-    /// Remove all parameterized-replaceable events with the matching author-kind-d
-    /// Kind must be a parameterized-replaceable event kind
+    /// Remove all addressable events with the matching author-kind-d
     pub fn remove_addressable(
         &self,
         txn: &mut RwTxn,

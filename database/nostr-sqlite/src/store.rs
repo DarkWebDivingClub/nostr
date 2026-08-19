@@ -210,7 +210,7 @@ impl NostrSqlite {
         }
 
         // Reject event if ADDR was deleted after it's created_at date
-        // (non-parameterized or parameterized)
+        // (replaceable or addressable)
         if let Some(coordinate) = event.coordinate() {
             let timestamp: Option<Timestamp> = Self::when_is_coordinate_deleted(&tx, &coordinate)?;
 
@@ -472,7 +472,6 @@ impl NostrSqlite {
     }
 
     /// Remove all replaceable events with the matching author-kind
-    /// Kind must be a replaceable (not parameterized replaceable) event kind
     fn remove_replaceable(
         tx: &Transaction<'_>,
         coordinate: &Coordinate,
@@ -490,8 +489,7 @@ impl NostrSqlite {
         Ok(())
     }
 
-    /// Remove all parameterized-replaceable events with the matching author-kind-identifier
-    /// Kind must be a parameterized-replaceable (addressable) event kind
+    /// Remove all addressable events with the matching author-kind-identifier
     fn remove_addressable(
         tx: &Transaction<'_>,
         coordinate: &Coordinate,

@@ -194,7 +194,7 @@ impl MemoryStore {
         }
 
         // Reject event if ADDR was deleted after it's created_at date
-        // (non-parameterized or parameterized)
+        // (replaceable or addressable)
         if let Some(coordinate) = event.coordinate() {
             if let Some(time) = self.deleted_coordinates.get(&coordinate) {
                 if &event.created_at <= time {
