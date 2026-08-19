@@ -27,6 +27,12 @@
 
 -->
 
+## v0.45.2 - 2026/08/19
+
+### Fixed
+
+- Move `negentropy_items` query to `spawn_blocking`
+
 ## v0.45.1 - 2026/08/07
 
 ### Fixed
