@@ -40,6 +40,12 @@
   `GiftWrapBuilder::extra_tags`, `PrivateDirectMessageBuilder::extra_tags`
   and `PrivateDirectMessageBuilder::rumor_extra_tags` (https://github.com/nostrdevkit/nostr/pull/1447)
 
+### Security
+
+- Enforce max length for relay URLs in `RelayUrl::parse` (https://github.com/nostrdevkit/nostr/pull/1451)
+
+## v0.45.3 - 2026/08/19
+
 ### Fixed
 
 - Tolerate missing and null amounts in NIP-47 responses (https://github.com/nostrdevkit/nostr/pull/1450)
@@ -47,10 +53,6 @@
 ### Performance
 
 - Optimize `RelayUrl` parsing (https://github.com/nostrdevkit/nostr/pull/1451)
-
-### Security
-
-- Enforce max length for relay URLs in `RelayUrl::parse` (https://github.com/nostrdevkit/nostr/pull/1451)
 
 ## v0.45.2 - 2026/08/16
 
