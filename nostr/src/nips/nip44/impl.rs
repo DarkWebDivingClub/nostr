@@ -65,6 +65,14 @@ fn allocation_failed() -> Error {
     Error::with_static_message(ErrorKind::Other, "failed to allocate NIP-44 payload buffer")
 }
 
+fn supported_allocation_size(len: usize) -> Result<usize, Error> {
+    if len > isize::MAX as usize {
+        return Err(unsupported_platform_size());
+    }
+
+    Ok(len)
+}
+
 fn decode_payload_version(payload: &[u8]) -> Result<Version, Error> {
     // Decode one Base64 quantum so the version-specific limit runs before full allocation.
     let encoded_prefix = payload.get(..4).unwrap_or(payload);
@@ -155,11 +163,9 @@ where
     T: AsRef<[u8]>,
 {
     let payload: Vec<u8> = encrypt_to_bytes_with_nonce(secret_key, public_key, content, nonce)?;
-    let encoded_len: usize =
-        base64::encoded_len(payload.len(), true).ok_or_else(unsupported_platform_size)?;
-    if encoded_len > isize::MAX as usize {
-        return Err(unsupported_platform_size());
-    }
+    let encoded_len: usize = base64::encoded_len(payload.len(), true)
+        .ok_or_else(unsupported_platform_size)
+        .and_then(supported_allocation_size)?;
 
     let mut encoded: String = String::new();
     encoded
@@ -228,10 +234,8 @@ where
     version.validate_encoded_payload_size(payload.len() as u64)?;
 
     // Decode base64 payload
-    let decoded_len: usize = base64::decoded_len_estimate(payload.len());
-    if decoded_len > isize::MAX as usize {
-        return Err(unsupported_platform_size());
-    }
+    let decoded_len: usize =
+        supported_allocation_size(base64::decoded_len_estimate(payload.len()))?;
     let mut decoded: Vec<u8> = Vec::new();
     decoded
         .try_reserve_exact(decoded_len)
@@ -289,5 +293,19 @@ mod tests {
             .unwrap_err();
         assert_eq!(err.kind(), ErrorKind::Invalid);
         assert_eq!(err.to_string(), "message too long");
+    }
+
+    #[test]
+    fn test_allocation_errors() {
+        let err = supported_allocation_size(usize::MAX).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::Unsupported);
+        assert_eq!(
+            err.to_string(),
+            "NIP-44 payload size is not supported on this platform"
+        );
+
+        let err = allocation_failed();
+        assert_eq!(err.kind(), ErrorKind::Other);
+        assert_eq!(err.to_string(), "failed to allocate NIP-44 payload buffer");
     }
 }

@@ -836,6 +836,17 @@ mod tests {
             Err(ErrorV2::MessageTooLong)
         ));
 
+        let err: Error = supported_allocation_size(u64::MAX).unwrap_err().into();
+        assert_eq!(err.kind(), ErrorKind::Unsupported);
+        assert_eq!(
+            err.to_string(),
+            "NIP-44 payload size is not supported on this platform"
+        );
+
+        let err: Error = ErrorV2::AllocationFailed.into();
+        assert_eq!(err.kind(), ErrorKind::Other);
+        assert_eq!(err.to_string(), "failed to allocate NIP-44 payload buffer");
+
         #[cfg(target_pointer_width = "64")]
         assert_eq!(
             supported_allocation_size(MAX_PAYLOAD_SIZE).unwrap(),
