@@ -36,6 +36,7 @@
 ### Added
 
 - Impl `From<PublicKey>` for `Tag` (https://github.com/nostrdevkit/nostr/pull/1446)
+- Support NIP-44 v2 payloads up to 2^32 - 1 plaintext bytes
 - Take an `Into<Tag>` iterator instead of `Tag` iterator in
   `GiftWrapBuilder::extra_tags`, `PrivateDirectMessageBuilder::extra_tags`
   and `PrivateDirectMessageBuilder::rumor_extra_tags` (https://github.com/nostrdevkit/nostr/pull/1447)
