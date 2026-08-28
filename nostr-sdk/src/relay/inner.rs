@@ -873,6 +873,21 @@ impl InnerRelay {
         #[cfg(target_arch = "wasm32")]
         let _ping = ping;
 
+        // Periodic flush interval.
+        //
+        // tungstenite's read side queues Pong frames internally when it
+        // receives a Ping, but they are only written when the write side
+        // performs a send or flush. In a split-stream architecture (read
+        // and write on separate tasks) the Pong can sit in the queue
+        // indefinitely when there is no outgoing Nostr traffic. This
+        // timer ensures the write side flushes at least every 5 seconds,
+        // draining any pending Pong frames so that the remote relay does
+        // not time out the connection.
+        #[cfg(not(target_arch = "wasm32"))]
+        let mut flush_interval = tokio::time::interval(std::time::Duration::from_secs(5));
+        #[cfg(not(target_arch = "wasm32"))]
+        flush_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
         loop {
             tokio::select! {
                 // Nostr channel receiver
@@ -926,6 +941,19 @@ impl InnerRelay {
 
                         #[cfg(debug_assertions)]
                         tracing::debug!(url = %self.url, nonce = %nonce, "Ping sent.");
+                    }
+                }
+                // Periodic flush to drain pending Pong frames queued by
+                // tungstenite's read side (see comment above).
+                _ = async {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    { flush_interval.tick().await; }
+                    #[cfg(target_arch = "wasm32")]
+                    { futures::future::pending::<()>().await; }
+                } => {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        ws_tx.flush().await?;
                     }
                 }
                 else => break
